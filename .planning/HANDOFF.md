@@ -5,7 +5,7 @@
 > `STATE.md` / `ROADMAP.md`; this file captures what is ACTUALLY happening right now.
 > **Read this (plus `ACTIVE_WORK.md` and `CURRENT_PHASE.md`) before any work. Update it when you stop.**
 
-_Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination layer + naming + branch pushed to origin + temporary-Vercel decision)_
+_Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination layer + naming + branch pushed to origin + temporary-Vercel decision + frontend UI-realism pass)_
 
 ## Snapshot
 
@@ -15,6 +15,13 @@ _Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination
   Backend (FastAPI scaffold, config, db, `/health`, Celery, Alembic) + frontend (the
   `xprediction-demo` UI integrated as the real visual base) + infra (`docker-compose`) + tooling.
   All green. Full detail: `docs/PHASE-1-FOUNDATION.md`.
+  - **2026-05-25 — frontend UI-realism pass (local commit `97fd984`, NOT pushed):** pre-launch
+    product-integrity sweep on the landing. Removed invented metrics ($48M volume, 124k traders,
+    per-market volume/traders, leaderboard accuracy/resolved/streak), neutralized named gov data
+    feeds (Caltrans PeMS / NOAA / CAISO → generic signal types), and reframed simulated "live" data
+    as honest "Preview / Sample / Concept". Visual design + layout unchanged; `next build` green
+    (types + lint); verified desktop + mobile. 9 files in `frontend/src/`, all driven from
+    `src/lib/mock-data.ts`. Lands inside the Phase 1 PR when opened.
 - **Phase 2 — Auth & Identity:** 🟡 **IN PROGRESS by a collaborator, in parallel** (separate
   branch). **Do NOT start or touch Phase 2 from other sessions.** See `ACTIVE_WORK.md`.
 - **Phases 3–11:** not started. See `ROADMAP.md`.
