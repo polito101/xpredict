@@ -23,7 +23,11 @@ Needed only once product **Phase 1** starts scaffolding code (NOT required to cl
    claude
    ```
 
-2. **Connect the GitHub MCP (OAuth).** The repo ships a versioned `.mcp.json` that pins the official GitHub MCP. On first open, Claude Code prompts you to enable the `github` server — approve it and complete the OAuth login in your browser. No tokens, no `.env` entries. Verify with `/mcp` (or `claude mcp list`): `github` should show **connected**.
+2. **Set your GitHub token for the MCP.** The repo ships a versioned `.mcp.json` pinning the official GitHub MCP. It authenticates via a **Personal Access Token** read from the `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable — GitHub's OAuth flow is **not usable here** (its auth server doesn't support MCP dynamic client registration, RFC 7591). One time:
+   - Create a PAT at https://github.com/settings/tokens — classic with `repo` scope, or fine-grained with `contents:write` + `pull_requests:write`.
+   - Set it as a **user environment variable** (persists for new terminals): `setx GITHUB_PERSONAL_ACCESS_TOKEN "ghp_your_token"` (then open a new terminal) — **or** add it under `"env"` in `~/.claude/settings.local.json`. It does **not** go in the repo's `.env.local`.
+
+   The committed `.mcp.json` only references the variable, so **no token is ever stored in the repo**. When Claude Code prompts to enable the `github` server, approve it; verify with `/mcp` (shows `github` connected and the `create_pull_request` tool). Note: `claude mcp get github` from a plain terminal may report "Failed to connect" because that CLI health-check does not expand env vars — the in-session MCP client does.
 
 3. **(Optional) Linear.** Issue tracking is optional and tolerant — you can work fully without it. To enable it, create `.env.local` with just your personal key:
    ```powershell
