@@ -7,6 +7,30 @@ White-label, production-grade prediction market platform, built phase by phase v
 - **PM / Tech Lead:** Pol Bonet — creates roadmap, approves/merges PRs
 - **Devs / agents:** Cuco (+ others) — own the full GSD flow per assigned phase
 
+## Multi-operator protocol (READ BEFORE ANY WORK)
+
+XPredict is operated by multiple people and Claude sessions (Pol, collaborators, agents).
+Treat it as **one coherent shared system, not isolated sessions.** This is a coordination
+layer **on top of** GSD — it does not replace it.
+
+**Before doing ANY work:**
+1. Read `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/CURRENT_PHASE.md`,
+   `.planning/ACTIVE_WORK.md`, `.planning/HANDOFF.md`, and this `CLAUDE.md`.
+2. Inspect git: `git status`, branches (`git branch -a`), recent commits
+   (`git log --oneline -15`), and unmerged work (`git branch --no-merged main`).
+3. Detect in-progress tasks, possible overlaps, active phases, and current ownership.
+4. **If your intended work risks duplicating or colliding with claimed/in-progress work →
+   STOP and report the conflict before implementing.** Do not proceed on a hunch.
+
+**When you finish or pause ANY task:**
+- Update `.planning/ACTIVE_WORK.md` (your row: status + date).
+- Update `.planning/HANDOFF.md` (exact state, next steps, what NOT to touch).
+- Leave the working tree clean with semantic commits.
+
+**Source-of-truth split:** `STATE.md` + `ROADMAP.md` = formal GSD phase truth.
+`CURRENT_PHASE.md` / `ACTIVE_WORK.md` / `HANDOFF.md` = live operational coordination.
+If they disagree, reconcile explicitly (note it in `HANDOFF.md`) — never silently.
+
 ## Recommended mode
 Use `/gsd-autonomous` by default — handles the full flow solo.
 Switch to individual commands only if you need step-by-step control.
