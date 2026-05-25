@@ -5,12 +5,13 @@
 > `STATE.md` / `ROADMAP.md`; this file captures what is ACTUALLY happening right now.
 > **Read this (plus `ACTIVE_WORK.md` and `CURRENT_PHASE.md`) before any work. Update it when you stop.**
 
-_Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination layer + official naming locked = XPrediction)_
+_Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination layer + naming + branch pushed to origin + temporary-Vercel decision)_
 
 ## Snapshot
 
-- **Phase 1 — Project Scaffold, Infra & Cross-Cutting Foundations:** ✅ **DONE (local).**
-  Branch `gsd/phase-1-foundation`, 6 commits off `main` `c74bf0f`, **not pushed / not merged.**
+- **Phase 1 — Project Scaffold, Infra & Cross-Cutting Foundations:** ✅ **DONE.**
+  Branch `gsd/phase-1-foundation`, **pushed to `origin`** (off `main` `c74bf0f`), **not merged yet**
+  (PR pending — needs a repo-rooted session for the GitHub MCP).
   Backend (FastAPI scaffold, config, db, `/health`, Celery, Alembic) + frontend (the
   `xprediction-demo` UI integrated as the real visual base) + infra (`docker-compose`) + tooling.
   All green. Full detail: `docs/PHASE-1-FOUNDATION.md`.

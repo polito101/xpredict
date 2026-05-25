@@ -10,7 +10,7 @@ _Last updated: 2026-05-25_
 
 | Phase / task | Owner | Branch | Status | Updated | Notes |
 |---|---|---|---|---|---|
-| Phase 1 — Foundation & scaffold | Pol + Claude | `gsd/phase-1-foundation` | ✅ Done (local, unpushed) | 2026-05-25 | Backend + frontend + infra. Pending: PLAN/VERIFICATION + PR to merge. See `HANDOFF.md`. |
+| Phase 1 — Foundation & scaffold | Pol + Claude | `gsd/phase-1-foundation` | ✅ Done · pushed to origin | 2026-05-25 | Backend + frontend + infra. Pending: PLAN/VERIFICATION + PR to merge (repo-rooted session). See `HANDOFF.md`. |
 | Phase 2 — Auth & Identity | Collaborator (parallel) | _owner: fill in_ | 🟡 In progress | 2026-05-25 | Built in parallel. Other sessions: **do NOT touch.** Owner: please fill branch + details. |
 
 ## Free / unclaimed

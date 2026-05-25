@@ -83,15 +83,19 @@ loses visibility of the real state. **GitHub and Vercel are part of the operatio
   `create_pull_request` (needs a repo-rooted session — see Environment).
 - **GitHub:** `main` is PROTECTED. No direct commits to `main`. Merge only via PR. Only Pol merges.
 - **Vercel:** preview deploy automatically for branches/PRs; production deploy only from `main`.
-  Use XPrediction's OWN Vercel project — never the PMS / PT / Chiribito workspaces.
+  **Final target:** XPrediction's OWN Vercel project. **Temporary now (operational only):** a
+  SEPARATE project inside Chiribito's existing Vercel team to speed up previews while Phase 2 and
+  the multi-operator system stabilize — see `docs/DEPLOY.md`. Never reuse Chiribito's project,
+  domains, env, or assets; this co-location is temporary and must be separated before launch.
 - **Before ANY push (checklist):** (1) `git status` clean · (2) correct branch · (3) no secrets
   or `.env` tracked (only `*.env.example` + `.claude/linear.shared.env` are committed) ·
   (4) no partially-broken work (build / lint / tests green).
 - **After every merge:** update `HANDOFF.md`, `ACTIVE_WORK.md`, and `CURRENT_PHASE.md`.
 
-> **Current wiring (2026-05-25):** the GitHub remote exists (`polito101/xpredict`); **Vercel is
-> NOT yet connected** for XPrediction (the throwaway `xprediction-demo` lives in a separate Vercel
-> project — do not reuse it). Wiring Vercel and the first push/PR of Phase 1 are pending owner go-ahead.
+> **Current wiring (2026-05-25):** GitHub remote `polito101/xpredict` — branch `gsd/phase-1-foundation`
+> **pushed**. Vercel: decision to **temporarily** co-locate XPrediction in Chiribito's Vercel team as a
+> SEPARATE project (operational, not final) — plan in `docs/DEPLOY.md`, **not yet executed**. First PR
+> of Phase 1 still pending (needs a repo-rooted session for the GitHub MCP).
 
 ## Linear (optional + tolerant)
 - 1 issue per phase — created automatically when `PLAN.md` is first written (if configured).
