@@ -5,9 +5,6 @@
 # ...except the shared, non-secret Linear IDs (team + workflow states)
 !.claude/linear.shared.env
 
-# Linear issue-id markers (per-phase, local)
-.planning/phases/*/.linear-issue-id
-
 # Dependencies / build output (preventive — product scaffold lands in Phase 1)
 node_modules/
 .next/
