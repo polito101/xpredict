@@ -1,0 +1,86 @@
+name: xpredict
+
+# Local backend stack. The frontend runs via `npm run dev` (better HMR) — see README.
+# Celery on Windows is unreliable natively, so worker/beat live here in containers.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-xpredict}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-xpredict}
+      POSTGRES_DB: ${POSTGRES_DB:-xpredict}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-xpredict}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-xpredict}:${POSTGRES_PASSWORD:-xpredict}@db:5432/${POSTGRES_DB:-xpredict}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/.venv  # anonymous volume keeps the container's Linux venv over the bind mount
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: celery -A app.celery_app.celery_app worker -l info
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-xpredict}:${POSTGRES_PASSWORD:-xpredict}@db:5432/${POSTGRES_DB:-xpredict}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build: ./backend
+    command: celery -A app.celery_app.celery_app beat -l info
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
