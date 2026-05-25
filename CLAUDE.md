@@ -33,9 +33,10 @@ or require shared state from the previous step.
 
 ## PRs
 - 1 PR per phase
-- AI agent checks whether the PR meets PLAN.md objectives
+- Before opening the PR, the dev asks Claude (in their session) to compare PLAN.md vs what was implemented and produce the PR body. Typical prompt: *"compara PLAN.md de la fase X con lo implementado y dame el body del PR (qué tasks se completaron, qué quedó fuera, observaciones)"*
+- The dev passes that to `gh pr create --body-file <file>` (or pastes into the PR description)
 - PM is the only one who approves/merges
-- A PR without a corresponding PLAN.md will be blocked automatically
+- A PR without a corresponding PLAN.md will be blocked automatically (check-phase-ready hook)
 
 ## Linear
 - 1 issue per phase — created automatically when you write PLAN.md
@@ -45,8 +46,7 @@ or require shared state from the previous step.
 Convention: `[FASE-XX] Phase name`
 
 ## Slack
-- Channel `#prs` — AI summary posted when your PR is ready
-- Channel `#general` — merge notifications via GitHub↔Slack integration
+- Channel `#general` — PR + merge notifications via GitHub↔Slack native integration (no AI in the loop)
 
 ## Environment
 Copy `.env.example` to `.env.local` and fill in all values before starting.

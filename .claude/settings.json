@@ -17,10 +17,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NonInteractive -File .claude/hooks/notify-slack-pr.ps1"
-          },
-          {
-            "type": "command",
             "command": "powershell -NonInteractive -File .claude/hooks/linear-to-review.ps1"
           }
         ]
