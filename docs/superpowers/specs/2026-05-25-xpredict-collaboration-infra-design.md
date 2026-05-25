@@ -24,7 +24,7 @@ The pre-implementation audit surfaced gaps the design below closes:
 Anyone with repo access can, with no tribal knowledge:
 1. Clone the repo.
 2. Open Claude Code.
-3. Connect the required MCP (GitHub) via a versioned prompt + OAuth — no token files.
+3. Connect the required MCP (GitHub) via a versioned `.mcp.json` + a per-dev PAT supplied through the `GITHUB_PERSONAL_ACCESS_TOKEN` env var — no token files in the repo.
 4. Run GSD workflows with the correct (hyphenated) commands.
 5. Work on an isolated per-phase branch.
 6. Open a PR through the standard path that triggers the phase-ready gate and Linear automation.
@@ -42,7 +42,7 @@ Anyone with repo access can, with no tribal knowledge:
 
 | # | Decision | Choice |
 |---|----------|--------|
-| D1 | GitHub MCP standard | **Official remote MCP over OAuth, pinned in versioned `.mcp.json`** (key `github`, `https://api.githubcopilot.com/mcp/`). No PAT files. |
+| D1 | GitHub MCP standard | **Official remote MCP, pinned in versioned `.mcp.json`** (key `github`, `https://api.githubcopilot.com/mcp/`), authenticated via the `Authorization: Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}` header injected from a per-dev env var. OAuth was the original preference but the GitHub remote MCP server doesn't implement MCP dynamic client registration, so Claude Code's OAuth flow can't complete against it — PAT-via-env is the supported path today. The token never lands in the repo. |
 | D2 | PR mechanism | **Only** via the GitHub MCP `create_pull_request` tool (so hooks fire). `gh pr create` is not the supported path. |
 | D3 | Branching | **Per-phase** (`branching_strategy: "phase"`, template `gsd/phase-{phase}-{slug}`). 1 PR per phase. |
 | D4 | Linear | **Optional + tolerant.** Non-secret IDs versioned; only the personal API key is per-dev; hooks skip cleanly when absent. |
@@ -65,12 +65,19 @@ Anyone with repo access can, with no tribal knowledge:
     "mcpServers": {
       "github": {
         "type": "http",
-        "url": "https://api.githubcopilot.com/mcp/"
+        "url": "https://api.githubcopilot.com/mcp/",
+        "requestInit": {
+          "headers": {
+            "Authorization": "Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}"
+          }
+        }
       }
     }
   }
   ```
-- On clone + open, Claude Code prompts to enable the project MCP; the dev approves and authenticates via OAuth.
+- Authentication: a per-dev GitHub PAT (classic or fine-grained with `repo` scope) is provided through the `GITHUB_PERSONAL_ACCESS_TOKEN` env var — set machine-wide with `setx` (Windows) / shell profile (macOS/Linux), or per-Claude-Code via the `env` field in `~/.claude/settings.local.json`. The token never lands in the repo; `.mcp.json` only references the variable, and Claude Code expands it before sending the `Authorization` header.
+- Why not OAuth: the GitHub remote MCP server doesn't implement MCP dynamic client registration, so Claude Code's OAuth flow can't complete against it. PAT header injection is the supported path today; revisit if/when DCR is added upstream.
+- On clone + open, Claude Code prompts to enable the project MCP; the dev approves, and from then on the configured `Authorization` header is sent on every request.
 - Server key `github` ⇒ tools namespaced `mcp__github__*` ⇒ the existing hook matchers (`mcp__github__create_pull_request`) match with **no matcher change**.
 - **Implementation check:** confirm the remote server's PR-creation tool is exactly `create_pull_request` before relying on it; if the name differs, align the hook matchers in `.claude/settings.json` to the real name.
 
@@ -102,7 +109,7 @@ Keep `mode: "yolo"` for high in-phase autonomy, documented explicitly so it can 
 ### 6. Onboarding documentation (rewrite to match reality)
 - **`README-SETUP.md`** rewritten:
   - Prereqs: Node + Git + Claude Code (present). Python 3.12 + `uv`/`poetry` + Docker are needed only **when executing product Phase 1**, not for planning — stated explicitly.
-  - Setup: clone → open Claude Code → approve the prompted `github` MCP → OAuth login.
+  - Setup: clone → set the `GITHUB_PERSONAL_ACCESS_TOKEN` env var (via `setx`, shell profile, or `~/.claude/settings.local.json` `env`) → open Claude Code → approve the prompted `github` MCP. From then on the PAT is sent automatically as the `Authorization` header.
   - GSD commands are **hyphenated**: `/gsd-autonomous`, `/gsd-discuss-phase`, `/gsd-plan-phase`, `/gsd-execute-phase`, `/gsd-verify-work`, `/gsd-code-review`, `/gsd-ship`, `/gsd-spike`.
   - `.env.local`: only `LINEAR_API_KEY` (optional); shared IDs are already committed.
   - Branching: per-phase branches are created automatically; one PR per phase.
@@ -117,7 +124,7 @@ Add common entries so the first product scaffold cannot stage junk: `node_module
 
 ## Verification (must pass before declaring done)
 
-1. `.mcp.json` parses; opening Claude Code in the repo prompts for the `github` MCP; after OAuth, `claude mcp list` shows it connected; the PR-creation tool name is confirmed (`create_pull_request`) and matches the hook matchers.
+1. `.mcp.json` parses and the `github` server references `${GITHUB_PERSONAL_ACCESS_TOKEN}` (no literal token in the file). With the env var set, opening Claude Code in the repo prompts for the `github` MCP; after approval, `claude mcp list` shows it connected and authenticated, and the PR-creation tool name is confirmed (`create_pull_request`) and matches the hook matchers. With the env var unset, the failure mode is a clear auth error from GitHub — not a silent misroute.
 2. `check-phase-ready.ps1` blocks a simulated `create_pull_request` when the active phase has no `PLAN.md`/`VERIFICATION.md`, and passes when both exist.
 3. The Linear hooks, run with **no** `LINEAR_API_KEY`, exit 0 with a clean skip message (no thrown error); run **with** the shared IDs + a key, they target the correct team/states.
 4. `branching_strategy` reads `"phase"`; the phase branch template is intact.
