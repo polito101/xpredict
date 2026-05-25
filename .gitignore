@@ -14,6 +14,9 @@ node_modules/
 dist/
 build/
 __pycache__/
+
+# Vercel local project link (created by `vercel link`) — never commit
+.vercel/
 .venv/
 *.log
 .DS_Store

@@ -5,6 +5,19 @@
 
 ## Frontend (Vercel)
 
+### Branch → environment workflow (the continuous model)
+
+| Trigger | Vercel environment | URL |
+|---|---|---|
+| Push to a **feature/phase branch** (`gsd/*`, `chore/*`, `fix/*`) | **Preview** (per-branch / per-commit) | auto-generated `*.vercel.app` |
+| Open / update a **PR** | **Preview** (surfaced on the PR) | auto-generated `*.vercel.app` |
+| Merge to **`main`** (PR-only; Pol merges) | **Production** | the project's production domain |
+
+**Hard rule:** feature/phase branches deploy to **Preview only — never Production**. Production is
+reached **exclusively** by merging to `main` via PR. Never run `vercel --prod` from a feature branch.
+This is Vercel's default once the repo is Git-connected (see Runbook); it is also enforced socially by
+the PR-only, Pol-merges-only `main`.
+
 ### Decision (2026-05-25) — TEMPORARY co-location in Chiribito's Vercel team
 
 To move fast on previews/deploys while Phase 2 and the multi-operator system stabilize,
@@ -23,17 +36,27 @@ separated before any real launch.**
 - Log in with the **Chiribito Vercel identity** before any Vercel action (team isolation rule).
 - `.vercel/` (local project link) stays gitignored — never commit it.
 
-### Wiring plan (NOT yet executed — owner runs it)
+### Runbook — connect the project (one-time, owner) — NOT yet executed
 
-The repo is a **monorepo**; Vercel deploys only the **frontend**:
-1. In the Chiribito Vercel team, **create a new project** (e.g. `xprediction`) linked to GitHub
-   repo `polito101/xpredict`.
-2. **Root Directory = `frontend/`** (Next.js auto-detected). Build `next build`, default output.
-3. Env var `NEXT_PUBLIC_API_URL`: the backend isn't deployed yet and the UI runs on mock data, so
-   this can stay a placeholder for now.
-4. **Preview deploys** on every branch/PR (automatic once the repo is connected);
-   **production** only from `main` (gets the frontend after Phase 1 merges).
-5. Verify the first preview renders the dark-premium home and does NOT touch Chiribito.
+The repo is a **monorepo**; Vercel deploys only the **`frontend/`** subdir. The logged-in Vercel
+identity must be the Chiribito team (`chiribito293-7173`) — the team that temporarily hosts this.
+
+**Recommended path — Dashboard (this is what gives automatic Preview deploys on every push):**
+1. Vercel → Chiribito team → **Add New… → Project** → import GitHub repo `polito101/xpredict`
+   (if the repo isn't listed, authorize the Vercel GitHub app for it first).
+2. **Project name:** `xprediction`. **Root Directory:** `frontend`. Framework: Next.js (auto-detected).
+   Build `next build`, default output. **Do NOT** point it at the repo root or at `xprediction-demo`.
+3. **Env vars:** add only XPrediction's own — none required yet (`NEXT_PUBLIC_API_URL` can stay
+   unset/placeholder while the UI runs on mock data). **Never** import Chiribito's env or secrets.
+4. Deploy. Vercel then auto-builds per the table above: **every branch/PR → Preview**,
+   **`main` → Production** (Production gets the frontend once the Phase 1 PR merges).
+5. Verify the first Preview renders the dark-premium home **and that Chiribito's projects are untouched**.
+
+**Alternative — CLI (manual one-off preview; does NOT by itself set up auto-previews):**
+From `frontend/`: `vercel link` (scope = Chiribito team, project = `xprediction`, root = current dir),
+then `vercel deploy` for a Preview (`vercel deploy --prod` **only** ever from `main`). To get push →
+auto-deploy, run `vercel git connect` (links the GitHub repo — same effect as the dashboard import).
+`.vercel/` is gitignored — never commit it.
 
 ### Exit plan — what must be separated later
 
