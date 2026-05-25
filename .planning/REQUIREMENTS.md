@@ -175,16 +175,104 @@ Explicitly excluded. Documented to prevent scope creep and to inform sales conve
 
 ## Traceability
 
-Empty initially. Populated by the gsd-roadmapper agent during ROADMAP.md creation.
+Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Pending |
+| AUTH-05 | Phase 2 | Pending |
+| AUTH-06 | Phase 2 | Pending |
+| AUTH-07 | Phase 2 | Pending |
+| AUTH-08 | Phase 2 | Pending |
+| AUTH-09 | Phase 2 | Pending |
+| WAL-01 | Phase 3 | Pending |
+| WAL-02 | Phase 5 | Pending |
+| WAL-03 | Phase 3 | Pending |
+| WAL-04 | Phase 3 | Pending |
+| WAL-05 | Phase 1 | Pending |
+| WAL-06 | Phase 3 | Pending |
+| WAL-07 | Phase 3 | Pending |
+| WAL-08 | Phase 3 | Pending |
+| WAL-09 | Phase 3 | Pending |
+| MKT-01 | Phase 6 | Pending |
+| MKT-02 | Phase 6 | Pending |
+| MKT-03 | Phase 9 | Pending |
+| MKT-04 | Phase 9 | Pending |
+| MKT-05 | Phase 6 | Pending |
+| MKT-06 | Phase 6 | Pending |
+| MKT-07 | Phase 4 | Pending |
+| MKT-08 | Phase 4 | Pending |
+| BET-01 | Phase 5 | Pending |
+| BET-02 | Phase 5 | Pending |
+| BET-03 | Phase 5 | Pending |
+| BET-04 | Phase 5 | Pending |
+| BET-05 | Phase 5 | Pending |
+| BET-06 | Phase 5 | Pending |
+| BET-07 | Phase 5 | Pending |
+| STL-01 | Phase 7 | Pending |
+| STL-02 | Phase 5 | Pending |
+| STL-03 | Phase 5 | Pending |
+| STL-04 | Phase 5 | Pending |
+| STL-05 | Phase 5 | Pending |
+| STL-06 | Phase 5 | Pending |
+| STL-07 | Phase 5 | Pending |
+| ADU-01 | Phase 8 | Pending |
+| ADU-02 | Phase 8 | Pending |
+| ADU-03 | Phase 5 | Pending |
+| ADU-04 | Phase 8 | Pending |
+| ADU-05 | Phase 8 | Pending |
+| ADU-06 | Phase 8 | Pending |
+| ADM-01 | Phase 4 | Pending |
+| ADM-02 | Phase 4 | Pending |
+| ADM-03 | Phase 4 | Pending |
+| ADM-04 | Phase 4 | Pending |
+| ADM-05 | Phase 5 | Pending |
+| ADM-06 | Phase 7 | Pending |
+| ADM-07 | Phase 4 | Pending |
+| ADD-01 | Phase 10 | Pending |
+| ADD-02 | Phase 10 | Pending |
+| ADD-03 | Phase 10 | Pending |
+| ADD-04 | Phase 8 | Pending |
+| ADD-05 | Phase 10 | Pending |
+| ADD-06 | Phase 10 | Pending |
+| PLT-01 | Phase 1 | Pending |
+| PLT-02 | Phase 1 | Pending |
+| PLT-03 | Phase 1 | Pending |
+| PLT-04 | Phase 1 | Pending |
+| PLT-05 | Phase 3 | Pending |
+| PLT-06 | Phase 1 | Pending |
+| PLT-07 | Phase 11 | Pending |
+| PLT-08 | Phase 1 | Pending |
+| PLT-09 | Phase 3 | Pending |
+| PLT-10 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 69 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 69 ⚠️ (will be 0 after roadmap)
+- Mapped to phases: 69 (100%)
+- Unmapped: 0
+- Duplicates: 0
+
+**Per-phase requirement counts:**
+
+| Phase | Count | Requirements |
+|-------|-------|--------------|
+| 1 — Project Scaffold, Infra & Cross-Cutting Foundations | 8 | PLT-01, PLT-02, PLT-03, PLT-04, PLT-06, PLT-08, PLT-10, WAL-05 |
+| 2 — Auth & Identity | 9 | AUTH-01..09 |
+| 3 — Wallet & Double-Entry Ledger | 9 | WAL-01, WAL-03, WAL-04, WAL-06, WAL-07, WAL-08, WAL-09, PLT-05, PLT-09 |
+| 4 — Markets Domain & HouseAdapter | 7 | MKT-07, MKT-08, ADM-01, ADM-02, ADM-03, ADM-04, ADM-07 |
+| 5 — Bets, Settlement & First End-to-End Demo (House Markets Only) | 16 | BET-01..07, STL-02..07, ADM-05, WAL-02, ADU-03 |
+| 6 — Polymarket Sync | 4 | MKT-01, MKT-02, MKT-05, MKT-06 |
+| 7 — Polymarket Auto-Resolution & Admin Override | 2 | STL-01, ADM-06 |
+| 8 — Admin CRM (User Management & Audit Log Viewer) | 6 | ADU-01, ADU-02, ADU-04, ADU-05, ADU-06, ADD-04 |
+| 9 — User App UX Polish (Market Detail & Real-Time) | 2 | MKT-03, MKT-04 |
+| 10 — Admin KPI Dashboard & Configurable Branding | 5 | ADD-01, ADD-02, ADD-03, ADD-05, ADD-06 |
+| 11 — Hardening & Operator-Demo Gate | 1 | PLT-07 |
+| **Total** | **69** | |
 
 ---
 *Requirements defined: 2026-05-25*
-*Last updated: 2026-05-25 after initialization*
+*Traceability populated: 2026-05-25 by gsd-roadmapper (11 phases, fine granularity, Vertical MVP mode)*
+*Last updated: 2026-05-25 after roadmap creation*
