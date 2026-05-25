@@ -71,6 +71,28 @@ Reserve inline execution for strictly-sequential or shared-state steps.
 - Before opening, ask Claude to compare `PLAN.md` vs. what was implemented and produce the PR body.
 - Only the PM approves/merges. A PR without a matching `PLAN.md` is blocked automatically.
 
+## Operational workflow — GitHub & Vercel (official)
+
+XPrediction operates as a **continuous system**: no work stays only local, and no operator
+loses visibility of the real state. **GitHub and Vercel are part of the operational source of truth.**
+
+- **Every piece of work:** semantic commits · coherent branch · working tree clean · pushed to
+  the correct remote (`origin` = github.com/polito101/xpredict). Never leave work only local.
+- **Every active branch → a clear PR:** technical summary + updated `HANDOFF.md` +
+  updated `ACTIVE_WORK.md` (and `CURRENT_PHASE.md`). PRs open via the GitHub MCP
+  `create_pull_request` (needs a repo-rooted session — see Environment).
+- **GitHub:** `main` is PROTECTED. No direct commits to `main`. Merge only via PR. Only Pol merges.
+- **Vercel:** preview deploy automatically for branches/PRs; production deploy only from `main`.
+  Use XPrediction's OWN Vercel project — never the PMS / PT / Chiribito workspaces.
+- **Before ANY push (checklist):** (1) `git status` clean · (2) correct branch · (3) no secrets
+  or `.env` tracked (only `*.env.example` + `.claude/linear.shared.env` are committed) ·
+  (4) no partially-broken work (build / lint / tests green).
+- **After every merge:** update `HANDOFF.md`, `ACTIVE_WORK.md`, and `CURRENT_PHASE.md`.
+
+> **Current wiring (2026-05-25):** the GitHub remote exists (`polito101/xpredict`); **Vercel is
+> NOT yet connected** for XPrediction (the throwaway `xprediction-demo` lives in a separate Vercel
+> project — do not reuse it). Wiring Vercel and the first push/PR of Phase 1 are pending owner go-ahead.
+
 ## Linear (optional + tolerant)
 - 1 issue per phase — created automatically when `PLAN.md` is first written (if configured).
 - Moves to "In Review" automatically when the PR opens; PM closes it after merge.
