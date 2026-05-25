@@ -1,4 +1,6 @@
-# XPredict
+# XPrediction
+
+> Product/brand name is **XPrediction**. `xpredict` is only the technical repo/package name.
 
 White-label, production-grade prediction market platform (play money in v1). Users bet
 on real-world events (politics, sports, crypto, culture); operators get a turnkey product

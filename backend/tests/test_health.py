@@ -10,7 +10,7 @@ async def test_health_ok(client: AsyncClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
-    assert body["service"] == "XPredict"
+    assert body["service"] == "XPrediction"
     assert "version" in body
 
 

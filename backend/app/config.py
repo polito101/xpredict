@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
 
     # --- Application ---
-    app_name: str = "XPredict"
+    app_name: str = "XPrediction"
     version: str = "0.1.0"
     environment: str = "development"
     debug: bool = True

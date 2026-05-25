@@ -1,7 +1,11 @@
-# Project: XPredict
+# Project: XPrediction
 
 White-label, production-grade prediction market platform, built phase by phase via GSD.
-(Not to be confused with `xprediction-demo` — a separate presentational UI demo, not integrated here.)
+
+**Naming (official):** the product / platform / brand is **XPrediction** — use it everywhere
+(docs, handoffs, UX copy, visual decisions). `xpredict` is only the technical name (repo,
+package, folder); never use bare "XPredict" as the product name. (`xprediction-demo` was a
+separate presentational UI demo, now integrated as this frontend's visual base.)
 
 ## Roles
 - **PM / Tech Lead:** Pol Bonet — creates roadmap, approves/merges PRs
@@ -9,7 +13,7 @@ White-label, production-grade prediction market platform, built phase by phase v
 
 ## Multi-operator protocol (READ BEFORE ANY WORK)
 
-XPredict is operated by multiple people and Claude sessions (Pol, collaborators, agents).
+XPrediction is operated by multiple people and Claude sessions (Pol, collaborators, agents).
 Treat it as **one coherent shared system, not isolated sessions.** This is a coordination
 layer **on top of** GSD — it does not replace it.
 

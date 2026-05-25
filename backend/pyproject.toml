@@ -1,7 +1,7 @@
 [project]
 name = "xpredict-backend"
 version = "0.1.0"
-description = "XPredict backend — white-label prediction market platform (FastAPI)"
+description = "XPrediction backend — white-label prediction market platform (FastAPI)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # Core web

@@ -1,5 +1,5 @@
 /**
- * Minimal typed client for the XPredict backend (FastAPI).
+ * Minimal typed client for the XPrediction backend (FastAPI).
  *
  * Base URL comes from NEXT_PUBLIC_API_URL so the same build works in dev,
  * docker-compose, and staging.

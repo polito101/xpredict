@@ -1,1 +1,1 @@
-"""XPredict backend application package."""
+"""XPrediction backend application package."""

@@ -1,4 +1,4 @@
-# ACTIVE WORK — XPredict
+# ACTIVE WORK — XPrediction
 
 > Who is doing what, right now. **Claim your work here before you start, and update the status
 > when you stop.** This prevents two operators (or two Claude sessions) doing the same thing.

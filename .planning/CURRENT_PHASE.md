@@ -1,4 +1,4 @@
-# CURRENT PHASE — XPredict
+# CURRENT PHASE — XPrediction
 
 _Last updated: 2026-05-25_
 
