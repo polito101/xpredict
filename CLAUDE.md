@@ -53,6 +53,6 @@ Reserve inline execution for strictly-sequential or shared-state steps.
 - `#general` — PR + merge notifications via native GitHub↔Slack integration.
 
 ## Environment
-- GitHub MCP is pinned in `.mcp.json` — approve it + OAuth on first open (no tokens).
+- GitHub MCP is pinned in `.mcp.json`, authenticated via a PAT from the `GITHUB_PERSONAL_ACCESS_TOKEN` env var (GitHub OAuth isn't usable — no MCP dynamic client registration). Set that env var per-dev (`setx`, or `~/.claude/settings.local.json` "env"); the repo stays secret-free.
 - `.env.local` (optional, gitignored) only needs `LINEAR_API_KEY`. Never commit it.
 - Python 3.12 + uv/poetry + Docker are needed only when executing product Phase 1.
