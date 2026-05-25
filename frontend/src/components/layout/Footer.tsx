@@ -21,7 +21,7 @@ export function Footer() {
         </div>
         <div className="fbot">
           <span>© 2026 XPrediction</span>
-          <span>Event demo · placeholder brand</span>
+          <span>Play money · no real wagering</span>
         </div>
       </div>
     </footer>

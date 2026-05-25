@@ -14,7 +14,7 @@ under their brand.
 
 ```
 backend/     FastAPI app (modular monolith), Celery worker/beat, Alembic migrations
-frontend/    Next.js 15 App Router UI (mobile-first)
+frontend/    Next.js 15 App Router UI — dark-premium, Framer Motion (mock data; not wired to the API yet)
 docker-compose.yml   Local backend stack: Postgres + Redis + API + worker + beat
 ```
 
