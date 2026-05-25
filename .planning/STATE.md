@@ -68,8 +68,8 @@ None yet.
 
 [Issues that affect future work]
 
-- **Phase 3 spike recommended**: Concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious. Recommend `/gsd:spike` before Phase 3 planning if Cuco hasn't implemented async double-entry before. References: PITFALLS.md §Wallet, STACK.md §3.
-- **Phase 6 spike recommended**: Gamma API schema quirks (stringified JSON in `outcomes`/`outcomePrices`, mixed string-vs-number numerics, `umaResolutionStatus` value space). Recommend `/gsd:spike` + VCR fixture capture on day 1 of planning. References: STACK.md §2.2, PITFALLS.md #2 + #9.
+- **Phase 3 spike recommended**: Concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious. Recommend `/gsd-spike` before Phase 3 planning if Cuco hasn't implemented async double-entry before. References: PITFALLS.md §Wallet, STACK.md §3.
+- **Phase 6 spike recommended**: Gamma API schema quirks (stringified JSON in `outcomes`/`outcomePrices`, mixed string-vs-number numerics, `umaResolutionStatus` value space). Recommend `/gsd-spike` + VCR fixture capture on day 1 of planning. References: STACK.md §2.2, PITFALLS.md #2 + #9.
 - **Phase 11 dependency**: Spanish legal counsel must review ToS and token policy before any demo to an operator. Not deferrable; this is a gating dependency on Phase 11 completion.
 
 ## Deferred Items
@@ -83,5 +83,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-05-25 (initialization)
-Stopped at: ROADMAP.md and STATE.md written; REQUIREMENTS.md traceability populated; ready for `/gsd:plan-phase 1` (or `/gsd:autonomous` for solo flow).
+Stopped at: ROADMAP.md and STATE.md written; REQUIREMENTS.md traceability populated; ready for `/gsd-plan-phase 1` (or `/gsd-autonomous` for solo flow).
 Resume file: None

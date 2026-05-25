@@ -1,53 +1,58 @@
 # Project: XPredict
 
+White-label, production-grade prediction market platform, built phase by phase via GSD.
+(Not to be confused with `xprediction-demo` — a separate presentational UI demo, not integrated here.)
+
 ## Roles
-- **PM / Tech Lead:** Pol Bonet — creates roadmap, approves PRs
-- **Devs:** Cuco — own full GSD flow per assigned phase
+- **PM / Tech Lead:** Pol Bonet — creates roadmap, approves/merges PRs
+- **Devs / agents:** Cuco (+ others) — own the full GSD flow per assigned phase
 
 ## Recommended mode
-Use `/gsd:autonomous` by default — handles the full flow solo.
+Use `/gsd-autonomous` by default — handles the full flow solo.
 Switch to individual commands only if you need step-by-step control.
 
 ## Mandatory workflow
-Every phase must complete this flow before a PR can be opened:
+Every phase completes this flow before a PR can be opened (commands are **hyphenated**):
 
-1. `/gsd:discuss-phase`
-2. `/gsd:plan-phase`     → generates .planning/phases/XX/PLAN.md
-3. `/gsd:execute-phase`
-4. `/gsd:verify-work`    → generates .planning/phases/XX/VERIFICATION.md
-5. `/gsd:code-review`
-6. `/gsd:ship`           → triggers AI review + Slack notify + Linear update
+1. `/gsd-discuss-phase`
+2. `/gsd-plan-phase`     → generates `.planning/phases/XX/PLAN.md`
+3. `/gsd-execute-phase`
+4. `/gsd-verify-work`    → generates `.planning/phases/XX/VERIFICATION.md`
+5. `/gsd-code-review`
+6. `/gsd-ship`           → opens the PR (via GitHub MCP) + Linear/Slack updates
 
-The ship step is automatically blocked if PLAN.md or VERIFICATION.md are missing.
+PR creation is blocked automatically if `PLAN.md` or `VERIFICATION.md` are missing (`check-phase-ready` hook).
 
-## Additional modes (use within your phase)
-- `/gsd:spike`           → deep research before planning
-- `/gsd:ultraplan-phase` → exhaustive plan for complex phases
-- `/gsd:quick`           → quick subtasks within a phase
+## Additional modes (within your phase)
+- `/gsd-spike`           → deep research before planning
+- `/gsd-ultraplan-phase` → exhaustive plan for complex phases
+- `/gsd-quick`           → quick subtasks within a phase
+
+## Autonomy & guardrails (`mode: "yolo"`)
+High in-phase autonomy, deliberately bounded:
+- Operates **inside the current phase branch** only — **never** directly on `main`.
+- Gates remain **mandatory**: `plan_check`, `verifier`, `code_review` ON; a PR is required per phase; `auto_advance: false` (explicit phase transitions).
 
 ## Execution approach
-Use subagents whenever possible — dispatch independent tasks in parallel
-rather than executing them sequentially in the main session.
-Reserve inline execution only for tasks that are strictly sequential
-or require shared state from the previous step.
+Use subagents whenever possible — dispatch independent tasks in parallel rather than sequentially.
+Reserve inline execution for strictly-sequential or shared-state steps.
 
-## PRs
-- 1 PR per phase
-- Before opening the PR, the dev asks Claude (in their session) to compare PLAN.md vs what was implemented and produce the PR body. Typical prompt: *"compara PLAN.md de la fase X con lo implementado y dame el body del PR (qué tasks se completaron, qué quedó fuera, observaciones)"*
-- The dev passes that to `gh pr create --body-file <file>` (or pastes into the PR description)
-- PM is the only one who approves/merges
-- A PR without a corresponding PLAN.md will be blocked automatically (check-phase-ready hook)
+## Branches & PRs
+- **Per-phase branches** (`branching_strategy: "phase"`, template `gsd/phase-{phase}-{slug}`). Never commit directly to `main`.
+- **1 PR per phase.** Open PRs **via the GitHub MCP** (`create_pull_request`), not `gh` — only the MCP path triggers the phase-ready gate + Linear move.
+- Before opening, ask Claude to compare `PLAN.md` vs. what was implemented and produce the PR body.
+- Only the PM approves/merges. A PR without a matching `PLAN.md` is blocked automatically.
 
-## Linear
-- 1 issue per phase — created automatically when you write PLAN.md
-- Moves to "In Review" automatically when you open the PR
-- PM closes the issue after merging
-
-Convention: `[FASE-XX] Phase name`
+## Linear (optional + tolerant)
+- 1 issue per phase — created automatically when `PLAN.md` is first written (if configured).
+- Moves to "In Review" automatically when the PR opens; PM closes it after merge.
+- Non-secret team/state IDs live in `.claude/linear.shared.env` (committed). Personal `LINEAR_API_KEY` goes in `.env.local` (optional). With no key, Linear hooks skip cleanly.
+- Convention: `[FASE-XX] Phase name`
 
 ## Slack
-- Channel `#general` — PR + merge notifications via GitHub↔Slack native integration (no AI in the loop)
+- `#general` — PR + merge notifications via native GitHub↔Slack integration.
 
 ## Environment
-Copy `.env.example` to `.env.local` and fill in all values before starting.
-Never commit `.env.local`.
+- GitHub MCP is pinned in `.mcp.json` — approve it + OAuth on first open (no tokens).
+- `.env.local` (optional, gitignored) only needs `LINEAR_API_KEY`. Never commit it.
+- Python 3.12 + uv/poetry + Docker are needed only when executing product Phase 1.

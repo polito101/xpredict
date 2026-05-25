@@ -17,14 +17,14 @@ $activePhase = Get-ChildItem $phasesDir -Directory |
     Select-Object -First 1
 
 if (-not $activePhase) {
-    Write-Error "ERROR: No phase with PLAN.md found in .planning/phases/. Run /gsd:plan-phase first."
+    Write-Error "ERROR: No phase with PLAN.md found in .planning/phases/. Run /gsd-plan-phase first."
     exit 1
 }
 
 $verifyPath = Join-Path $activePhase.FullName "VERIFICATION.md"
 
 if (-not (Test-Path $verifyPath)) {
-    Write-Error "ERROR: VERIFICATION.md missing in phase '$($activePhase.Name)'. Run /gsd:verify-work first."
+    Write-Error "ERROR: VERIFICATION.md missing in phase '$($activePhase.Name)'. Run /gsd-verify-work first."
     exit 1
 }
 
