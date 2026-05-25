@@ -1,0 +1,23 @@
+# Normalize line endings: LF in the repository and working tree by default.
+# This project deploys on Linux/Docker — forcing LF avoids CRLF bugs in
+# containers, shell scripts, and entrypoints.
+* text=auto eol=lf
+
+# Windows-native scripts keep CRLF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets — never apply EOL conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
