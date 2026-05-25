@@ -1,6 +1,6 @@
 # CURRENT PHASE — XPrediction
 
-_Last updated: 2026-05-25_
+_Last updated: 2026-05-26_
 
 ## Active
 
@@ -9,9 +9,10 @@ _Last updated: 2026-05-25_
 
 ## Just completed
 
-- **Phase 1 — Project Scaffold, Infra & Cross-Cutting Foundations** — ✅ **DONE** (local,
-  branch `gsd/phase-1-foundation`, unpushed/unmerged). Awaiting formal GSD PLAN/VERIFICATION + PR.
-  See `HANDOFF.md` and `docs/PHASE-1-FOUNDATION.md`.
+- **Phase 1 — Project Scaffold, Infra & Cross-Cutting Foundations** — ✅ **DONE — in review.**
+  Pushed (HEAD `829b191`); **PR #4 open** (`gsd/phase-1-foundation` → `main`), `mergeable:true` but
+  `blocked` by branch protection. Vercel connected (`xpredict`, Root Dir `frontend/`); prod deploy
+  goes green when PR #4 merges. See `HANDOFF.md` and `docs/PHASE-1-FOUNDATION.md`.
 
 ## Next (not started)
 

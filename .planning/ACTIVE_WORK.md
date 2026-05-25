@@ -4,13 +4,13 @@
 > when you stop.** This prevents two operators (or two Claude sessions) doing the same thing.
 > Coordination layer on top of GSD — formal phase status lives in `STATE.md` / `ROADMAP.md`.
 
-_Last updated: 2026-05-25_
+_Last updated: 2026-05-26_
 
 ## In progress / claimed
 
 | Phase / task | Owner | Branch | Status | Updated | Notes |
 |---|---|---|---|---|---|
-| Phase 1 — Foundation & scaffold | Pol + Claude | `gsd/phase-1-foundation` | ✅ Done · pushed (incl. UI-realism pass + deploy docs) | 2026-05-25 | Backend + frontend + infra. UI-realism pass (`97fd984`) + deploy workflow runbook (`08938a3`) — pushed to origin; `next build` + lint green, design unchanged. Pending: Vercel connect (owner — `docs/DEPLOY.md`) + PLAN/VERIFICATION + PR (repo-rooted). See `HANDOFF.md`. |
+| Phase 1 — Foundation & scaffold | Pol + Claude | `gsd/phase-1-foundation` | ✅ Done · **PR #4 open, `blocked` by branch protection** | 2026-05-26 | Backend + frontend + infra + UI-realism pass + deploy docs — all pushed (HEAD `829b191`). Vercel **connected** (project `xpredict`, Root Dir `frontend/`); prod ● Error only until `main` gets `frontend/` via merge. PR #4 `mergeable:true`. Next: Pol approves/merges PR #4 or relaxes protection — no hacks. See `HANDOFF.md`. |
 | Phase 2 — Auth & Identity | Collaborator (parallel) | _owner: fill in_ | 🟡 In progress | 2026-05-25 | Built in parallel. Other sessions: **do NOT touch.** Owner: please fill branch + details. |
 
 ## Free / unclaimed
