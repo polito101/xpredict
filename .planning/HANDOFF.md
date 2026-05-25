@@ -5,7 +5,7 @@
 > `STATE.md` / `ROADMAP.md`; this file captures what is ACTUALLY happening right now.
 > **Read this (plus `ACTIVE_WORK.md` and `CURRENT_PHASE.md`) before any work. Update it when you stop.**
 
-_Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination layer + naming + branch pushed to origin + temporary-Vercel decision + frontend UI-realism pass)_
+_Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination layer + naming + branch pushed to origin + temporary-Vercel decision + frontend UI-realism pass + deploy workflow runbook + session-close push)_
 
 ## Snapshot
 
@@ -15,7 +15,7 @@ _Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination
   Backend (FastAPI scaffold, config, db, `/health`, Celery, Alembic) + frontend (the
   `xprediction-demo` UI integrated as the real visual base) + infra (`docker-compose`) + tooling.
   All green. Full detail: `docs/PHASE-1-FOUNDATION.md`.
-  - **2026-05-25 — frontend UI-realism pass (local commit `97fd984`, NOT pushed):** pre-launch
+  - **2026-05-25 — frontend UI-realism pass (commit `97fd984`, pushed to origin):** pre-launch
     product-integrity sweep on the landing. Removed invented metrics ($48M volume, 124k traders,
     per-market volume/traders, leaderboard accuracy/resolved/streak), neutralized named gov data
     feeds (Caltrans PeMS / NOAA / CAISO → generic signal types), and reframed simulated "live" data
@@ -38,7 +38,13 @@ _Last updated: 2026-05-25 — by: Pol + Claude (Phase 1 close-out + coordination
    (`create_pull_request`). Only Pol merges.
 2. **Phase 1 → live proof:** with Docker Desktop on, `docker compose up` and confirm
    backend ↔ Postgres (`/health/ready` → `ok`).
-3. **Phase 2:** owned by the parallel collaborator — other sessions stay hands-off.
+3. **Frontend deploy (Vercel) → connect once (owner):** the workflow is documented in
+   `docs/DEPLOY.md` (feature/PR → Preview, `main` → Production; never prod from a feature branch).
+   The Vercel project is **not connected yet** — owner runs the one-time connect in the Chiribito
+   team as a SEPARATE `xprediction` project (Root Directory `frontend/`) so pushes auto-deploy
+   Previews. Deliberately not executed from CLI this session to avoid any risk to Chiribito's live
+   projects (CLI is logged in as `chiribito293-7173`; auto-preview wiring is a dashboard/OAuth step).
+4. **Phase 2:** owned by the parallel collaborator — other sessions stay hands-off.
 
 ## What NOT to touch (right now)
 
