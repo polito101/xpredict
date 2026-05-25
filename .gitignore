@@ -1,0 +1,4 @@
+.env.local
+.env
+*.env
+.planning/phases/*/.linear-issue-id
