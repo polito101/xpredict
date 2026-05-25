@@ -54,13 +54,14 @@ export function ExperimentalMarkets() {
             <div className="eyebrow">Experimental markets · beyond finance</div>
             <h2>Prediction, wired to the world.</h2>
             <p>
-              Markets that read live signals — traffic sensors, weather, logistics
-              and power grids. Not opinions. Data, the moment it moves.
+              The direction we&apos;re building toward: markets that read real-world
+              signals — traffic, weather, logistics and power grids — not just
+              opinions. Concept previews below.
             </p>
           </div>
           <span className="sigbadge">
             <span className="dot" />
-            Live signal feeds
+            On the roadmap
           </span>
         </div>
         <div className="xgrid">
@@ -73,7 +74,7 @@ export function ExperimentalMarkets() {
                 </div>
                 <span className="xlive">
                   <span className="dot" />
-                  LIVE
+                  CONCEPT
                 </span>
               </div>
               <div className="xq">{m.question}</div>
@@ -88,7 +89,7 @@ export function ExperimentalMarkets() {
               <Sparkline points={m.spark} />
               <div className="xmeta">
                 <div className="src">
-                  <b>Source</b>
+                  <b>Signal</b>
                   {m.source}
                 </div>
                 <div className="xprob">{m.probability}%</div>

@@ -35,14 +35,6 @@ export function MarketCard({ market, loading }: MarketCardProps) {
         <div className="track">
           <i style={{ width: `${market.probability}%` }} />
         </div>
-        <div className="foot">
-          <span>
-            Vol <b>{market.volume}</b>
-          </span>
-          <span>
-            <b>{market.traders}</b> traders
-          </span>
-        </div>
       </div>
       {loading && (
         <div className="skel" aria-hidden>

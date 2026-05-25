@@ -1,4 +1,6 @@
-// Static demo data. No backend — perception over complexity.
+// Static sample data for the product preview (pre-launch).
+// No backend yet — wire real markets through src/lib/api.ts to replace these.
+// Nothing here represents real volume, traders, or live activity.
 
 export type MarketStatus = "live" | "closing";
 
@@ -8,8 +10,6 @@ export interface Market {
   question: string;
   probability: number; // 0-100
   delta: number; // signed pts
-  volume: string;
-  traders: string;
   status: MarketStatus;
   closeLabel?: string;
 }
@@ -55,30 +55,34 @@ export const heroMarket = {
   delta: 3.2,
 };
 
+// Product capabilities, not usage metrics — we don't fake traction pre-launch.
 export const heroStats = [
-  { value: "$48M", label: "Volume traded" },
-  { value: "124k", label: "Traders" },
-  { value: "9", label: "Categories" },
+  { value: "Aggregated", label: "world markets" },
+  { value: "Real-world", label: "signal markets" },
+  { value: "White-label", label: "infrastructure" },
 ];
 
+// Example markets that illustrate the format — not live, no real volume/traders.
 export const markets: Market[] = [
-  { id: "fed-mar26", category: "Macro", question: "Will the Fed cut rates at its March 2026 meeting?", probability: 64, delta: 3.2, volume: "$2.4M", traders: "1,284", status: "live" },
-  { id: "ctx-10m", category: "AI", question: "Will a frontier model exceed a 10M-token context window in 2026?", probability: 38, delta: 0.9, volume: "$840K", traders: "512", status: "live" },
-  { id: "eu-ai-act", category: "Policy", question: "Will the EU pass the AI Liability Act in 2026?", probability: 56, delta: 1.1, volume: "$1.2M", traders: "980", status: "closing", closeLabel: "Closes Jun 2026" },
+  { id: "fed-mar26", category: "Macro", question: "Will the Fed cut rates at its March 2026 meeting?", probability: 64, delta: 3.2, status: "live" },
+  { id: "ctx-10m", category: "AI", question: "Will a frontier model exceed a 10M-token context window in 2026?", probability: 38, delta: 0.9, status: "live" },
+  { id: "eu-ai-act", category: "Policy", question: "Will the EU pass the AI Liability Act in 2026?", probability: 56, delta: 1.1, status: "closing", closeLabel: "Closes Jun 2026" },
 ];
 
+// Concept previews of the signal-driven direction. Signal labels are the *kind*
+// of data source, not a live integration — these feeds are not wired yet.
 export const experimentalMarkets: ExperimentalMarket[] = [
-  { id: "i405-traffic", icon: "traffic", question: "Will more than 18,000 cars cross the I-405 Sepulveda Pass tonight?", value: "17,482", valueLabel: "cars counted today", probability: 72, source: "Caltrans PeMS", spark: [24, 20, 22, 14, 16, 9, 12, 5, 8] },
-  { id: "la-heat", icon: "weather", question: "Will downtown Los Angeles hit 95°F at any point this week?", value: "33%", valueLabel: "chance of Yes", probability: 33, source: "NOAA feed", spark: [18, 16, 19, 15, 17, 13, 15, 11, 14] },
-  { id: "port-la", icon: "logistics", question: "Will the Port of LA clear its container backlog by Friday?", value: "49%", valueLabel: "chance of Yes", probability: 49, source: "Port logistics API", spark: [10, 13, 11, 16, 14, 18, 16, 20, 17] },
-  { id: "caiso-grid", icon: "grid", question: "Will California grid demand exceed 45 GW today?", value: "61%", valueLabel: "chance of Yes", probability: 61, source: "CAISO grid API", spark: [20, 17, 18, 12, 13, 10, 8, 9, 6] },
+  { id: "i405-traffic", icon: "traffic", question: "Will more than 18,000 cars cross the I-405 Sepulveda Pass tonight?", value: "17,482", valueLabel: "sample signal count", probability: 72, source: "Traffic sensors", spark: [24, 20, 22, 14, 16, 9, 12, 5, 8] },
+  { id: "la-heat", icon: "weather", question: "Will downtown Los Angeles hit 95°F at any point this week?", value: "33%", valueLabel: "chance of Yes", probability: 33, source: "Weather data", spark: [18, 16, 19, 15, 17, 13, 15, 11, 14] },
+  { id: "port-la", icon: "logistics", question: "Will the Port of LA clear its container backlog by Friday?", value: "49%", valueLabel: "chance of Yes", probability: 49, source: "Logistics data", spark: [10, 13, 11, 16, 14, 18, 16, 20, 17] },
+  { id: "caiso-grid", icon: "grid", question: "Will California grid demand exceed 45 GW today?", value: "61%", valueLabel: "chance of Yes", probability: 61, source: "Grid data", spark: [20, 17, 18, 12, 13, 10, 8, 9, 6] },
 ];
 
 export const initialActivity: ActivityItem[] = [
   { id: "a1", user: "maria.eth", action: "yes", detail: "Fed cut · Mar '26", ts: "2s" },
   { id: "a2", user: "nova_fin", action: "opened", detail: "EU AI Act", ts: "14s" },
   { id: "a3", user: "jdoe", action: "no", detail: "BTC > $150k", ts: "31s" },
-  { id: "a4", user: "quantkid", action: "resolved", detail: "+$4,120", ts: "1m" },
+  { id: "a4", user: "quantkid", action: "resolved", detail: "GPT-6 ships in 2026", ts: "1m" },
   { id: "a5", user: "signal.dao", action: "yes", detail: "I-405 traffic", ts: "1m" },
 ];
 
@@ -98,7 +102,7 @@ export const tickerItems: TickerItem[] = [
   { label: "Real Madrid · UCL '26", prob: 22, delta: -0.4 },
 ];
 
-// Pool for the hero's fake-realtime live feed injection.
+// Pool for the hero preview's sample activity feed (illustrative, not real users).
 export const heroFeedPool: { user: string; side: "yes" | "no"; amount: string }[] = [
   { user: "ada_q", side: "yes", amount: "$2,400" },
   { user: "lwang", side: "no", amount: "$760" },

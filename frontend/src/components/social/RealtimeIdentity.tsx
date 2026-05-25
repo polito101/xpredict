@@ -7,11 +7,11 @@ export function RealtimeIdentity() {
       <div className="wrap">
         <div className="shead">
           <div>
-            <div className="eyebrow">Realtime</div>
-            <h2>A live signal layer</h2>
+            <div className="eyebrow">Preview</div>
+            <h2>Reputation, built in</h2>
             <p>
-              Every position streams in real time — and every call builds a track
-              record worth following.
+              Positions stream as they happen, and every call builds a track record
+              worth following. Sample preview — live once markets launch.
             </p>
           </div>
         </div>

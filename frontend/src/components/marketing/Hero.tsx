@@ -22,7 +22,7 @@ export function Hero() {
         <div>
           <span className="pill">
             <span className="dot" />
-            The prediction layer · live
+            The prediction layer · preview
           </span>
           <h1 className="hero-title">The prediction layer for the real world.</h1>
           <p className="hero-lead">
@@ -54,7 +54,7 @@ export function Hero() {
               <span className="chip">{heroMarket.category}</span>
               <span className="live">
                 <span className="dot" />
-                LIVE
+                PREVIEW
               </span>
             </div>
             <div className="q" style={{ minHeight: "auto" }}>
@@ -74,7 +74,7 @@ export function Hero() {
               <i style={{ width: `${rounded}%` }} />
             </div>
             <div className="feed">
-              <div className="flab">Live activity</div>
+              <div className="flab">Sample activity</div>
               {feed.map((r) => (
                 <div className={`it${r.isNew ? " new" : ""}`} key={r.key}>
                   <span className="av" />

@@ -20,11 +20,11 @@ export function LiveMarkets() {
       <div className="wrap">
         <div className="shead">
           <div>
-            <div className="eyebrow">Live markets</div>
-            <h2>What the world is pricing right now</h2>
+            <div className="eyebrow">Markets</div>
+            <h2>Every market, normalized into one feed</h2>
             <p>
-              Real-time probabilities, aggregated and native — every source
-              normalized into one clean feed.
+              Aggregate external markets and run your own natively — every source
+              mapped to one clean, consistent format. Examples shown below.
             </p>
           </div>
         </div>

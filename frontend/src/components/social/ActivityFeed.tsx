@@ -32,8 +32,8 @@ function ActivityBody({ a }: { a: ActivityItem }) {
 export function ActivityFeed() {
   return (
     <div className="panel">
-      <h3>Live activity</h3>
-      <p className="pc">Streaming across all markets</p>
+      <h3>Activity</h3>
+      <p className="pc">Sample preview · not live yet</p>
       {initialActivity.map((a) => (
         <div className="it" style={{ borderTop: "1px solid var(--line)" }} key={a.id}>
           <span className="av" />
