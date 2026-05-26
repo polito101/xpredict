@@ -20,11 +20,11 @@ if (-not (Test-Path ".env.local")) {
 }
 
 Write-Host "-> Starting docker compose stack (8 services, awaiting healthchecks)..."
-docker compose up -d --wait
+docker compose --env-file .env.local up -d --wait
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "-> Running Alembic migrations..."
-docker compose exec -T backend uv run alembic upgrade head
+docker compose --env-file .env.local exec -T backend uv run alembic upgrade head
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""
