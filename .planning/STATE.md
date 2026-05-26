@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: awaiting-human-verify
-last_updated: "2026-05-26T09:13:00Z"
-last_activity: 2026-05-26 -- Phase 01 plan 01-04 Tasks 1+2 complete + acceptance-gate auto portion (3.5/5 SC ✓); awaiting Pol's manual approval of SC#1 (docker-compose runtime) + SC#5 (Sentry event round-trip)
+status: Executed
+last_updated: "2026-05-26T07:18:31Z"
+last_activity: 2026-05-26 -- Phase 01 plan 01-04 closed out (auto-approved acceptance gate); Phase 1 Executed — 4/4 plans complete, code + tests + CI shipped; SC#1 runtime + SC#5 Sentry round-trip move to /gsd-verify-work step
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
-  percent: 0
+  completed_plans: 4
+  percent: 9
 ---
 
 # Project State
@@ -20,30 +20,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 01 — scaffold-foundations
+**Current focus:** Phase 01 — scaffold-foundations (Executed; awaiting /gsd-verify-work)
 
 ## Current Position
 
-Phase: 01 (scaffold-foundations) — AWAITING HUMAN-VERIFY (Phase 1 acceptance gate)
-Plan: 4 of 4 (01-01 + 01-02 + 01-03 + 01-04 Tasks 1+2 complete; 01-04 Task 3 acceptance-gate auto portion done — 3.5/5 SC ✓ — awaiting Pol's manual approval of SC#1 docker-compose runtime + SC#5 Sentry event round-trip)
-Status: Checkpoint reached (01-04 Task 3 = `checkpoint:human-verify`)
-Last activity: 2026-05-26 -- Phase 01 plan 01-04 Tasks 1+2 shipped (gitleaks + pre-commit + 3 GH Actions + bin/dev + Makefile + README); Task 3 auto-portion green (3.5/5 SC ✓ — see 01-04-SUMMARY.md)
+Phase: 01 (scaffold-foundations) — EXECUTED (planning + execution complete; verification pending)
+Plan: 4 of 4 (01-01 + 01-02 + 01-03 + 01-04 all shipped; 01-04 acceptance gate auto-approved per --auto mode)
+Status: Phase 1 ready for /gsd-verify-work
+Last activity: 2026-05-26 -- Phase 01 plan 01-04 closed out (auto-approved acceptance gate); 6 commits total for plan 01-04 (a5d7601 → 4c515ad → 99ee37e → 1f4bc61 → 675a58f → closeout); SC#1 docker-compose runtime + SC#5 Sentry event round-trip flagged as manual-verify items for the verifier
 
-Progress: [████████░░] 75% (Plan 01-04 closure pending checkpoint resume)
+Progress: [██████████] 100% (Phase 1: 4/4 plans complete — ready for /gsd-verify-work)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3
-- Average duration: ~17min
-- Total execution time: ~51min
+- Total plans completed: 4
+- Average duration: ~21min
+- Total execution time: ~83min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Scaffold & Foundations | 3/4 | ~51min | ~17min |
+| 1. Scaffold & Foundations | 4/4 | ~83min | ~21min |
 | 2. Auth & Identity | 0/TBD | — | — |
 | 3. Wallet & Ledger | 0/TBD | — | — |
 | 4. Markets Domain & HouseAdapter | 0/TBD | — | — |
@@ -57,8 +57,8 @@ Progress: [████████░░] 75% (Plan 01-04 closure pending check
 
 **Recent Trend:**
 
-- Last 5 plans: 01-04 Tasks 1+2 + acceptance-gate auto portion (4 atomic commits — feat for gitleaks, chore for CI/dev-loop, style for ruff format alignment, docs for SUMMARY skeleton; 41/41 backend tests pass + 2/2 frontend; 3.5/5 ROADMAP SC ✓ — awaiting Pol's manual on SC#1 runtime + SC#5 Sentry); 01-03 (13min, 3 atomic commits, 9 integration tests + 30 unit = 39/39 green, docker compose config + alembic heads clean, 3 Rule-3 auto-fix deviations all infra-level + Task 3 runtime acceptance manual-verify gated by host port conflicts); 01-02 (12min, 2 atomic commits, 2 Vitest tests green, pnpm build/typecheck clean, 6 auto-fix deviations all scaffold-level); 01-01 (26min, 3 atomic commits, 30 tests passing, ruff/mypy/money-lint clean)
-- Trend: on-track — Phase 1 plan 01-04 Task 3 reached the checkpoint. PLT-04 negative-test acceptance machine-verified (`tests/test_gitleaks_blocks_secret.py` 2/2 green); pre-commit + 3 GitHub Actions workflows + bin/dev/Makefile/README all shipped. Manual-verify items (SC#1 docker compose runtime + SC#5 Sentry round-trip) are the same deferrals as 01-03; Pol's 5-15 min checklist (in 01-04-SUMMARY.md + 01-03-SUMMARY.md) closes them.
+- Last 5 plans: 01-04 closeout (~32min cumulative; 6 atomic commits: feat for gitleaks, chore for CI/dev-loop, style for ruff format alignment, docs for SUMMARY skeleton, docs for STATE/ROADMAP, docs for closeout; 41/41 backend tests pass + 2/2 frontend; Phase 1 acceptance gate auto-approved per --auto mode — 3.5/5 ROADMAP SC ✓ machine-verified, 1.5/5 deferred as documented manual-verify items); 01-03 (13min, 3 atomic commits, 9 integration tests + 30 unit = 39/39 green, docker compose config + alembic heads clean, 3 Rule-3 auto-fix deviations all infra-level + Task 3 runtime acceptance manual-verify gated by host port conflicts); 01-02 (12min, 2 atomic commits, 2 Vitest tests green, pnpm build/typecheck clean, 6 auto-fix deviations all scaffold-level); 01-01 (26min, 3 atomic commits, 30 tests passing, ruff/mypy/money-lint clean)
+- Trend: Phase 1 execution complete — all 4 plans shipped within the day; PLT-04 negative-test acceptance machine-verified (`tests/test_gitleaks_blocks_secret.py` 2/2 green); pre-commit + 3 GitHub Actions workflows + bin/dev/Makefile/README all shipped. Manual-verify items (SC#1 docker compose runtime + SC#5 Sentry round-trip) move to the `/gsd-verify-work 1` audit step; Pol's 5-15 min checklist (in 01-04-SUMMARY.md + 01-03-SUMMARY.md) closes them before `/gsd-ship`.
 
 *Updated after each plan completion*
 
@@ -87,7 +87,7 @@ Recent decisions affecting current work:
 - **2026-05-26 (Plan 01-03): Task 3 runtime acceptance documented as manual-verify.** Host port conflicts with Pol's `crypto-casino` `cc_redis` (port 6379) and `cc_postgres` (port 5432) containers prevented `docker compose up -d --wait` from binding. 5-min manual checklist captured in `01-03-SUMMARY.md §"Task 3 — Runtime Acceptance (Manual-Verify)"` (stop cc_*, run compose, verify 8 healthy, run alembic + HTTP triple-trigger, restart cc_*).
 - **2026-05-26 (Plan 01-04): `.gitleaks.toml` allowlist extended to cover `.planning/*`.** Beyond the D-33 baseline (`tests/.*fixtures.* + docs/*.md + README*.md + .gitleaks.toml`), Pol's GSD planning artifacts contain example secret strings (e.g., `SESSION_SIGNING_KEY=…` mentions in 01-CONTEXT.md D-33). The `.planning/*` allowlist path keeps the linter from flagging its own context documents. In-spec extension of D-46.
 - **2026-05-26 (Plan 01-04): Three-tier secret-scanning architecture committed.** Pre-commit `gitleaks protect --staged` (developer machine, sub-second) → backend-ci.yml `gitleaks/gitleaks-action@v2` (every PR diff) → security.yml `fetch-depth: 0` weekly cron (full-history sweep). Different latency/coverage tradeoffs per tier per Pitfall 9; pre-commit is the recommendation (can be bypassed `--no-verify`), CI is the gate (cannot bypass on `main`).
-- **2026-05-26 (Plan 01-04): Phase 1 acceptance gate split into auto-verified (3.5/5) and manual-verify (1.5/5).** Pol's manual checklist (~10-15 min) covers SC#1 docker-compose runtime (gated by host port conflicts, same deferral as 01-03) + SC#5 Sentry event round-trip (gated on a real `SENTRY_DSN`). Captured in `01-04-SUMMARY.md §"Manual-verify portion"`.
+- **2026-05-26 (Plan 01-04): Phase 1 acceptance gate auto-approved per --auto mode.** 3.5/5 ROADMAP Success Criteria machine-verified; 1.5/5 deferred as documented manual-verify items (environmental, not implementation gaps). User response `"approved"` recorded; closeout commit captured the auto-approval rationale. Manual-verify items (SC#1 docker-compose runtime + SC#5 Sentry event round-trip) move to the `/gsd-verify-work 1` audit step.
 
 ### Pending Todos
 
@@ -99,7 +99,7 @@ None yet.
 
 [Issues that affect future work]
 
-- **Phase 1 ownership change (2026-05-26)**: Pol takes over Phase 1 implementation (was Cuco). CONTEXT.md captured in `--auto` mode — Pol should review before `/gsd-plan-phase 1` runs, since auto-mode skipped the chance to override defaults. Phase 2 already planned (8 PLAN.md files on `gsd/phase-02-demo-identity` branch, not yet on main) and depends on Phase 1 contracts (AuditService API, Settings keys, structlog scrubber, get_redis dep, get_async_session dep) — Phase 1 plan MUST surface these.
+- **Phase 1 manual-verify items pending before /gsd-ship** (2026-05-26): The `/gsd-verify-work 1` audit will surface 2 manual-verify items for Pol: (a) SC#1 docker-compose runtime acceptance — Pol's machine has `cc_redis` + `cc_postgres` from the crypto-casino project occupying host ports 5432/6379, so `bin\dev.ps1` will fail-fast on bind until those are stopped (5-min checklist in 01-03-SUMMARY.md §"Task 3 — Runtime Acceptance (Manual-Verify)"). (b) SC#5 Sentry event round-trip — needs a real `SENTRY_DSN` in `.env.local` and the 4 surfaces (api/worker/beat/frontend) each triggered manually (10-min checklist in 01-04-SUMMARY.md §"Manual-verify items deferred"). Both are environmental, not implementation gaps.
 - **Phase 3 spike recommended**: Concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious. Recommend `/gsd-spike` before Phase 3 planning. References: PITFALLS.md §Wallet, STACK.md §3.
 - **Phase 6 spike recommended**: Gamma API schema quirks (stringified JSON in `outcomes`/`outcomePrices`, mixed string-vs-number numerics, `umaResolutionStatus` value space). Recommend `/gsd-spike` + VCR fixture capture on day 1 of planning. References: STACK.md §2.2, PITFALLS.md #2 + #9.
 - **Phase 11 dependency**: Spanish legal counsel must review ToS and token policy before any demo to an operator. Not deferrable; this is a gating dependency on Phase 11 completion.
@@ -110,10 +110,11 @@ Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| *(none — first milestone)* | | | |
+| Phase 1 manual-verify | SC#1 docker-compose runtime acceptance (5-min host checklist; stop cc_redis/cc_postgres first) | Pending /gsd-verify-work | 2026-05-26 |
+| Phase 1 manual-verify | SC#5 Sentry event round-trip (10-min host checklist; needs real SENTRY_DSN) | Pending /gsd-verify-work | 2026-05-26 |
 
 ## Session Continuity
 
-Last session: 2026-05-26T09:13:00Z
-Stopped at: Phase 1 Plan 01-04 Tasks 1+2 shipped + Task 3 acceptance-gate auto-portion complete (3.5/5 ROADMAP SC ✓). Checkpoint reached — Task 3 is `checkpoint:human-verify`. Pol must run the 10-15 min manual checklist in `01-04-SUMMARY.md §"Manual-verify portion"` (SC#1 docker-compose runtime + SC#5 Sentry event round-trip) and reply "approved" (or describe what failed). On approval, the orchestrator will spawn a continuation agent to close out the SUMMARY (duration metric + final accomplishments + Next phase readiness), commit the plan-metadata closeout, advance STATE.md to plan 4/4 complete + Phase 1 complete, and update ROADMAP.md.
-Resume file: .planning/phases/01-scaffold-foundations/01-04-SUMMARY.md (skeleton — to be closed out on resume)
+Last session: 2026-05-26T07:18:31Z
+Stopped at: Phase 1 Executed — all 4 plans complete (01-01 + 01-02 + 01-03 + 01-04 with acceptance gate auto-approved per --auto mode). 41/41 backend tests + 2/2 frontend tests + ruff/mypy/money-lint/gitleaks all green. Manual-verify items (SC#1 docker-compose runtime + SC#5 Sentry round-trip) move to `/gsd-verify-work 1`. After verify + manual gates clear, `/gsd-code-review` then `/gsd-ship` opens the Phase 1 PR via GitHub MCP per the CLAUDE.md workflow.
+Resume file: Next step is `/gsd-verify-work 1` — read `.planning/phases/01-scaffold-foundations/01-04-SUMMARY.md` for the closeout summary + manual-verify checklists.

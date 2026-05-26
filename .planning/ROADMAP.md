@@ -19,7 +19,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations** - Docker compose stack, FastAPI + Next.js hello-world, Postgres 16 + Redis 7, Alembic, money-column standards, `tenant_id` ghost column, audit-log trigger, Sentry, secrets hygiene, gitleaks in CI.
+- [x] **Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations** - Docker compose stack, FastAPI + Next.js hello-world, Postgres 16 + Redis 7, Alembic, money-column standards, `tenant_id` ghost column, audit-log trigger, Sentry, secrets hygiene, gitleaks in CI. **Executed 2026-05-26 (4/4 plans, ~83 min execution; 41/41 backend + 2/2 frontend tests green; acceptance gate auto-approved per --auto mode — SC#1 runtime + SC#5 Sentry round-trip pending /gsd-verify-work manual-verify).**
 - [ ] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints.
 - [ ] **Phase 3: Wallet & Double-Entry Ledger** - `accounts` + `transfers` + `entries` schema (append-only, immutable, ACID-bound), `NUMERIC(18,4)` everywhere, idempotent transfers, `CHECK (balance >= 0)`, admin recharge primitive, Stripe stub interface, nightly reconciliation.
 - [ ] **Phase 4: Markets Domain & HouseAdapter** - `MarketSource` Protocol, Market/Outcome/OddsSnapshot models, HouseAdapter implementation, admin CRUD for house markets (create/edit-while-zero-bets/close), criteria locked at first bet.
@@ -49,7 +49,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [x] 01-01-PLAN.md — Backend Python scaffold: pyproject.toml + Settings + Money alias + structlog + Sentry helpers + FastAPI/Celery factories + money-column AST lint + Wave-0 unit tests (PLT-03, PLT-08, WAL-05) — **shipped 2026-05-26, 26 min, 30 tests passing**
 - [x] 01-02-PLAN.md — Frontend Next.js 15 + Tailwind 4 + TypeScript scaffold with Sentry on server + client surfaces + /api/healthz + /api/sentry-test + Vitest (PLT-08, PLT-10) — **shipped 2026-05-26, 12 min, 2 Vitest tests green**
 - [x] 01-03-PLAN.md — docker-compose.yml (8 services) + Alembic baseline 0001 (audit_log + feature_flags with ghost column + immutability trigger + seeded flags) + integration tests against testcontainers Postgres + docker-compose smoke (PLT-01, PLT-02, PLT-06, PLT-10) — **shipped 2026-05-26, 13 min, 9 integration tests green (39/39 total); Task 3 runtime acceptance manual-verify gated by host port conflicts**
-- [ ] 01-04-PLAN.md — gitleaks + pre-commit + GitHub Actions (backend-ci, frontend-ci, security) + bin/dev + README + Phase 1 acceptance gate (PLT-04, PLT-08, PLT-10) — **Tasks 1+2 shipped 2026-05-26 (4 commits); Task 3 auto-portion green (3.5/5 SC ✓); awaiting Pol's manual approval of SC#1 docker-compose runtime + SC#5 Sentry round-trip**
+- [x] 01-04-PLAN.md — gitleaks + pre-commit + GitHub Actions (backend-ci, frontend-ci, security) + bin/dev + README + Phase 1 acceptance gate (PLT-04, PLT-08, PLT-10) — **shipped 2026-05-26, ~32 min, 6 atomic commits; 41/41 backend + 2/2 frontend tests green; acceptance gate auto-approved per --auto mode (3.5/5 ROADMAP SC ✓ machine-verified; 1.5/5 manual-verify deferred to /gsd-verify-work)**
 **Research/spike flags**: None — well-documented patterns.
 **Critical pitfalls covered**: PITFALL #3 (regulatory — secrets/ToS posture begins here), PITFALL #4 (Decimal/NUMERIC locked at schema), PITFALL #7 (connection-pool / SET LOCAL discipline established).
 
@@ -231,7 +231,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 3/4 (01-04 at checkpoint) | Awaiting human-verify |  |
+| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Executed (pending /gsd-verify-work) | 2026-05-26 |
 | 2. Auth & Identity | 0/TBD | Not started | - |
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |

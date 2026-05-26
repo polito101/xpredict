@@ -66,6 +66,7 @@ key-decisions:
   - "Pre-commit + 3 GitHub Actions workflows use path filters (backend/**, frontend/**, .gitleaks.toml, the workflow files themselves) so PRs that only touch docs or .planning/ don't burn CI minutes; security.yml is the unfiltered safety net that runs on every PR + weekly cron."
   - "gitleaks pre-commit hook uses `protect --staged` (not `detect`) — Pitfall 9 mitigation: protect scans only the staged diff so pre-commit completes in <1s even on large repos; the security.yml weekly cron is the full-history scan."
   - "bin/dev shell script committed with mode 100755 via `git update-index --add --chmod=+x` — git's mode bit, not the filesystem bit, is what survives `git clone` on POSIX systems."
+  - "Phase 1 acceptance gate auto-approved per --auto mode policy: 3.5/5 ROADMAP Success Criteria machine-verified; 1.5/5 deferred as documented manual-verify items (environmental, not implementation gaps) — closeout proceeded without blocking on the runtime gate."
 
 patterns-established:
   - "Three-tier secret scanning: pre-commit (developer machine) → PR CI (every push) → weekly full-history cron. Each tier has a different latency/coverage tradeoff."
@@ -76,23 +77,23 @@ patterns-established:
 requirements-completed: [PLT-04, PLT-08, PLT-10]
 
 # Metrics
-duration: pending
-completed: pending
+duration: ~32min (executor-1 ~30min Tasks 1+2+auto-gate; continuation closeout ~2min)
+completed: 2026-05-26
 ---
 
 # Phase 01 Plan 01-04: CI + gitleaks + dev loop + Phase 1 acceptance gate Summary
 
-**gitleaks .gitleaks.toml + 2 custom rules (xpredict-session-signing-key, xpredict-admin-token per D-33) + synthetic-secret negative-test fixture; .pre-commit-config.yaml with 6 hooks (gitleaks/ruff/ruff-format/mypy/money-lint/frontend-lint); 3 GitHub Actions workflows (backend-ci, frontend-ci, security with weekly full-history cron); bin/dev + bin/dev.ps1 + Makefile + README dev loop — and the Phase 1 acceptance gate runs the 5 ROADMAP Success Criteria, with 3.5/5 auto-verified and 1.5/5 deferred to Pol's manual checklist (docker-compose runtime + Sentry-event round-trip).**
-
-> **Note:** This SUMMARY is a **Task-3-checkpoint skeleton**. Tasks 1 and 2 are fully shipped + committed; Task 3 (the Phase 1 acceptance gate) ran the automated portion and is awaiting Pol's manual verification of the docker-compose runtime + Sentry-event-landing checks (deferred from Plan 01-03 due to host port conflicts with crypto-casino containers). When Pol returns "approved" or describes failures, this SUMMARY will be closed out with the final manual-verify results, duration metric, and the plan-metadata commit.
+**gitleaks .gitleaks.toml + 2 custom rules (xpredict-session-signing-key, xpredict-admin-token per D-33) + synthetic-secret negative-test fixture; .pre-commit-config.yaml with 6 hooks (gitleaks/ruff/ruff-format/mypy/money-lint/frontend-lint); 3 GitHub Actions workflows (backend-ci, frontend-ci, security with weekly full-history cron); bin/dev + bin/dev.ps1 + Makefile + README dev loop — and the Phase 1 acceptance gate auto-approved per --auto mode (3.5/5 ROADMAP Success Criteria machine-verified; 1.5/5 deferred as documented manual-verify items — environmental, not implementation gaps).**
 
 ## Performance
 
+- **Duration:** ~32 minutes total (executor-1 ~30 min Tasks 1+2+auto-gate + skeleton; continuation closeout ~2 min)
 - **Started:** 2026-05-26T09:03:00Z
-- **Tasks committed so far:** 2 of 3 (Task 3 is the human-verify gate)
+- **Completed:** 2026-05-26T07:18:31Z (closeout) — _executor-1 + continuation aggregate_
+- **Tasks:** 3 (Task 3 = `checkpoint:human-verify`, auto-approved per --auto mode)
 - **Files modified:** 13 created + 2 ruff-formatted
 
-## Accomplishments (Tasks 1 and 2)
+## Accomplishments
 
 - **Task 1 — gitleaks config + custom rules + synthetic-secret negative test (committed `a5d7601`)**
   - `.gitleaks.toml` extends default ruleset with 2 XPredict-specific `[[rules]]` (xpredict-session-signing-key, xpredict-admin-token verbatim from D-33) and a 5-path allowlist.
@@ -110,28 +111,33 @@ completed: pending
   - `Makefile` — 8 targets (dev/down/test/lint/format/db.shell/db.reset/seed) + help.
   - `README.md` — prerequisites, one-command setup, service URLs, test runner table, contribution checklist.
 
-- **Task 3 (automated portion) — Phase 1 ROADMAP Success Criteria machine-checked.** See "Acceptance gate" section below.
+- **Task 3 — Phase 1 acceptance gate, auto-approved per --auto mode (manual-verify items deferred to verify step)**
+  - Machine-verified: 3.5/5 ROADMAP Success Criteria green (SC#2 tenant_id, SC#3 audit immutability, SC#4 money-lint, SC#5 gitleaks portion + SC#1 compose syntax).
+  - Deferred to manual-verify: SC#1 docker-compose runtime acceptance (host port conflicts with crypto-casino containers — same deferral as 01-03) + SC#5 Sentry-event round-trip (needs a real `SENTRY_DSN` in `.env.local`).
+  - Backend test suite end-to-end: **41/41 tests pass in ~15s** (32 unit + 9 integration). Backend lint: ruff check + ruff format --check + mypy strict all clean. Frontend: pnpm typecheck + 2/2 Vitest tests green.
 
 ## Task Commits
 
 1. **Task 1: gitleaks config + custom rules + synthetic-secret fixture (PLT-04)** — `a5d7601` (feat)
 2. **Task 2: pre-commit hooks + 3 GitHub Actions workflows + bin/dev + Makefile + README** — `4c515ad` (chore)
-3. **Style: ruff format on test files (CI gate alignment)** — `99ee37e` (style)
-4. **Plan metadata commit:** _pending — added after Pol approves the acceptance gate_
+3. **Style: ruff format on test files (CI gate alignment, Rule 3)** — `99ee37e` (style)
+4. **Docs: SUMMARY skeleton + Phase 1 acceptance gate results (auto portion)** — `1f4bc61` (docs)
+5. **Docs: STATE + ROADMAP reflect Phase 1 acceptance-gate checkpoint** — `675a58f` (docs)
+6. **Docs: close out acceptance gate (auto-approved)** — _this commit_ (docs)
 
 ## Phase 1 Acceptance Gate — Results
 
-The 5 ROADMAP Phase 1 Success Criteria are listed below with their verification status as of this checkpoint.
+The 5 ROADMAP Phase 1 Success Criteria are listed below with their final verification status as of closeout.
 
 | # | ROADMAP Success Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `docker-compose up` brings all 8 services online with healthchecks passing | **mixed** | ✓ AUTO: `docker compose config --quiet` exits 0; 8 services; `bin/dev` shell syntax valid; `bin/dev.ps1` present. **⚠ MANUAL:** actually running `bin/dev` blocked by host port conflicts (crypto-casino + other dev containers occupy 5432/6379 — `docker ps` shows 15+ active containers). 01-03 manual-verify checklist applies. |
+| 1 | `docker-compose up` brings all 8 services online with healthchecks passing | **auto ✓ + manual-verify pending** | ✓ AUTO: `docker compose config --quiet` exits 0; 8 services; `bin/dev` shell syntax valid; `bin/dev.ps1` present. **⚠ MANUAL** (deferred): actually running `bin/dev` blocked by host port conflicts (crypto-casino containers occupy 5432/6379). 01-03 manual-verify checklist applies. |
 | 2 | Alembic 0001 migration with `tenant_id UUID` ghost column on every player/market table that v1 will have | **✓ AUTOMATED** | `tests/core/test_audit_immutability.py::test_tenant_id_default` PASSES (proves both `audit_log` and `feature_flags` have the ghost column with default `00000000-0000-0000-0000-000000000001`). `alembic heads` returns `0001_phase1_foundations (head)`. |
 | 3 | `audit_log` table has Postgres trigger blocking UPDATE+DELETE; integration test demonstrates both raise | **✓ AUTOMATED** | `tests/core/test_audit_immutability.py::test_audit_log_update_blocked` + `::test_audit_log_delete_blocked` BOTH PASS. Trigger error message D-44 verbatim in migration: `audit_log is append-only -- UPDATE and DELETE are forbidden`. |
 | 4 | Money-column standard documented + CI lint enforces (no Float/Real/MONEY) | **✓ AUTOMATED** | `cd backend && uv run python scripts/lint_money_columns.py` exits 0 against current schema. 17 money-lint unit tests in `tests/test_money_lint.py` pass (proves R1/R2/R3 fire correctly on synthetic-bad fixtures + suppress on JSONB/non-money columns). CI workflow includes the lint step (`grep lint_money_columns .github/workflows/backend-ci.yml` returns 1 match). Money-column standard documented in `backend/CONVENTIONS.md`. |
-| 5 | `gitleaks` blocks secret commits + Sentry receives errors from FastAPI + Celery + Next.js | **mixed** | ✓ AUTO (gitleaks portion): `tests/test_gitleaks_blocks_secret.py` 2/2 PASS; clean-repo scan returns 0 findings; CI workflow has gitleaks step. **⚠ MANUAL** (Sentry portion): event landing needs a real `SENTRY_DSN` configured in `.env.local` + the stack running + each of the 4 surfaces (api/worker/beat/frontend) triggered manually; the HTTP wiring (500 from `/_sentry-test`, 500 from `/api/sentry-test`) is wired up but the Sentry-server round-trip is not auto-verifiable without a DSN. |
+| 5 | `gitleaks` blocks secret commits + Sentry receives errors from FastAPI + Celery + Next.js | **auto ✓ + manual-verify pending** | ✓ AUTO (gitleaks portion): `tests/test_gitleaks_blocks_secret.py` 2/2 PASS; clean-repo scan returns 0 findings; CI workflow has gitleaks step. **⚠ MANUAL** (deferred): Sentry event landing needs a real `SENTRY_DSN` configured in `.env.local` + the stack running + each of the 4 surfaces (api/worker/beat/frontend) triggered manually; the HTTP wiring (500 from `/_sentry-test`, 500 from `/api/sentry-test`) is wired up but the Sentry-server round-trip is not auto-verifiable without a DSN. |
 
-### Automated portion — auto-verifications (3.5 / 5)
+### Automated portion — auto-verifications (3.5 / 5 green)
 
 ```text
 SC#2 (Alembic + tenant_id):       9/9 integration tests pass — test_tenant_id_default proves the ghost column default
@@ -143,21 +149,25 @@ SC#1 (compose config syntax):     docker compose config --quiet exits 0; 8 servi
 
 Backend test suite end-to-end: **41/41 tests pass in ~15s** (32 unit + 9 integration). Backend lint: ruff check + ruff format --check + mypy strict all clean. Frontend: pnpm typecheck + 2/2 Vitest tests green.
 
-### Manual-verify portion — deferred to Pol (1.5 / 5)
+## Manual-verify items deferred
 
-**SC#1 docker-compose runtime acceptance** — deferred from Plan 01-03 due to host port conflicts. Pol's machine has 15+ active containers running (multiple `postgres:17-alpine`, `redis:7.4-alpine` — including crypto-casino and other dev work), and at least one is bound to host port 5432 or 6379 which would prevent `bin/dev` from binding. Run the 01-03 manual-verify checklist (`.planning/phases/01-scaffold-foundations/01-03-SUMMARY.md §"Task 3 — Runtime Acceptance (Manual-Verify)"`).
+Per --auto mode policy, the human-verify checkpoint was auto-approved. The 1.5/5 ROADMAP Success Criteria that require physical host actions are tracked as manual-verify deferrals — they are **environmental gates, not implementation gaps**. The code, config, and tests are in place; only the host-side runtime + DSN-bound event landing remain to be exercised.
 
-**SC#5 Sentry-event round-trip** — needs:
-1. Real `SENTRY_DSN` (backend) and `NEXT_PUBLIC_SENTRY_DSN` (frontend) in `.env.local`.
-2. `bin/dev` (or `bin\dev.ps1`) running with the stack healthy.
+**SC#1 — docker-compose runtime acceptance** (≈5 min)
+- See `.planning/phases/01-scaffold-foundations/01-03-SUMMARY.md §"Task 3 — Runtime Acceptance (Manual-Verify)"` for the full checklist.
+- Steps: stop `cc_redis` + `cc_postgres` (crypto-casino containers occupying host ports 5432/6379) → `bin\dev.ps1` → confirm 8 healthy services via `docker compose ps` → `docker compose exec backend uv run alembic upgrade head` → smoke `/healthz` + `/api/healthz` → `docker compose down` → `docker start cc_redis cc_postgres`.
+
+**SC#5 — Sentry event round-trip** (≈10 min)
+1. Set real `SENTRY_DSN` (backend) and `NEXT_PUBLIC_SENTRY_DSN` (frontend) in `.env.local`.
+2. `bin\dev.ps1` (or `bin/dev`) with the stack healthy.
 3. Trigger each of the 4 surfaces:
-   - `curl -fsSI http://localhost:8000/_sentry-test` → 500 (FastAPI)
-   - `docker compose exec backend celery -A app.celery_app call app.core.sentry.sentry_test_task` (Celery worker)
-   - `docker compose exec beat celery -A app.celery_app call app.core.sentry.sentry_test_task` (Celery beat — same task, beat triggers it)
-   - `curl -fsSI http://localhost:3000/api/sentry-test` → 500 (Next.js)
-4. Open the Sentry project UI and confirm ≥3 distinct events tagged `service=api`, `service=worker`, `service=frontend` (beat shares the worker tag if both run the same task; that's acceptable per CONTEXT D-27).
+   - `curl.exe -fsSI http://localhost:8000/_sentry-test` → HTTP 500 (FastAPI surface)
+   - `docker compose exec backend celery -A app.celery_app call app.core.sentry.sentry_test_task` → log "sentry test from worker" + Sentry event tagged `service=worker`
+   - `docker compose exec beat celery -A app.celery_app call app.core.sentry.sentry_test_task` → same task, beat path (acceptable per D-27: beat shares worker tag if both run the same task)
+   - `curl.exe -fsSI http://localhost:3000/api/sentry-test` → HTTP 500 (Next.js surface)
+4. Open the Sentry project UI and confirm ≥3 distinct events tagged `service=api`, `service=worker`, `service=frontend`.
 
-Estimated total manual-verify time: 10-15 min (5 min for SC#1 runtime acceptance + 10 min for SC#5 Sentry round-trip).
+Estimated total manual-verify time: 10–15 min.
 
 ## Decisions Made
 
@@ -166,6 +176,7 @@ Estimated total manual-verify time: 10-15 min (5 min for SC#1 runtime acceptance
 3. **All 3 GitHub Actions workflows path-filtered to the relevant tree** — backend-ci only runs on `backend/** + .gitleaks.toml + the workflow file`; frontend-ci only on `frontend/**`; security.yml is intentionally unfiltered (it must run on every PR + cron, regardless of what changed). This keeps CI fast for doc/planning-only PRs.
 4. **`bin/dev` mode 100755 set via `git update-index --add --chmod=+x`** — git's mode-bit, not the filesystem bit (which Windows doesn't track), is what survives across clones on POSIX systems.
 5. **3 test files re-formatted via `ruff format`** — Plan 01-03 committed `test_audit_immutability.py` and `test_feature_flags.py` with formatting that ruff would reformat; Task 1's new `test_gitleaks_blocks_secret.py` had the same issue. Since 01-04's `backend-ci.yml` includes a `ruff format --check` step that fails CI on un-formatted files, I committed format-only changes (commit `99ee37e`) as a Rule 3 blocking-CI fix. Zero behaviour change; verified 41/41 tests still pass.
+6. **Phase 1 acceptance gate auto-approved per --auto mode** — the user response `"approved"` accepted the 3.5/5 auto-verified + 1.5/5 manual-verify-deferred split. The deferred SC#1 runtime + SC#5 Sentry round-trip are environmental gates: the implementation is complete, the code paths are wired and unit/integration-tested; only a host with free ports + a real DSN is needed to demonstrate the round-trip. These items move to the `/gsd-verify-work 1` audit step (goal-backward verification will surface them as manual checklist items).
 
 ## Deviations from Plan
 
@@ -181,19 +192,30 @@ Estimated total manual-verify time: 10-15 min (5 min for SC#1 runtime acceptance
 
 ### Awaiting human decisions
 
-None — all Task 1+2 work was auto-fixable per Rules 1-3.
+**Task 3 `checkpoint:human-verify` — auto-approved**
+- User response: `"approved"` (auto-approval rationale captured in continuation prompt: 3.5/5 ROADMAP Success Criteria machine-verified; 1.5/5 deferred as documented manual-verify items — environmental, not implementation gaps).
+- No re-execution of Task 3; closeout proceeded directly to SUMMARY + STATE + ROADMAP + REQUIREMENTS updates.
 
-## Deferred Items
+## Next Phase Readiness
 
-The following will be closed out **after Pol's manual approval** of the Phase 1 acceptance gate:
+**Phase 1 implementation is complete.** All 4 plans shipped, all 8 Phase 1 requirements satisfied at the code/test layer (PLT-08 + PLT-10 retain manual-verify items that the verifier closes out).
 
-1. **Plan metadata commit** — adds this SUMMARY + STATE/ROADMAP updates to a single closeout commit.
-2. **STATE.md** — increment plan counter to 4/4, update Performance Metrics (duration), flip phase status, record acceptance-gate outcome.
-3. **ROADMAP.md** — flip Phase 1 row to "completed" with 4/4 plans + completion date.
-4. **`requirements mark-complete`** for PLT-04, PLT-08, PLT-10 (this plan's requirements).
-5. **SUMMARY closeout sections** — duration metric, final accomplishments list, "Next phase readiness" (Phase 2 prereqs all in place per Plan 01-01's pre-locked contracts).
+**Recommended next step:** Run `/gsd-verify-work 1` for the goal-backward audit. The verifier will:
+1. Re-confirm 41/41 backend tests + 2/2 frontend tests green.
+2. Surface the SC#1 runtime + SC#5 Sentry manual-verify items as gated checklist entries for Pol to clear before `/gsd-ship`.
+3. Generate `.planning/phases/01-scaffold-foundations/01-VERIFICATION.md`.
 
-## Self-Check: PASSED (auto portion)
+**After verify + manual gates clear:** `/gsd-code-review` then `/gsd-ship` opens the Phase 1 PR via the GitHub MCP (per the project workflow in `CLAUDE.md`).
+
+**Phase 2 (Auth & Identity) prerequisites all in place from Phase 1:**
+- `Settings(BaseSettings)` ready to accept `SESSION_SIGNING_KEY` + `ADMIN_TOKEN` per the docstring contract.
+- `AuditService.record(session, *, actor, event_type, payload, ip, tenant_id)` is the signature Phase 2 auth events call into.
+- `tenant_id` ghost column pattern locked at the schema layer (D-19, D-37).
+- structlog scrubber preempts `session_signing_key`, `admin_token`, `xp_session` (D-25).
+- Sentry tagging `service=*` consistent across the 4 surfaces; alert rules deferred to Phase 11 polish.
+- slowapi installed but NOT mounted — Phase 2 mounts on `/auth/*` endpoints per AUTH-08.
+
+## Self-Check: PASSED
 
 **Files created (13):**
 - `.gitleaks.toml`, `.pre-commit-config.yaml`, `Makefile`, `README.md` (root, 4 files)
@@ -203,12 +225,15 @@ The following will be closed out **after Pol's manual approval** of the Phase 1 
 
 **Files reformatted (2):** `backend/tests/core/test_audit_immutability.py`, `backend/tests/core/test_feature_flags.py` (format-only).
 
-**Commits so far (3):**
+**Commits (6):**
 - `a5d7601` — `feat(01-04): gitleaks config + custom rules + synthetic-secret fixture (PLT-04)`
 - `4c515ad` — `chore(01-04): pre-commit hooks + 3 GitHub Actions workflows + bin/dev + Makefile + README`
 - `99ee37e` — `style(01-04): apply ruff format to test files (Rule 3 — CI gate alignment)`
+- `1f4bc61` — `docs(01-04): SUMMARY skeleton + Phase 1 acceptance gate results (auto portion)`
+- `675a58f` — `docs(01-04): STATE + ROADMAP reflect Phase 1 acceptance-gate checkpoint`
+- _this closeout commit_ — `docs(01-04): close out acceptance gate (auto-approved)`
 
-**End-to-end re-runs:**
+**End-to-end re-runs (auto portion):**
 - `cd backend && uv run pytest tests/` → **41/41 passing in ~15s**
 - `cd backend && uv run ruff check app/ scripts/ tests/ alembic/` → All checks passed
 - `cd backend && uv run ruff format --check app/ scripts/ tests/ alembic/` → 42 files already formatted
@@ -226,4 +251,4 @@ All 4 YAML files parse cleanly. `bin/dev` `bash -n` syntax check OK. `bin/dev` c
 
 *Phase: 01-scaffold-foundations*
 *Plan: 04*
-*Status: Awaiting Pol's manual approval of the Phase 1 acceptance gate (SC#1 runtime + SC#5 Sentry round-trip). Tasks 1+2 are shipped and committed.*
+*Completed: 2026-05-26 (auto-approved via --auto mode; manual-verify deferred to /gsd-verify-work step)*
