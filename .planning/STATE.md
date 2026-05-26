@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-05-26T06:55:35Z"
-last_activity: 2026-05-26 -- Phase 01 plan 01-03 complete (docker-compose 8-service + Alembic 0001 baseline + 9 integration tests)
+status: awaiting-human-verify
+last_updated: "2026-05-26T09:13:00Z"
+last_activity: 2026-05-26 -- Phase 01 plan 01-04 Tasks 1+2 complete + acceptance-gate auto portion (3.5/5 SC ✓); awaiting Pol's manual approval of SC#1 (docker-compose runtime) + SC#5 (Sentry event round-trip)
 progress:
   total_phases: 11
   completed_phases: 0
@@ -24,12 +24,12 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 ## Current Position
 
-Phase: 01 (scaffold-foundations) — EXECUTING
-Plan: 4 of 4 (01-01 + 01-02 + 01-03 complete; next is final plan 01-04 — CI + gitleaks + bin/dev + README + acceptance gate)
-Status: Ready to execute
-Last activity: 2026-05-26 -- Phase 01 plan 01-03 complete (docker-compose 8-service + Alembic 0001 baseline + 9 integration tests)
+Phase: 01 (scaffold-foundations) — AWAITING HUMAN-VERIFY (Phase 1 acceptance gate)
+Plan: 4 of 4 (01-01 + 01-02 + 01-03 + 01-04 Tasks 1+2 complete; 01-04 Task 3 acceptance-gate auto portion done — 3.5/5 SC ✓ — awaiting Pol's manual approval of SC#1 docker-compose runtime + SC#5 Sentry event round-trip)
+Status: Checkpoint reached (01-04 Task 3 = `checkpoint:human-verify`)
+Last activity: 2026-05-26 -- Phase 01 plan 01-04 Tasks 1+2 shipped (gitleaks + pre-commit + 3 GH Actions + bin/dev + Makefile + README); Task 3 auto-portion green (3.5/5 SC ✓ — see 01-04-SUMMARY.md)
 
-Progress: [████████░░] 75%
+Progress: [████████░░] 75% (Plan 01-04 closure pending checkpoint resume)
 
 ## Performance Metrics
 
@@ -57,8 +57,8 @@ Progress: [████████░░] 75%
 
 **Recent Trend:**
 
-- Last 5 plans: 01-03 (13min, 3 atomic commits, 9 integration tests + 30 unit = 39/39 green, docker compose config + alembic heads clean, 3 Rule-3 auto-fix deviations all infra-level + Task 3 runtime acceptance manual-verify gated by host port conflicts); 01-02 (12min, 2 atomic commits, 2 Vitest tests green, pnpm build/typecheck clean, 6 auto-fix deviations all scaffold-level); 01-01 (26min, 3 atomic commits, 30 tests passing, ruff/mypy/money-lint clean)
-- Trend: on-track — Phase 1 at 75% (3 of 4 plans). PLT-01 + PLT-02 + PLT-06 + PLT-10 (compose-config portion) shipped this plan. Final plan 01-04 (CI + acceptance gate) remaining; runtime acceptance (Task 3 manual-verify) merges into 01-04 or the phase verifier.
+- Last 5 plans: 01-04 Tasks 1+2 + acceptance-gate auto portion (4 atomic commits — feat for gitleaks, chore for CI/dev-loop, style for ruff format alignment, docs for SUMMARY skeleton; 41/41 backend tests pass + 2/2 frontend; 3.5/5 ROADMAP SC ✓ — awaiting Pol's manual on SC#1 runtime + SC#5 Sentry); 01-03 (13min, 3 atomic commits, 9 integration tests + 30 unit = 39/39 green, docker compose config + alembic heads clean, 3 Rule-3 auto-fix deviations all infra-level + Task 3 runtime acceptance manual-verify gated by host port conflicts); 01-02 (12min, 2 atomic commits, 2 Vitest tests green, pnpm build/typecheck clean, 6 auto-fix deviations all scaffold-level); 01-01 (26min, 3 atomic commits, 30 tests passing, ruff/mypy/money-lint clean)
+- Trend: on-track — Phase 1 plan 01-04 Task 3 reached the checkpoint. PLT-04 negative-test acceptance machine-verified (`tests/test_gitleaks_blocks_secret.py` 2/2 green); pre-commit + 3 GitHub Actions workflows + bin/dev/Makefile/README all shipped. Manual-verify items (SC#1 docker compose runtime + SC#5 Sentry round-trip) are the same deferrals as 01-03; Pol's 5-15 min checklist (in 01-04-SUMMARY.md + 01-03-SUMMARY.md) closes them.
 
 *Updated after each plan completion*
 
@@ -85,6 +85,9 @@ Recent decisions affecting current work:
 - **2026-05-26 (Plan 01-03): `pytest_asyncio.fixture(loop_scope="session")` for engine + async_session.** pytest-asyncio 0.25 defaults to function-loop on async fixtures; without `loop_scope="session"` the session-scoped engine fixture's asyncpg pool errors with "Event loop is closed" on the second test. Each integration test file also sets `pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]`. Phase 2+ integration tests inherit this shape.
 - **2026-05-26 (Plan 01-03): Frontend Dockerfile pnpm pin to 9.15.0.** `corepack prepare pnpm@latest --activate` resolves to pnpm 11 which requires Node ≥22.13; node:20-alpine is the locked image. Pinned to 9.15.0 (matches the host pnpm + lockfile generator from Plan 01-02). Surgical 1-line fix; no frontend source touched.
 - **2026-05-26 (Plan 01-03): Task 3 runtime acceptance documented as manual-verify.** Host port conflicts with Pol's `crypto-casino` `cc_redis` (port 6379) and `cc_postgres` (port 5432) containers prevented `docker compose up -d --wait` from binding. 5-min manual checklist captured in `01-03-SUMMARY.md §"Task 3 — Runtime Acceptance (Manual-Verify)"` (stop cc_*, run compose, verify 8 healthy, run alembic + HTTP triple-trigger, restart cc_*).
+- **2026-05-26 (Plan 01-04): `.gitleaks.toml` allowlist extended to cover `.planning/*`.** Beyond the D-33 baseline (`tests/.*fixtures.* + docs/*.md + README*.md + .gitleaks.toml`), Pol's GSD planning artifacts contain example secret strings (e.g., `SESSION_SIGNING_KEY=…` mentions in 01-CONTEXT.md D-33). The `.planning/*` allowlist path keeps the linter from flagging its own context documents. In-spec extension of D-46.
+- **2026-05-26 (Plan 01-04): Three-tier secret-scanning architecture committed.** Pre-commit `gitleaks protect --staged` (developer machine, sub-second) → backend-ci.yml `gitleaks/gitleaks-action@v2` (every PR diff) → security.yml `fetch-depth: 0` weekly cron (full-history sweep). Different latency/coverage tradeoffs per tier per Pitfall 9; pre-commit is the recommendation (can be bypassed `--no-verify`), CI is the gate (cannot bypass on `main`).
+- **2026-05-26 (Plan 01-04): Phase 1 acceptance gate split into auto-verified (3.5/5) and manual-verify (1.5/5).** Pol's manual checklist (~10-15 min) covers SC#1 docker-compose runtime (gated by host port conflicts, same deferral as 01-03) + SC#5 Sentry event round-trip (gated on a real `SENTRY_DSN`). Captured in `01-04-SUMMARY.md §"Manual-verify portion"`.
 
 ### Pending Todos
 
@@ -111,6 +114,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-26T06:55:35Z
-Stopped at: Phase 1 Plan 01-03 complete (docker-compose 8-service + Alembic 0001 baseline + 9 integration tests) — sequential executor next runs Plan 01-04 (CI + gitleaks + bin/dev + README + acceptance gate). Task 3 runtime acceptance pending manual-verify (5-min checklist in 01-03-SUMMARY.md, gated by host port conflicts with crypto-casino containers).
-Resume file: .planning/phases/01-scaffold-foundations/01-04-PLAN.md
+Last session: 2026-05-26T09:13:00Z
+Stopped at: Phase 1 Plan 01-04 Tasks 1+2 shipped + Task 3 acceptance-gate auto-portion complete (3.5/5 ROADMAP SC ✓). Checkpoint reached — Task 3 is `checkpoint:human-verify`. Pol must run the 10-15 min manual checklist in `01-04-SUMMARY.md §"Manual-verify portion"` (SC#1 docker-compose runtime + SC#5 Sentry event round-trip) and reply "approved" (or describe what failed). On approval, the orchestrator will spawn a continuation agent to close out the SUMMARY (duration metric + final accomplishments + Next phase readiness), commit the plan-metadata closeout, advance STATE.md to plan 4/4 complete + Phase 1 complete, and update ROADMAP.md.
+Resume file: .planning/phases/01-scaffold-foundations/01-04-SUMMARY.md (skeleton — to be closed out on resume)
