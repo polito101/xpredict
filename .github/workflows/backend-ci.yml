@@ -59,7 +59,7 @@ jobs:
         run: uv run pytest tests/ -x --tb=short
 
       - name: Gitleaks (scan diff)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
