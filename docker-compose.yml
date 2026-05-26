@@ -23,6 +23,9 @@ x-backend-env: &backend-env
 
 x-backend-volumes: &backend-volumes
   - ./backend:/app
+  # Anonymous volume preserves container's Linux .venv from being clobbered
+  # by host's Windows .venv (Scripts/ vs bin/ layout mismatch breaks $PATH).
+  - /app/.venv
 
 services:
   # ----------------------------------------------------------------------
@@ -122,6 +125,8 @@ services:
       <<: *backend-env
     volumes:
       - ./backend:/app
+      # Anonymous volume preserves container's Linux .venv (see x-backend-volumes).
+      - /app/.venv
       # Shared named volume so the heartbeat file written by beat is
       # readable by the healthcheck `find` command (Pattern 1).
       - beat_heartbeat:/tmp
