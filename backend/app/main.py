@@ -81,7 +81,7 @@ app.add_middleware(RequestIdMiddleware)
 app.include_router(health.router)
 
 
-@app.get("/_sentry-test")
+@app.api_route("/_sentry-test", methods=["GET", "HEAD"])
 async def sentry_test() -> dict[str, str]:
     """Synthetic Sentry trigger — D-29. Phase 11 may gate behind a key."""
     raise RuntimeError("sentry test from api")
