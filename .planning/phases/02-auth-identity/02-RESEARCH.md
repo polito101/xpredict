@@ -1399,27 +1399,31 @@ if __name__ == "__main__":
 
 **Total assumptions: 9.** None block planning; A1 (version) and A8 (HS256 vs RS256) are the two worth confirming with Pol before the planner makes them load-bearing.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Version: v14 vs v15?**
    - What we know: CONTEXT.md says v14; PyPI's latest is 15.0.5 (released 2024-10, security-patched through 2025-03). v15 dropped Python 3.9 + Pydantic v1, both already on our stack. APIs we use are unchanged.
    - What's unclear: Was "v14" in CONTEXT a deliberate choice (e.g., known v15 regression) or a knowledge-cutoff artifact?
    - Recommendation: **planner pins v15.0.5** and notes the variance from CONTEXT. Discuss-checker can prompt Pol if desired.
+   - **RESOLVED:** Plan 02-01 pins `fastapi-users[sqlalchemy] >=15.0.5,<16.0.0`; deviation from D-01 documented in SUMMARY output for Pol review.
 
 2. **HS256 vs RS256 for JWT signing?**
    - What we know: HS256 is simpler (one secret) and faster (no asymmetric crypto). RS256 separates signing (backend private key) from verification (Next.js middleware public key) — cryptographically stricter.
    - What's unclear: How sensitive are operator demos to "perfect" key separation in v1?
    - Recommendation: **HS256 in v1**; document in `docs/security.md` (Phase 11 polish) that RS256 is a hardening upgrade. Re-evaluate when Phase 11 ToS / regulatory review happens.
+   - **RESOLVED:** Plans use HS256 with a single `JWT_SECRET_KEY`; RS256 hardening flagged for Phase 11.
 
 3. **Refresh endpoint shape?**
    - What we know: Our custom `DatabaseStrategy.read_token` can rotate on every read (mint a new row + revoke the old one). This is one valid model.
    - What's unclear: Whether the admin Bearer flow needs an explicit `/admin/auth/refresh` route the frontend calls when the access token nears expiry — vs. rotation-on-every-read.
    - Recommendation: **planner adopts rotation-on-every-read** for both surfaces in v1; if the admin frontend requires explicit `/refresh` later, add it as a thin wrapper in Phase 2.5 or Phase 8.
+   - **RESOLVED:** DatabaseStrategy uses rotation-on-every-read for both player cookie and admin Bearer surfaces. No explicit /refresh endpoint in v1.
 
 4. **Where to surface password strength rules to the UI?**
    - What we know: Backend `validate_password` is authoritative; frontend should mirror for UX.
    - What's unclear: zod schema duplication or fetch the rules from `/auth/password-policy`?
    - Recommendation: **duplicate the zod schema** in v1 (4 rules; trivial to keep in sync). Phase 10 may centralize.
+   - **RESOLVED:** Plan 02-04 duplicates the 4-rule zod schema in `lib/auth.ts`; no API endpoint for password policy in v1.
 
 ## Environment Availability
 
@@ -1464,7 +1468,7 @@ if __name__ == "__main__":
 | AUTH-09 | Refresh token rotation: presenting an already-rotated token revokes ALL user tokens | integration | `uv run pytest tests/auth/test_refresh_rotation.py::test_reuse_detection_revokes_all -x` | ❌ Wave 0 |
 | AUTH-09 | `refresh_tokens.token_hash` is the SHA256, raw token never stored | unit | `uv run pytest tests/auth/test_refresh_rotation.py::test_token_hash_is_sha256 -x` | ❌ Wave 0 |
 | ROADMAP SC#5 | Non-admin Bearer on /admin/* → 403 | integration | `uv run pytest tests/auth/test_admin_bearer.py::test_non_admin_bearer_forbidden -x` | ❌ Wave 0 |
-| Frontend AUTH-04 | `/login` page renders + posts to FastAPI | unit | `pnpm --filter frontend test src/app/__tests__/login.test.tsx` | ❌ Wave 0 |
+| Frontend AUTH-04 | `/login` page renders + posts to FastAPI | unit | `pnpm --filter frontend test src/app/(auth)/__tests__/login.test.tsx` | ❌ Wave 0 |
 | Frontend AUTH-07 | `/admin/*` redirected to `/admin/login` without admin_jwt cookie | unit | `pnpm --filter frontend test src/__tests__/middleware.test.ts` | ❌ Wave 0 |
 
 ### Sampling Rate
@@ -1486,7 +1490,7 @@ if __name__ == "__main__":
 - [ ] `backend/tests/auth/test_rate_limit.py` — AUTH-08 (3 tests; uses fakeredis or a per-test Redis flush)
 - [ ] `backend/tests/auth/test_email_enumeration.py` — AUTH-08 (2 tests: forgot-password 202 either way; login 401 timing within 50 ms)
 - [ ] `frontend/src/__tests__/middleware.test.ts` — Edge runtime middleware tests
-- [ ] `frontend/src/app/__tests__/login.test.tsx` — Login page rendering + Server Action form submission
+- [ ] `frontend/src/app/(auth)/__tests__/login.test.tsx` — Login page rendering + Server Action form submission
 
 **Framework install:** none — pytest, pytest-asyncio, httpx, testcontainers already in `[dependency-groups].dev`. Frontend has Vitest 2.1 from Phase 1.
 

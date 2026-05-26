@@ -51,7 +51,7 @@ created: 2026-05-26
 | AUTH-08b | 01 | 1 | AUTH-08 | T-enumerate-01 | 429 message reveals no email existence info | integration | `uv run pytest tests/auth/test_email_enumeration.py -x` | ❌ W0 | ⬜ pending |
 | AUTH-09a | 02 | 1 | AUTH-09 | T-refresh-01 | Reuse detection: revoked token → revoke ALL user tokens | integration | `uv run pytest tests/auth/test_refresh_rotation.py::test_reuse_detection_revokes_all -x` | ❌ W0 | ⬜ pending |
 | AUTH-09b | 02 | 1 | AUTH-09 | T-refresh-02 | refresh_tokens.token_hash is SHA256 (raw token never stored) | unit | `uv run pytest tests/auth/test_refresh_rotation.py::test_token_hash_is_sha256 -x` | ❌ W0 | ⬜ pending |
-| FE-AUTH-04 | 04 | 2 | AUTH-04 | — | /login page renders + posts to FastAPI | unit | `pnpm --filter frontend test src/app/__tests__/login.test.tsx` | ❌ W0 | ⬜ pending |
+| FE-AUTH-04 | 04 | 2 | AUTH-04 | — | /login page renders + posts to FastAPI | unit | `pnpm --filter frontend test src/app/(auth)/__tests__/login.test.tsx` | ❌ W0 | ⬜ pending |
 | FE-AUTH-07 | 04 | 2 | AUTH-07 | — | /admin/* redirected to /admin/login without admin_jwt cookie | unit | `pnpm --filter frontend test src/__tests__/middleware.test.ts` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
@@ -72,7 +72,7 @@ created: 2026-05-26
 - [ ] `backend/tests/auth/test_rate_limit.py` — AUTH-08 (3 tests; uses fakeredis or per-test Redis flush)
 - [ ] `backend/tests/auth/test_email_enumeration.py` — AUTH-08 (2 tests: forgot-password 202 either way; login 401 timing within 50ms)
 - [ ] `frontend/src/__tests__/middleware.test.ts` — Edge runtime middleware tests
-- [ ] `frontend/src/app/__tests__/login.test.tsx` — Login page rendering + Server Action form submission
+- [ ] `frontend/src/app/(auth)/__tests__/login.test.tsx` — Login page rendering + Server Action form submission
 
 *Framework install: none — pytest, pytest-asyncio, httpx, testcontainers already in `[dependency-groups].dev`. Frontend has Vitest 2.1 from Phase 1.*
 
