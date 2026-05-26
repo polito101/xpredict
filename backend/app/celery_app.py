@@ -42,6 +42,12 @@ celery_app = Celery(
 celery_app.conf.beat_scheduler = "redbeat.RedBeatScheduler"
 celery_app.conf.redbeat_redis_url = str(settings.REDIS_URL)
 celery_app.conf.beat_schedule = {}  # Phases 2-9 append tasks here
+# Route all tasks to the "default" queue so worker (-Q default) picks them up.
+# Without this, Celery's library default is "celery" and tasks queue there
+# while the worker idles on "default" (silent stall in production).
+celery_app.conf.task_default_queue = "default"
+celery_app.conf.task_default_exchange = "default"
+celery_app.conf.task_default_routing_key = "default"
 
 
 # Path used by the beat heartbeat thread (D-03 healthcheck reads its mtime)
