@@ -111,9 +111,9 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **PLT-05**: Stripe stub interface present: disabled "Add funds" button in player UI + `WalletService.recharge(payment_provider="stripe")` method signature ready for v2 wiring without refactor
 - [ ] **PLT-06**: Feature flags table exists with prep for per-tenant config in v2 (single-row default for v1)
 - [ ] **PLT-07**: Player-facing UI is fully responsive on mobile browsers (≥360px width); admin UI desktop-only acceptable
-- [ ] **PLT-08**: Sentry receives errors from FastAPI + Celery + Next.js; alert rules wired for: settlement failures, Polymarket sync error-rate spikes, ledger reconciliation drift, auth abuse spikes
+- [x] **PLT-08**: Sentry receives errors from FastAPI + Celery + Next.js; alert rules wired for: settlement failures, Polymarket sync error-rate spikes, ledger reconciliation drift, auth abuse spikes
 - [ ] **PLT-09**: Nightly Celery task reconciles materialized wallet balances against ledger entries; any drift logs CRITICAL and alerts
-- [ ] **PLT-10**: `docker-compose up` brings up the full stack locally (api, worker, beat, db, redis, frontend, mailpit) with one command
+- [x] **PLT-10**: `docker-compose up` brings up the full stack locally (api, worker, beat, db, redis, frontend, mailpit) with one command
 
 ## v2 / Deferred Requirements
 
@@ -247,7 +247,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | PLT-07 | Phase 11 | Pending |
 | PLT-08 | Phase 1 | Partial (01-01: init_sentry + FastAPI + Celery worker/beat + tags + triple-trigger backend; Next.js surface in 01-02; alert rules deferred to Phase 11) |
 | PLT-09 | Phase 3 | Pending |
-| PLT-10 | Phase 1 | Pending |
+| PLT-10 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 69 total
