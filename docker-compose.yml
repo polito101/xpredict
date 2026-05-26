@@ -134,8 +134,10 @@ services:
       db: { condition: service_healthy }
       redis: { condition: service_healthy }
     healthcheck:
-      # File mtime within the last minute => heartbeat thread alive.
-      test: ["CMD-SHELL", "[ $$(find /tmp/celerybeat.heartbeat -mmin -1 2>/dev/null | wc -l) -eq 1 ] || exit 1"]
+      # File mtime within the last 2 minutes => heartbeat thread alive.
+      # Interval is 30 s; -mmin -2 gives a 90-second window and survives a
+      # single missed beat without triggering a false health failure (WR-03).
+      test: ["CMD-SHELL", "[ $$(find /tmp/celerybeat.heartbeat -mmin -2 2>/dev/null | wc -l) -eq 1 ] || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
