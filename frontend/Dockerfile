@@ -8,9 +8,10 @@
 
 FROM node:20-alpine
 
-# Enable corepack + pin pnpm before WORKDIR so the cache layer is reusable
-# across source-only changes.
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Enable corepack + pin pnpm to a Node-20-compatible version (pnpm@latest =
+# pnpm 11+ which requires Node ≥22.13). pnpm 9.15.x matches the lockfile
+# committed by Plan 01-02 and supports Node 20-alpine.
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 WORKDIR /app
 
