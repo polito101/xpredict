@@ -91,7 +91,7 @@ def test_gitleaks_fires_on_synthetic_fixture(tmp_path: Path) -> None:
 
     report_path = tmp_path / "findings.json"
 
-    _run_gitleaks(
+    exit_code, stdout, stderr = _run_gitleaks(
         [
             "detect",
             f"--config={negative_config}",
@@ -104,8 +104,13 @@ def test_gitleaks_fires_on_synthetic_fixture(tmp_path: Path) -> None:
         cwd=REPO_ROOT,
     )
 
-    # Gitleaks 8.30.x writes the JSON report regardless of exit code; the
-    # load-bearing assertion is the report contents.
+    # Exit code 1 means gitleaks detected at least one finding (WR-07).
+    # Exit code 0 means no findings — the rules failed to fire.
+    # Exit code 2 means gitleaks itself crashed.
+    assert exit_code == 1, (
+        f"expected gitleaks to exit 1 (findings detected); got {exit_code}. "
+        f"stdout={stdout!r} stderr={stderr!r}"
+    )
     assert report_path.exists(), f"gitleaks did not produce a JSON report at {report_path}"
 
     findings = json.loads(report_path.read_text(encoding="utf-8"))
