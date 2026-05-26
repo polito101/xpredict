@@ -114,6 +114,14 @@ module = [
 ]
 ignore_missing_imports = true
 
+# Celery's signal decorators (`@worker_process_init.connect`) and `@celery_app.task`
+# return untyped callables in the stubs (or have no stubs at all). Suppress the
+# "Untyped decorator makes function ... untyped" warning where Celery owns the
+# decorator — the wrapped functions themselves are fully typed.
+[[tool.mypy.overrides]]
+module = "app.celery_app"
+disable_error_code = ["misc", "untyped-decorator"]
+
 # ---------------------------------------------------------------------------
 # Pytest
 # ---------------------------------------------------------------------------
