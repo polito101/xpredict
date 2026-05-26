@@ -24,6 +24,15 @@ You MUST update it at two moments, no exceptions:
 
 Pol updates the row to `✅ Done` after merging. That's it — no Linear, no tickets.
 
+### BLOCK rule — read this before starting any phase
+
+**Read `PHASES.md` first.** If the target phase is NOT `⬜ Not started`, stop immediately and report:
+
+> ⛔ Phase X is already `{status}` (owner: {owner}, branch: {branch}).
+> Cannot start. Coordinate with {owner} or ask Pol to reassign.
+
+Only proceed if the status is `⬜ Not started`. No exceptions.
+
 ## Mandatory workflow
 
 Every phase completes this flow before a PR can be opened:
