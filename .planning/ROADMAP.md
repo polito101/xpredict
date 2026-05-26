@@ -46,7 +46,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   5. `gitleaks` runs in CI and blocks a test commit that contains a fake secret; Sentry receives a synthetic error from FastAPI, Celery worker, and Next.js (three separate test triggers) and the events appear in the configured Sentry project.
 **Plans**: 4 plans
 **Plan list**:
-- [ ] 01-01-PLAN.md — Backend Python scaffold: pyproject.toml + Settings + Money alias + structlog + Sentry helpers + FastAPI/Celery factories + money-column AST lint + Wave-0 unit tests (PLT-03, PLT-08, WAL-05)
+- [x] 01-01-PLAN.md — Backend Python scaffold: pyproject.toml + Settings + Money alias + structlog + Sentry helpers + FastAPI/Celery factories + money-column AST lint + Wave-0 unit tests (PLT-03, PLT-08, WAL-05) — **shipped 2026-05-26, 26 min, 30 tests passing**
 - [ ] 01-02-PLAN.md — Frontend Next.js 15 + Tailwind 4 + TypeScript scaffold with Sentry on server + client surfaces + /api/healthz + /api/sentry-test + Vitest (PLT-08, PLT-10)
 - [ ] 01-03-PLAN.md — docker-compose.yml (8 services) + Alembic baseline 0001 (audit_log + feature_flags with ghost column + immutability trigger + seeded flags) + integration tests against testcontainers Postgres + docker-compose smoke (PLT-01, PLT-02, PLT-06, PLT-10)
 - [ ] 01-04-PLAN.md — gitleaks + pre-commit + GitHub Actions (backend-ci, frontend-ci, security) + bin/dev + README + Phase 1 acceptance gate (PLT-04, PLT-08, PLT-10)

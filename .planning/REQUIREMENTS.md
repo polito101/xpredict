@@ -192,7 +192,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | WAL-02 | Phase 5 | Pending |
 | WAL-03 | Phase 3 | Pending |
 | WAL-04 | Phase 3 | Pending |
-| WAL-05 | Phase 1 | Pending |
+| WAL-05 | Phase 1 | Partial (01-01: Money alias + AST lint + 12 tests; full enforcement when Phase 3 ships money columns) |
 | WAL-06 | Phase 3 | Pending |
 | WAL-07 | Phase 3 | Pending |
 | WAL-08 | Phase 3 | Pending |
@@ -240,12 +240,12 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADD-06 | Phase 10 | Pending |
 | PLT-01 | Phase 1 | Pending |
 | PLT-02 | Phase 1 | Pending |
-| PLT-03 | Phase 1 | Pending |
+| PLT-03 | Phase 1 | Partial (01-01: Settings(BaseSettings) + scrub_secrets + structlog SCRUB_KEYS; .env.example/.gitignore in 01-04) |
 | PLT-04 | Phase 1 | Pending |
 | PLT-05 | Phase 3 | Pending |
 | PLT-06 | Phase 1 | Pending |
 | PLT-07 | Phase 11 | Pending |
-| PLT-08 | Phase 1 | Pending |
+| PLT-08 | Phase 1 | Partial (01-01: init_sentry + FastAPI + Celery worker/beat + tags + triple-trigger backend; Next.js surface in 01-02; alert rules deferred to Phase 11) |
 | PLT-09 | Phase 3 | Pending |
 | PLT-10 | Phase 1 | Pending |
 

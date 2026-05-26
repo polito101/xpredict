@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-26T05:55:15.733Z"
-last_activity: 2026-05-26 -- Phase 01 planning complete
+last_updated: "2026-05-26T06:16:07Z"
+last_activity: 2026-05-26 -- Phase 01 plan 01-01 complete (backend scaffold + cross-cutting foundations)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 2
 ---
 
 # Project State
@@ -20,30 +20,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 1 — Project Scaffold, Infra & Cross-Cutting Foundations
+**Current focus:** Phase 01 — scaffold-foundations
 
 ## Current Position
 
-Phase: 1 of 11 (Project Scaffold, Infra & Cross-Cutting Foundations)
-Plan: — of TBD in current phase
-Status: Ready to execute
-Last activity: 2026-05-26 -- Phase 01 planning complete
+Phase: 01 (scaffold-foundations) — EXECUTING
+Plan: 2 of 4 (01-01 complete; next is Wave 1 sibling 01-02 frontend Next.js scaffold)
+Status: Executing Phase 01
+Last activity: 2026-05-26 -- Phase 01 plan 01-01 complete (backend scaffold + cross-cutting foundations)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 2%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 1
+- Average duration: ~26min
+- Total execution time: ~26min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Scaffold & Foundations | 0/TBD | — | — |
+| 1. Scaffold & Foundations | 1/4 | ~26min | ~26min |
 | 2. Auth & Identity | 0/TBD | — | — |
 | 3. Wallet & Ledger | 0/TBD | — | — |
 | 4. Markets Domain & HouseAdapter | 0/TBD | — | — |
@@ -57,8 +57,8 @@ Progress: [░░░░░░░░░░] 0%
 
 **Recent Trend:**
 
-- Last 5 plans: —
-- Trend: — (no execution yet)
+- Last 5 plans: 01-01 (26min, 3 atomic commits, 30 tests passing, ruff/mypy/money-lint clean)
+- Trend: on-track (first plan delivered to spec; 7 auto-fix deviations all infrastructure-level, none changed interface contracts)
 
 *Updated after each plan completion*
 
@@ -75,6 +75,9 @@ Recent decisions affecting current work:
 - 2026-05-25: Phase 1 locks money-column standards (`NUMERIC(18,4)` + Python `Decimal` from strings), `tenant_id` ghost column, audit-log immutability trigger — non-renegotiable foundations.
 - 2026-05-25: Phase 11 is the operator-demo gate; ToS + regulatory posture review is part of it (per PITFALLS.md §"The Regulatory Line").
 - **2026-05-26: Phase 1 ownership transfer to Pol.** Cuco was originally going to plan + implement Phase 1; Pol decided to do it himself. Context gathered in `--auto` mode — 47 decisions D-01..D-47 captured in `.planning/phases/01-scaffold-foundations/01-CONTEXT.md`. Locks: docker-compose with 8 services (db/redis/mailpit/backend/worker/beat/flower/frontend), modular monolith feature folders, `uv` for Python deps, `pnpm` for frontend, Alembic baseline migration creates only Phase 1 tables (`audit_log`, `feature_flags`), audit-log immutability via both Postgres trigger AND `REVOKE`, structlog (console in dev / JSON in prod), Sentry single project per env with `service=*` tag, money-column AST lint script in `scripts/`, `Money` SQLAlchemy alias for `Decimal` + `Numeric(18,4)`.
+- **2026-05-26 (Plan 01-01 complete): Python pin broadened to `>=3.12,<3.14`.** STACK.md fixed `<3.13`, but Pol's host has only Python 3.13.7. uv still auto-fetches 3.12 on demand if a downstream environment needs strict 3.12-only. 3.13 is FFI-compatible with every locked dep (asyncpg 0.31, psycopg2-binary 2.9.10, sqlalchemy 2.0.50, etc.).
+- **2026-05-26 (Plan 01-01): Money-lint annotation-kind classifier.** D-17 lists `value` in `MONEY_NAMES`, but `feature_flags.value` is a legitimate JSONB column. Added an annotation-kind classifier (`numeric` / `non-money` / `unknown`) — R2 only fires when `Mapped[T]` is numeric or unclear. Tightens the lint without weakening it; documented in `backend/CONVENTIONS.md` §1 and tested in `tests/test_money_lint.py::test_jsonb_value_passes`.
+- **2026-05-26 (Plan 01-01): Lazy engine factory + lazy session-maker in `app/db/session.py`.** Avoids constructing asyncpg pool at module import; makes `Settings()`-required tests trivial and unblocks `app.celery_app` imports during pytest collection.
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-26
-Stopped at: Phase 1 context gathered (`--auto`) — ready for `/gsd-plan-phase 1`.
-Resume file: .planning/phases/01-scaffold-foundations/01-CONTEXT.md
+Last session: 2026-05-26T06:16:07Z
+Stopped at: Phase 1 Plan 01-01 complete (backend scaffold + cross-cutting foundations) — sequential executor next runs Plan 01-02 (frontend Next.js scaffold).
+Resume file: .planning/phases/01-scaffold-foundations/01-02-PLAN.md
