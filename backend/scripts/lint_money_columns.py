@@ -96,41 +96,67 @@ class MoneyColumnLinter(ast.NodeVisitor):
     # ----- Helpers -----------------------------------------------------------
 
     @staticmethod
-    def _find_numeric_args(call: ast.Call) -> tuple[int, int] | None:
-        """Extract (precision, scale) from a Numeric(...) inside mapped_column(...)."""
+    def _parse_numeric_call(numeric_call: ast.Call) -> tuple[int, int] | None:
+        """Extract (precision, scale) from a ``Numeric(...)`` AST call node."""
+        precision: int | None = None
+        scale: int | None = None
+
+        # Positional args: Numeric(18, 4)
+        if len(numeric_call.args) >= 1 and isinstance(numeric_call.args[0], ast.Constant):
+            val = numeric_call.args[0].value
+            if isinstance(val, int):
+                precision = val
+        if len(numeric_call.args) >= 2 and isinstance(numeric_call.args[1], ast.Constant):
+            val = numeric_call.args[1].value
+            if isinstance(val, int):
+                scale = val
+
+        # Keyword args: Numeric(precision=18, scale=4)
+        for kw in numeric_call.keywords:
+            if not isinstance(kw.value, ast.Constant):
+                continue
+            val = kw.value.value
+            if not isinstance(val, int):
+                continue
+            if kw.arg == "precision":
+                precision = val
+            elif kw.arg == "scale":
+                scale = val
+
+        if precision is not None and scale is not None:
+            return precision, scale
+        return None
+
+    @classmethod
+    def _find_numeric_args(cls, call: ast.Call) -> tuple[int, int] | None:
+        """Extract (precision, scale) from a Numeric(...) inside mapped_column(...).
+
+        Handles two forms:
+          - Positional:  ``mapped_column(Numeric(18, 4), ...)``
+          - Keyword arg: ``mapped_column(type_=Numeric(10, 2), ...)``
+        """
+        # Scan positional args of mapped_column
         for arg in call.args:
             if (
                 isinstance(arg, ast.Call)
                 and isinstance(arg.func, ast.Name)
                 and arg.func.id == "Numeric"
             ):
-                precision: int | None = None
-                scale: int | None = None
+                result = cls._parse_numeric_call(arg)
+                if result is not None:
+                    return result
 
-                # Positional args
-                if len(arg.args) >= 1 and isinstance(arg.args[0], ast.Constant):
-                    val = arg.args[0].value
-                    if isinstance(val, int):
-                        precision = val
-                if len(arg.args) >= 2 and isinstance(arg.args[1], ast.Constant):
-                    val = arg.args[1].value
-                    if isinstance(val, int):
-                        scale = val
+        # Scan keyword args of mapped_column (e.g. type_=Numeric(...))
+        for kw in call.keywords:
+            if (
+                isinstance(kw.value, ast.Call)
+                and isinstance(kw.value.func, ast.Name)
+                and kw.value.func.id == "Numeric"
+            ):
+                result = cls._parse_numeric_call(kw.value)
+                if result is not None:
+                    return result
 
-                # Keyword args (precision=18, scale=4)
-                for kw in arg.keywords:
-                    if not isinstance(kw.value, ast.Constant):
-                        continue
-                    val = kw.value.value
-                    if not isinstance(val, int):
-                        continue
-                    if kw.arg == "precision":
-                        precision = val
-                    elif kw.arg == "scale":
-                        scale = val
-
-                if precision is not None and scale is not None:
-                    return precision, scale
         return None
 
     @staticmethod

@@ -79,6 +79,30 @@ class Account:
 """
 
 
+TYPE_KW_WRONG_FIXTURE = """\
+from decimal import Decimal
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Numeric
+
+
+class Account:
+    __tablename__ = "accounts"
+    amount: Mapped[Decimal] = mapped_column(type_=Numeric(10, 2))
+"""
+
+
+TYPE_KW_CORRECT_FIXTURE = """\
+from decimal import Decimal
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Numeric
+
+
+class Account:
+    __tablename__ = "accounts"
+    amount: Mapped[Decimal] = mapped_column(type_=Numeric(18, 4))
+"""
+
+
 NULLABLE_MONEY_FIXTURE = """\
 from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column
@@ -179,3 +203,15 @@ def test_money_names_all_fail_with_float(tmp_path: Path, name: str) -> None:
     )
     _write(tmp_path, "models.py", source)
     assert lint(tmp_path) == 1
+
+
+def test_type_kw_wrong_numeric_fails(tmp_path: Path) -> None:
+    """`mapped_column(type_=Numeric(10, 2))` violates R1 and must exit 1 (CR-04 gap)."""
+    _write(tmp_path, "models.py", TYPE_KW_WRONG_FIXTURE)
+    assert lint(tmp_path) == 1
+
+
+def test_type_kw_correct_numeric_passes(tmp_path: Path) -> None:
+    """`mapped_column(type_=Numeric(18, 4))` on a money column is valid — exit 0."""
+    _write(tmp_path, "models.py", TYPE_KW_CORRECT_FIXTURE)
+    assert lint(tmp_path) == 0
