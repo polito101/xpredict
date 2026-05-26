@@ -1,5 +1,5 @@
 # linear-create-issue.ps1
-# PostToolUse(Write): when a phase PLAN.md is first written, create a Linear issue.
+# PostToolUse(Write): when any *-PLAN.md is first written in a phase, create a Linear issue.
 # Linear is OPTIONAL — this hook never blocks work and never errors out the session.
 
 # Read Write tool input from stdin (Claude Code sends JSON)
@@ -10,8 +10,8 @@ if (-not $rawInput) { exit 0 }
 try { $toolInput = $rawInput | ConvertFrom-Json } catch { exit 0 }
 $filePath = $toolInput.file_path
 
-# Only act on PLAN.md writes
-if ($filePath -notmatch '\.planning[/\\]phases[/\\]([^/\\]+)[/\\]PLAN\.md$') { exit 0 }
+# Match any *-PLAN.md (or PLAN.md) inside a phase folder
+if ($filePath -notmatch '\.planning[/\\]phases[/\\]([^/\\]+)[/\\][^/\\]*PLAN\.md$') { exit 0 }
 
 $phaseName = $Matches[1]
 $phaseDir  = ".planning\phases\$phaseName"
@@ -40,8 +40,8 @@ if (-not $env:LINEAR_API_KEY -or -not $env:LINEAR_TEAM_ID -or -not $env:LINEAR_I
     exit 0
 }
 
-# Read first 500 chars of PLAN.md as description
-$planContent = Get-Content (Join-Path $phaseDir "PLAN.md") -Raw
+# Read first 500 chars of the triggering PLAN file as description
+$planContent = Get-Content $filePath -Raw
 $description = if ($planContent.Length -gt 500) { $planContent.Substring(0, 500) + "..." } else { $planContent }
 $descEscaped = $description -replace '\\', '\\\\' -replace '"', '\"' -replace "`n", '\n'
 

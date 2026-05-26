@@ -1,211 +1,406 @@
 ---
 phase: 01-scaffold-foundations
-plan_set: 01-04
-status: issues_found
+reviewed: 2026-05-26T00:00:00Z
 depth: standard
 files_reviewed: 54
+files_reviewed_list:
+  - backend/app/core/config.py
+  - backend/app/core/logging.py
+  - backend/app/core/sentry.py
+  - backend/app/core/redis.py
+  - backend/app/db/base.py
+  - backend/app/db/session.py
+  - backend/app/db/types.py
+  - backend/app/main.py
+  - backend/app/celery_app.py
+  - backend/app/routers/health.py
+  - backend/app/core/audit/models.py
+  - backend/app/core/audit/service.py
+  - backend/app/core/feature_flags/models.py
+  - backend/app/core/feature_flags/service.py
+  - backend/scripts/lint_money_columns.py
+  - backend/tests/conftest.py
+  - backend/tests/test_settings.py
+  - backend/tests/test_money_lint.py
+  - backend/tests/test_sentry_init.py
+  - backend/tests/test_sentry_test_endpoint.py
+  - backend/tests/test_sentry_test_task.py
+  - backend/tests/test_health.py
+  - backend/tests/core/test_audit_immutability.py
+  - backend/tests/core/test_feature_flags.py
+  - backend/tests/test_gitleaks_blocks_secret.py
+  - backend/alembic/env.py
+  - backend/alembic/versions/0001_phase1_foundations.py
+  - frontend/next.config.ts
+  - frontend/tsconfig.json
+  - frontend/eslint.config.mjs
+  - frontend/vitest.config.ts
+  - frontend/src/instrumentation.ts
+  - frontend/src/instrumentation-client.ts
+  - frontend/src/app/layout.tsx
+  - frontend/src/app/page.tsx
+  - frontend/src/app/globals.css
+  - frontend/src/app/api/healthz/route.ts
+  - frontend/src/app/api/sentry-test/route.ts
+  - frontend/src/app/api/healthz/route.test.ts
+  - frontend/src/app/api/sentry-test/route.test.ts
+  - docker-compose.yml
+  - .gitleaks.toml
+  - .pre-commit-config.yaml
+  - .github/workflows/backend-ci.yml
+  - .github/workflows/frontend-ci.yml
+  - .github/workflows/security.yml
+  - bin/dev
+  - bin/dev.ps1
+  - Makefile
+  - README.md
+  - .env.example
+  - .gitignore
+  - .gitattributes
 findings:
-  critical: 5
-  warning: 8
+  critical: 6
+  warning: 7
   info: 4
   total: 17
-reviewed_at: 2026-05-26
+status: issues_found
 ---
 
-# Code Review: Phase 01 — Project Scaffold, Infra & Cross-Cutting Foundations
+# Phase 01: Code Review Report
 
-**Depth:** standard | **Files Reviewed:** 54 | **Status:** issues_found
+**Reviewed:** 2026-05-26T00:00:00Z
+**Depth:** standard
+**Files Reviewed:** 54
+**Status:** issues_found
 
-The scaffold is structurally sound: money/Decimal enforcement, audit-log immutability trigger, and structlog scrubbing are all correctly implemented. Async SQLAlchemy patterns are clean. Five critical issues need addressing before Phase 2 ships.
+## Summary
 
----
+Reviewed the full Phase 1 scaffold: FastAPI + SQLAlchemy async + Celery + Redis + Postgres backend, Next.js 15 frontend, Alembic baseline migration, docker-compose 8-service stack, and CI/CD pipeline.
 
-## Critical
+The overall structure is clean and design decisions are consistently applied: async SQLAlchemy patterns, pure-ASGI RequestIdMiddleware, Sentry signal-driven init in Celery, and the Money/Decimal AST lint gate all land correctly. The audit-log immutability trigger pattern is sound.
 
-### CR-01: `/_sentry-test` is unauthenticated and unguarded in all environments
-**File:** `backend/app/main.py` (sentry_test route)
+Six critical issues require fixes before Phase 2 ships — they cover a test-isolation flaw that produces dirty shared state between integration tests, an unauthenticated synthetic-error endpoint exploitable to exhaust Sentry quotas, a money-lint blind spot that lets wrong-precision `Numeric` through via keyword argument form, and a Sentry DSN guard gap on the frontend that causes unconditional SDK init with an empty string.
 
-The `sentry_test()` route unconditionally raises `RuntimeError` with no environment check and no auth gate. Any caller hitting `/_sentry-test` on port 8000 generates a Sentry event — attackers can exhaust Sentry rate limits with a simple loop. The docstring says "Phase 11 may gate" but Phases 2–10 introduce real users before Phase 11.
+## Narrative Findings (AI reviewer)
 
-**Fix:** Add env guard before raising:
+## Critical Issues
+
+### CR-01: `/_sentry-test` is unauthenticated and reachable in any environment
+
+**File:** `backend/app/main.py:84-87`
+**Issue:** The synthetic Sentry trigger is registered unconditionally with no environment guard, no auth gate, and no rate limiting. Any caller who can reach port 8000 can repeatedly `GET /_sentry-test` to generate unlimited Sentry error events. Phases 2 through 10 introduce real users and traffic before Phase 11 "may gate" this endpoint per the docstring. A simple loop from any network-adjacent attacker can exhaust Sentry's monthly event quota ($0 plan: 5 000 events/month, paid plans vary), effectively disabling error monitoring before it matters.
+
+The route handles both `GET` and `HEAD` methods — `HEAD` returns no body but still raises `RuntimeError`, still produces a Sentry event. The same exploit applies to the frontend `/api/sentry-test` route.
+
+**Fix:**
 ```python
-if settings.ENVIRONMENT not in ("development", "test"):
-    raise HTTPException(status_code=403, detail="not available")
+@app.api_route("/_sentry-test", methods=["GET", "HEAD"])
+async def sentry_test() -> dict[str, str]:
+    if not settings.is_dev:
+        raise HTTPException(status_code=403, detail="not available")
+    raise RuntimeError("sentry test from api")
 ```
 
 ---
 
-### CR-02: `async_session` test fixture has wrong scope — integration tests share dirty state
-**File:** `backend/tests/conftest.py` (async_session fixture)
+### CR-02: `async_session` fixture missing `scope="session"` — integration tests share dirty state
 
-`@pytest_asyncio.fixture(loop_scope="session")` has no `scope=` argument, so it defaults to `scope="function"`. The `engine` fixture is `scope="session"`. Each function invocation commits independently — no rollback isolation between tests. `test_is_enabled_toggle` writes `enabled=TRUE` for `stripe_recharge_enabled` and that state persists (flaky-by-design). Additionally, pytest-asyncio 0.25 warns against mixing `scope="function"` with `loop_scope="session"` — asyncpg connections can cross event loops and raise "Event loop is closed".
+**File:** `backend/tests/conftest.py:174`
+**Issue:** `@pytest_asyncio.fixture(loop_scope="session")` does **not** set `scope=`. The default scope is `"function"`, so a new session (and new transaction) is created for each test. However the fixture opens a transaction on a `session`-scoped engine connection and relies on `trans.rollback()` in the `finally` to clean up. In practice, `pytest-asyncio 0.25` with `loop_scope="session"` and `scope="function"` creates conflicts: the function-scoped fixture is torn down and re-entered within the session loop, and asyncpg raises `"Event loop is closed"` intermittently.
+
+More critically for correctness: `test_is_enabled_toggle` runs an `UPDATE feature_flags SET enabled = TRUE` and then asserts `is_enabled(...) is True`. If that test runs before `test_is_enabled_returns_seeded_value`, the seeded value assertion (`is False`) fails — ordering-dependent test pollution. The `trans.rollback()` only executes when the fixture goes out of scope; with `scope="function"` each test gets a fresh fixture entry that starts a **new** transaction on the **same** underlying session-scoped connection, but the prior write is already visible.
 
 **Fix:**
 ```python
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def async_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    ...
+    async with engine.connect() as conn:
+        trans = await conn.begin()
+        try:
+            async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+                yield session
+        finally:
+            await trans.rollback()
 ```
-For true per-test isolation, use `begin_nested()` (savepoints) inside the session-scoped connection.
+For true per-test isolation with a session-scoped engine, use savepoints (`conn.begin_nested()`) — one per test function — inside the outer session-level transaction.
 
 ---
 
-### CR-03: Beat healthcheck window too tight — spurious unhealthy under scheduling jitter
-**File:** `docker-compose.yml` (beat service healthcheck)
+### CR-03: `test_settings_rejects_malformed_url` can silently pass as a false positive
 
-Uses `find /tmp/celerybeat.heartbeat -mmin -1` (60-second window). Heartbeat thread touches every 30 seconds. Any jitter (GC pause, RedBeat lock contention) that delays the heartbeat 31+ seconds fails the check. No `start_period:` means Docker counts failures from time zero.
+**File:** `backend/tests/test_settings.py:33-40`
+**Issue:** `conftest.py` seeds `DATABASE_URL` as a valid URL at **module import time** via `os.environ.setdefault()`. `pydantic-settings` reads env vars with priority over constructor keyword arguments. When `Settings(DATABASE_URL="not-a-url")` is called, `pydantic-settings` v2 silently prefers the env var value (`postgresql+asyncpg://...`) over the constructor kwarg, so no `ValidationError` is raised and the test passes — but it passes because the env var provides a valid URL, not because the validation logic correctly rejects the bad input.
+
+This is a latent false positive: the test appears to verify error handling but actually verifies nothing about it. Any future phase that changes env priority behaviour will reveal this.
 
 **Fix:**
+```python
+def test_settings_rejects_malformed_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATABASE_URL", "not-a-url")
+    monkeypatch.setenv("DATABASE_URL_SYNC", _VALID_URLS["DATABASE_URL_SYNC"])
+    monkeypatch.setenv("REDIS_URL", _VALID_URLS["REDIS_URL"])
+    with pytest.raises(ValidationError):
+        Settings()
+```
+
+---
+
+### CR-04: Money linter misses `Numeric` passed as `type_=` keyword arg to `mapped_column`
+
+**File:** `backend/scripts/lint_money_columns.py:99-134`
+**Issue:** `_find_numeric_args` iterates only over `call.args` (positional arguments of `mapped_column`). SQLAlchemy also accepts the column type via the `type_=` keyword argument: `mapped_column(type_=Numeric(10, 2))`. In that form the `Numeric(...)` node lives in `call.keywords`, not `call.args`, and `_find_numeric_args` returns `None` — no error is reported. A developer who writes `amount: Mapped[Decimal] = mapped_column(type_=Numeric(10, 2))` gets zero lint failures despite violating R1 (wrong precision/scale).
+
+There is no test case for this form, so the gap is invisible in CI.
+
+**Fix:** Extend `_find_numeric_args` to also scan keyword args of the outer `mapped_column` call:
+```python
+# After scanning call.args, also check keyword arguments:
+for kw in call.keywords:
+    if (
+        isinstance(kw.value, ast.Call)
+        and isinstance(kw.value.func, ast.Name)
+        and kw.value.func.id == "Numeric"
+    ):
+        # parse precision/scale from kw.value exactly as for positional Numeric
+        ...
+```
+Add a test fixture and corresponding `assert lint(tmp_path) == 1` case in `test_money_lint.py`.
+
+---
+
+### CR-05: `scrub_secrets` processor only scrubs top-level keys — nested secrets pass through
+
+**File:** `backend/app/core/logging.py:42-51`
+**Issue:** `scrub_secrets` iterates `event_dict.keys()` and replaces values for matching keys. Any nested dict — e.g., `logger.info("auth", payload={"password": "hunter2"})` — is not scrubbed; the `payload` key is not in `SCRUB_KEYS`, so its `password` child is emitted in plain text to the JSON log stream.
+
+The module docstring says it "protects log output from accidentally leaking these values" without qualifying that protection as top-level-only. Phase 2's auth and session management will log structured payloads under this false guarantee. The `SCRUB_KEYS` set already pre-emptively includes `session_signing_key` and `admin_token` for Phase 2 values, suggesting the author expects these to appear in log fields — but a nested `{"session_signing_key": "..."}` is invisible to the scrubber.
+
+**Fix — minimal (document the gap explicitly):**
+```python
+def scrub_secrets(...) -> MutableMapping[str, Any]:
+    """structlog processor — replace values for sensitive keys with ``***``.
+
+    WARNING: Only top-level keys in event_dict are scrubbed. Nested dicts
+    (e.g. payload={"password": "x"}) are NOT recursively walked.
+    Callers must not log sensitive data under nested keys.
+    """
+```
+
+**Fix — complete (recursive scrub):**
+```python
+def _scrub_recursive(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {
+            k: "***" if k.lower() in SCRUB_KEYS else _scrub_recursive(v)
+            for k, v in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_scrub_recursive(item) for item in obj]
+    return obj
+
+def scrub_secrets(_logger, _name, event_dict):
+    return _scrub_recursive(event_dict)
+```
+
+---
+
+### CR-06: `gitleaks-action` pinned to mutable `@v2` floating tag in two CI workflows
+
+**File:** `.github/workflows/backend-ci.yml:63`, `.github/workflows/security.yml:26`
+**Issue:** Both workflows reference `gitleaks/gitleaks-action@v2` — a mutable floating tag controlled by a third-party author. If that GitHub user account is compromised or the tag is force-pushed, every CI run silently executes adversarial code with `GITHUB_TOKEN` in scope (which, even with `permissions: contents: read`, can read private repository contents). The security workflow is the one responsible for preventing secret leaks — compromising it is the highest-value attack on this pipeline.
+
+The pre-commit hook pins gitleaks itself to `v8.30.1` (immutable), but the CI action does not pin.
+
+**Fix:** Pin to a specific commit SHA (most secure) or a specific version tag:
 ```yaml
-test: ["CMD-SHELL", "[ $$(find /tmp/celerybeat.heartbeat -mmin -2 2>/dev/null | wc -l) -eq 1 ] || exit 1"]
-start_period: 60s
+# .github/workflows/backend-ci.yml and security.yml:
+uses: gitleaks/gitleaks-action@v2.3.9  # or pin to SHA
 ```
-Change `-mmin -1` to `-mmin -2` for a 120-second window against the 30-second touch interval.
-
----
-
-### CR-04: `scrub_secrets` does not scrub nested dict values — undocumented data-exposure gap
-**File:** `backend/app/core/logging.py` (scrub_secrets processor)
-
-Only top-level event dict keys are scrubbed. Nested data like `logger.info("user", data={"password": "secret"})` passes through unmasked. CONVENTIONS.md says the scrubber "masks values for keys in SCRUB_KEYS" without qualifying "top-level only". Phase 2 will log auth payloads under this false guarantee.
-
-**Fix:** Document the limitation prominently in the docstring AND in CONVENTIONS.md section 8. Add a test asserting nested secrets pass through (intentional gap, not a silent bug).
-
----
-
-### CR-05: Dockerfile `uv sync --frozen || uv sync` fallback silently drops frozen-lockfile guarantee
-**File:** `backend/Dockerfile`
-
-```dockerfile
-RUN uv sync --frozen --no-dev || uv sync --no-dev
-```
-If `uv sync --frozen` fails, the fallback runs an unfrozen install. The prod container silently diverges from `uv.lock`. CI passes because the build succeeds.
-
-**Fix:** Remove the fallback:
-```dockerfile
-RUN uv sync --frozen --no-dev
-```
+Check https://github.com/gitleaks/gitleaks-action/releases for the latest stable tag.
 
 ---
 
 ## Warnings
 
-### WR-01: `Settings()` instantiated on every request/task in three hot paths
-**Files:** `backend/app/core/redis.py`, `backend/app/core/audit/service.py`, `backend/app/core/feature_flags/service.py`
+### WR-01: `Settings()` instantiated per-request/per-task in three hot paths
 
-`pydantic-settings` parses and validates all env vars on each `Settings()` call. In production these run per-request and per-transactional write. The `@lru_cache(maxsize=1)` pattern already exists in `app/db/session.py`.
+**Files:** `backend/app/core/redis.py:24`, `backend/app/core/audit/service.py:54`, `backend/app/core/feature_flags/service.py:34`, `backend/app/core/audit/models.py:48`, `backend/app/core/feature_flags/models.py:39`
+**Issue:** `pydantic-settings` validates all environment variables on every `Settings()` construction. Five call sites construct a new `Settings()` on each request, on each audit write, and on each feature-flag read. The existing `@lru_cache(maxsize=1)` pattern in `app/db/session.py` is the established project idiom for exactly this case. The per-request model construction is not catastrophic today, but scales poorly under load and is inconsistent with the stated project convention.
 
-**Fix:** Add a cached `get_settings()` factory and use it in these three call sites.
+**Fix:** Add a cached factory at the module level or in `config.py`:
+```python
+from functools import lru_cache
 
----
-
-### WR-02: `AsyncSession(bind=conn)` uses deprecated keyword removed in SQLAlchemy 2.1
-**File:** `backend/tests/conftest.py`
-
-`pyproject.toml` pins `sqlalchemy>=2.0.43,<2.1` so this works today. The first Phase 2 bump to SQLAlchemy 2.1 breaks all integration tests with `TypeError: unexpected keyword argument 'bind'`.
-
-**Fix:** `AsyncSession(conn, expire_on_commit=False)` — positional, not `bind=`.
-
----
-
-### WR-03: Flower API unauthenticated with no enforcement for staging/prod
-**File:** `docker-compose.yml` (flower service)
-
-`FLOWER_UNAUTHENTICATED_API: "true"` with no `FLOWER_BASIC_AUTH` means anyone reaching port 5555 can cancel tasks, terminate workers, and inspect task arguments (which will contain sensitive data from Phase 2+). No startup check validates the operator assumption.
-
-**Fix:** Remove `ports:` from flower in base compose (accessible only via `exec`), or add a guard in `bin/dev`/`bin/dev.ps1` that warns when `FLOWER_BASIC_AUTH` is unset and `ENVIRONMENT != dev`.
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings()
+```
+Then replace every bare `Settings()` call (outside tests) with `get_settings()`.
 
 ---
 
-### WR-04: `AuditLog.id` has no Python-side default — `row.id` is `None` before RETURNING completes
-**File:** `backend/app/core/audit/models.py`
+### WR-02: `AsyncSession(bind=conn)` uses deprecated keyword — breaks on SQLAlchemy 2.1+
 
-`server_default=func.gen_random_uuid()` means the DB generates the UUID. No test asserts `row.id is not None` after `AuditService.record()`, so a regression goes undetected.
+**File:** `backend/tests/conftest.py:185`
+**Issue:** `AsyncSession(bind=conn, expire_on_commit=False)` uses the `bind=` keyword, which was deprecated in SQLAlchemy 2.0 and is removed in SQLAlchemy 2.1. The `pyproject.toml` likely pins `sqlalchemy>=2.0,<2.1` today, but the first minor version bump in any future phase silently breaks all integration tests with `TypeError: __init__() got an unexpected keyword argument 'bind'`.
 
-**Fix:** Add `default=uuid4` as Python-side default alongside `server_default`. Add `assert row.id is not None` to `test_audit_service_record`.
-
----
-
-### WR-05: Money linter misses `Numeric` passed via `type_=` keyword to `mapped_column`
-**File:** `backend/scripts/lint_money_columns.py`
-
-`_find_numeric_args` only scans positional `call.args`. A column declared as `mapped_column(type_=Numeric(10, 2))` produces zero errors from R1 — wrong precision passes silently.
-
-**Fix:** Extend `_find_numeric_args` to also check `call.keywords` for `Numeric(...)` values. Add a test case to `test_money_lint.py`.
+**Fix:**
+```python
+async with AsyncSession(conn, expire_on_commit=False) as session:
+    yield session
+```
+Pass the connection positionally, not via `bind=`.
 
 ---
 
-### WR-06: `test_settings_rejects_malformed_url` may pass for the wrong reason
-**File:** `backend/tests/test_settings.py`
+### WR-03: Beat service healthcheck window is half the interval — one jitter event fails it
 
-Module-level env seed in `conftest.py` sets `DATABASE_URL` to a valid URL. `pydantic-settings` env vars take priority over constructor kwargs. `Settings(DATABASE_URL="not-a-url")` may silently use the env var's valid URL — `ValidationError` never fires, making the test a false pass.
+**File:** `docker-compose.yml:138`
+**Issue:** `find /tmp/celerybeat.heartbeat -mmin -1` checks for a file touched within the last 60 seconds. The heartbeat thread touches the file every 30 seconds (`_HEARTBEAT_INTERVAL_SECONDS = 30`). Any pause longer than 31 seconds — GC, RedBeat lock contention, resource starvation — causes the mtime to exceed 60 seconds and triggers a health failure. Docker then counts this toward `retries: 5` and may restart the beat process.
 
-**Fix:** Use `monkeypatch.setenv("DATABASE_URL", "not-a-url")` to unambiguously force the invalid value.
+The beat service also lacks a `start_period`, meaning Docker counts failures from container start. The heartbeat thread is only started *after* the beat process initialises (inside `_init_beat`), which includes acquiring RedBeat's distributed lock — this can take tens of seconds on first boot.
+
+**Fix:**
+```yaml
+healthcheck:
+  test: ["CMD-SHELL", "[ $$(find /tmp/celerybeat.heartbeat -mmin -2 2>/dev/null | wc -l) -eq 1 ] || exit 1"]
+  interval: 30s
+  timeout: 5s
+  retries: 5
+  start_period: 60s
+```
 
 ---
 
-### WR-07: Frontend `instrumentation-client.ts` initialises Sentry with empty-string DSN in dev
-**Files:** `frontend/instrumentation-client.ts`, `frontend/instrumentation.ts`
+### WR-04: Frontend Sentry initialised with empty-string DSN — SDK emits errors, may attempt invalid connections
 
-`Sentry.init({ dsn: process.env.NEXT_PUBLIC_SENTRY_DSN })` runs unconditionally. With `.env.example` defaults `NEXT_PUBLIC_SENTRY_DSN=""`, Sentry SDK 10.x emits a console warning and may attempt invalid connections on every page load.
+**Files:** `frontend/src/instrumentation.ts:19`, `frontend/src/instrumentation-client.ts:14`
+**Issue:** Both files pass `dsn: process.env.NEXT_PUBLIC_SENTRY_DSN` directly to `Sentry.init()`. With the `.env.example` default of `NEXT_PUBLIC_SENTRY_DSN=`, this evaluates to `dsn: ""`. Sentry SDK 10.x does not treat an empty string the same as `undefined`/`null`: it attempts to parse the DSN, fails with an internal warning, and may establish a Sentry hub in an error state. Every browser page load in dev emits spurious console output; every server start produces a Node.js warning.
 
-**Fix:** Guard: `if (dsn) { Sentry.init({ dsn, ... }); }`
+The backend `init_sentry()` explicitly guards `if not settings.SENTRY_DSN: return` — the frontend has no equivalent guard.
+
+**Fix:** Add explicit guard in both instrumentation files:
+```typescript
+// instrumentation-client.ts
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+if (dsn) {
+  Sentry.init({ dsn, tracesSampleRate: 0.1, ... });
+}
+
+// instrumentation.ts (inside the nodejs guard)
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+if (dsn) {
+  Sentry.init({ dsn, tracesSampleRate: 0.1, ... });
+}
+```
 
 ---
 
-### WR-08: `downgrade()` will fail when Phase 2+ adds FK constraints referencing `audit_log`
-**File:** `backend/alembic/versions/0001_phase1_foundations.py`
+### WR-05: `AuditLog.id` has no Python-side default — `row.id` is `None` until DB flush returns
 
-`op.drop_table("audit_log")` without `cascade=True` will fail with FK constraint errors once Phase 2+ migrations reference `audit_log`.
+**File:** `backend/app/core/audit/models.py:27-31`
+**Issue:** `id` is declared with only `server_default=func.gen_random_uuid()`. SQLAlchemy populates `row.id` only after a `RETURNING id` round-trip (i.e., after `session.flush()`). `AuditService.record()` calls `session.flush()`, so `row.id` is populated by the time `record()` returns — that is the happy path. However, if a caller creates an `AuditLog` directly (bypassing `AuditService`) and accesses `row.id` before flushing, `row.id` is `None` — silently, without error. The test `test_audit_service_record` does not assert `row.id is not None`, so this regression path has no coverage.
 
-**Fix:** `op.drop_table("audit_log", cascade=True)`. Document in migration comment.
+Adding a Python-side `default=uuid4` makes the field immediately assigned on construction, removes the pre-flush `None` window, and is the standard SQLAlchemy pattern when `server_default` is also present.
+
+**Fix:**
+```python
+from uuid import uuid4
+
+id: Mapped[PyUUID] = mapped_column(
+    UUID(as_uuid=True),
+    primary_key=True,
+    default=uuid4,
+    server_default=func.gen_random_uuid(),
+)
+```
+Add `assert row.id is not None` to `test_audit_service_record`.
+
+---
+
+### WR-06: `downgrade()` will fail with FK constraint errors once Phase 2+ references `audit_log`
+
+**File:** `backend/alembic/versions/0001_phase1_foundations.py:144-154`
+**Issue:** `op.drop_table("feature_flags")` followed by `op.drop_table("audit_log")` will fail once any Phase 2+ migration adds a foreign key referencing `audit_log`. The drop order also matters: if Phase 2 adds a table that references `feature_flags`, the current downgrade sequence drops `feature_flags` before dropping its dependents.
+
+Standard Alembic practice is to add `sa.text("CASCADE")` or use `postgresql_cascade=True` when the dependency graph is expected to grow, or to at minimum document that downgrade requires manual intervention.
+
+**Fix:**
+```python
+def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS audit_log_immutability_trigger ON audit_log;")
+    op.execute("DROP FUNCTION IF EXISTS raise_audit_immutable();")
+    op.drop_table("feature_flags")
+    op.drop_index("ix_audit_log_actor", table_name="audit_log")
+    op.drop_index("ix_audit_log_event_type", table_name="audit_log")
+    op.drop_index("ix_audit_log_occurred_at", table_name="audit_log")
+    op.execute("DROP TABLE IF EXISTS audit_log CASCADE;")
+```
+
+---
+
+### WR-07: `test_gitleaks_fires_on_synthetic_fixture` does not assert exit code of the gitleaks run
+
+**File:** `backend/tests/test_gitleaks_blocks_secret.py:94-105`
+**Issue:** `_run_gitleaks(...)` returns `(exit_code, stdout, stderr)` but the return value is discarded. The test then checks that `report_path.exists()` and that `len(findings) == 2`. If gitleaks exits 0 (unexpected — no detections) or crashes with exit code 2, the report file may not be written or may be empty/`null`, and the `assert report_path.exists()` check catches it — but only partially. A gitleaks version that changes its JSON report schema could silently write an empty list or a different structure, and the test would not detect the failure mode.
+
+**Fix:**
+```python
+exit_code, stdout, stderr = _run_gitleaks([...], cwd=REPO_ROOT)
+assert exit_code == 1, (
+    f"expected gitleaks to exit 1 (findings detected); got {exit_code}. "
+    f"stdout={stdout!r} stderr={stderr!r}"
+)
+assert report_path.exists(), ...
+```
 
 ---
 
 ## Info
 
-### IN-01: `.gitleaks.toml` allowlists entire `.planning/` tree
-An accidentally-pasted real Sentry DSN or signing key in any planning doc would be invisible to gitleaks.
+### IN-01: `.gitleaks.toml` allowlist covers entire `.planning/` directory
 
-**Suggestion:** Narrow to specific file patterns or add a comment that the allowlist is for documentation snippets only, never real secrets.
+**File:** `.gitleaks.toml:43`
+**Issue:** `'''\.planning/.*'''` allowlists every file under `.planning/` from secret scanning. Planning documents written by agents may inadvertently contain real Sentry DSNs, database connection strings, or signing keys copy-pasted from local environments. The allowlist was presumably added to allow example env-var snippets in planning docs, but it has no narrower scope.
 
----
-
-### IN-02: `mailpit` healthcheck missing `start_period`
-No `start_period` means Docker counts failures from cold start. With `retries: 3` and `interval: 30s`, mailpit has only 90 seconds to become healthy.
-
-**Suggestion:** Add `start_period: 10s`.
-
----
-
-### IN-03: `test_gitleaks_blocks_secret.py` discards `_run_gitleaks` exit code
-`_run_gitleaks()` returns `(exit_code, stdout, stderr)` but the return value is discarded.
-
-**Suggestion:** Capture and assert `exit_code != 0` for the negative test.
+**Suggestion:** Narrow the allowlist to specific file patterns within `.planning/`:
+```toml
+paths = [
+  '''\.planning/.*-RESEARCH\.md$''',
+  '''\.planning/.*-PLAN\.md$''',
+  # ... etc.
+]
+```
+Or add a comment documenting that planning docs must never contain real secrets.
 
 ---
 
-### IN-04: `gitleaks/gitleaks-action@v2` pinned to mutable tag in CI
-**Files:** `.github/workflows/backend-ci.yml`, `.github/workflows/security.yml`
+### IN-02: `pytestmark = pytest.mark.skipif(GITLEAKS is None, ...)` has inverted condition
 
-Mutable tag from third-party author — supply-chain attack risk.
+**File:** `backend/tests/test_gitleaks_blocks_secret.py:42`
+**Issue:** The condition is `skipif(GITLEAKS is None, reason=_SKIP_REASON)`. Read literally: "skip if gitleaks is NOT found". This is the correct intent — skip when the binary is absent. However the `_SKIP_REASON` string says "gitleaks not installed on PATH ... required for PLT-04 verification". The logic is correct but the naming of `_SKIP_REASON` is misleading — it reads like it's the reason the test is being kept, not the reason it's being skipped. Minor, but can confuse a reader who sees the skip in CI output.
 
-**Suggestion:** Pin to specific release: `gitleaks/gitleaks-action@v2.3.9`
+**Suggestion:** Rename to `_MISSING_GITLEAKS_REASON` or adjust wording to clearly indicate it's the skip justification.
 
 ---
 
-## Summary
+### IN-03: Flower admin UI exposed on host port 5555 with no auth and `FLOWER_UNAUTHENTICATED_API: "true"`
 
-| Severity | Count | Key files |
-|----------|-------|-----------|
-| Critical | 5 | main.py, conftest.py, docker-compose.yml, logging.py, Dockerfile |
-| Warning  | 8 | conftest.py, redis.py, audit/service.py, feature_flags/service.py, audit/models.py, lint_money_columns.py, test_settings.py, instrumentation-client.ts, 0001_phase1_foundations.py |
-| Info     | 4 | .gitleaks.toml, docker-compose.yml, test_gitleaks_blocks_secret.py, CI workflows |
-| **Total**| **17** | |
+**File:** `docker-compose.yml:144-161`
+**Issue:** Flower is published on `localhost:5555` and `FLOWER_UNAUTHENTICATED_API: "true"` is set unconditionally. The comment says "Dev-only; staging/prod sets FLOWER_BASIC_AUTH" but nothing in the startup scripts or CI enforces that `FLOWER_BASIC_AUTH` is present in non-dev environments. Flower 2.0+ allows task cancellation, worker termination, and full task argument inspection via `/api/*` when unauthenticated — once Phase 2+ adds real task payloads (user data, payment events), unauthenticated Flower in staging/prod is a data exposure risk.
 
-**Recommended fix order before Phase 2:**
-1. **CR-05** (Dockerfile fallback) — 1-line fix, prevents silent prod divergence
-2. **CR-02** (async_session scope) — prevents flaky CI blocking Phase 2
-3. **CR-01** (`/_sentry-test` auth gate) — add env guard before real deployment
-4. **CR-03** (beat healthcheck window) — prevents phantom unhealthy restarts
-5. **CR-04** (scrub_secrets doc) — document limitation before Phase 2 auth logging
+**Suggestion:** Ensure `FLOWER_BASIC_AUTH` is in the `.env.example` (commented, but present), and add a startup check in `bin/dev.ps1`/`bin/dev` that warns when running non-dev without `FLOWER_BASIC_AUTH`.
+
+---
+
+### IN-04: `mailpit` healthcheck has no `start_period`
+
+**File:** `docker-compose.yml:75-79`
+**Issue:** The mailpit service defines `retries: 3` and `interval: 30s` but no `start_period`. Docker counts failures from container creation — if mailpit takes more than 90 seconds to come up (slow disk, image pull), it is marked unhealthy before it has a chance to become ready. No other service depends on mailpit in Phase 1, so the impact today is limited to a confusing `docker compose ps` output.
+
+**Suggestion:** Add `start_period: 10s` to match the other services.
+
+---
+
+_Reviewed: 2026-05-26T00:00:00Z_
+_Reviewer: Claude (gsd-code-reviewer)_
+_Depth: standard_

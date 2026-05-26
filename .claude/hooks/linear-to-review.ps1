@@ -15,11 +15,11 @@ function Import-EnvFile($path) {
 Import-EnvFile (Join-Path (Get-Location) ".claude/linear.shared.env")
 Import-EnvFile (Join-Path (Get-Location) ".env.local")
 
-# Find active phase (most recently modified dir with a PLAN.md)
+# Find active phase (most recently modified dir with any *-PLAN.md file)
 $phasesDir = ".planning\phases"
 if (-not (Test-Path $phasesDir)) { exit 0 }
 $activePhase = Get-ChildItem $phasesDir -Directory |
-    Where-Object { Test-Path (Join-Path $_.FullName "PLAN.md") } |
+    Where-Object { (Get-ChildItem $_.FullName -Filter "*PLAN.md" -ErrorAction SilentlyContinue).Count -gt 0 } |
     Sort-Object LastWriteTime -Descending |
     Select-Object -First 1
 
