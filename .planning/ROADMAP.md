@@ -44,7 +44,12 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   3. The `audit_log` table is created with a Postgres trigger that blocks `UPDATE` and `DELETE`; an integration test demonstrates both operations raise.
   4. Money-column coding standard is documented and enforced: a CI lint fails any new SQLAlchemy `Mapped` annotation for a money field that is not `Decimal` + `Numeric(18,4)`; no `FLOAT`/`REAL`/`MONEY` types appear in the schema.
   5. `gitleaks` runs in CI and blocks a test commit that contains a fake secret; Sentry receives a synthetic error from FastAPI, Celery worker, and Next.js (three separate test triggers) and the events appear in the configured Sentry project.
-**Plans**: TBD
+**Plans**: 4 plans
+**Plan list**:
+- [ ] 01-01-PLAN.md — Backend Python scaffold: pyproject.toml + Settings + Money alias + structlog + Sentry helpers + FastAPI/Celery factories + money-column AST lint + Wave-0 unit tests (PLT-03, PLT-08, WAL-05)
+- [ ] 01-02-PLAN.md — Frontend Next.js 15 + Tailwind 4 + TypeScript scaffold with Sentry on server + client surfaces + /api/healthz + /api/sentry-test + Vitest (PLT-08, PLT-10)
+- [ ] 01-03-PLAN.md — docker-compose.yml (8 services) + Alembic baseline 0001 (audit_log + feature_flags with ghost column + immutability trigger + seeded flags) + integration tests against testcontainers Postgres + docker-compose smoke (PLT-01, PLT-02, PLT-06, PLT-10)
+- [ ] 01-04-PLAN.md — gitleaks + pre-commit + GitHub Actions (backend-ci, frontend-ci, security) + bin/dev + README + Phase 1 acceptance gate (PLT-04, PLT-08, PLT-10)
 **Research/spike flags**: None — well-documented patterns.
 **Critical pitfalls covered**: PITFALL #3 (regulatory — secrets/ToS posture begins here), PITFALL #4 (Decimal/NUMERIC locked at schema), PITFALL #7 (connection-pool / SET LOCAL discipline established).
 
@@ -226,7 +231,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 0/TBD | Not started | - |
+| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 0/4 | Not started | - |
 | 2. Auth & Identity | 0/TBD | Not started | - |
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
