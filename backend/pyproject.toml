@@ -1,0 +1,133 @@
+[project]
+name = "xpredict-backend"
+version = "0.1.0"
+description = "XPredict backend — FastAPI + SQLAlchemy 2.0 + Celery + Postgres + Redis"
+requires-python = ">=3.12,<3.14"
+license = { text = "Proprietary" }
+authors = [
+  { name = "Pol Bonet" },
+]
+dependencies = [
+  # HTTP framework
+  "fastapi[standard]>=0.115.7,<0.116.0",
+  "uvicorn[standard]>=0.32,<0.36",
+  # Settings / models
+  "pydantic>=2.10,<3.0",
+  "pydantic-settings>=2.6,<3.0",
+  "python-dotenv>=1.0,<2.0",
+  # Database / ORM
+  "sqlalchemy>=2.0.43,<2.1",
+  "asyncpg>=0.30,<0.32",
+  "psycopg2-binary>=2.9.10,<3.0",
+  "alembic>=1.14,<2.0",
+  # Background tasks
+  "celery>=5.5,<5.6",
+  "redis>=5.0,<6.0",
+  "celery-redbeat>=2.2,<3.0",
+  "flower>=2.0,<3.0",
+  # HTTP client / retry policies (Phase 6 prep)
+  "httpx>=0.28,<0.29",
+  "tenacity>=9.0,<10.0",
+  # Observability
+  "structlog>=24.4,<26.0",
+  "sentry-sdk[fastapi,celery,sqlalchemy]>=2.18,<3.0",
+  # Rate limiting (installed but NOT mounted in Phase 1)
+  "slowapi>=0.1.9,<0.2",
+]
+
+[dependency-groups]
+dev = [
+  # Testing
+  "pytest>=8.3,<9.0",
+  "pytest-asyncio>=0.24,<0.26",
+  "pytest-httpx>=0.32,<0.36",
+  "testcontainers>=4.8",
+  "fakeredis>=2.20",
+  "dirty-equals>=0.8",
+  # Lint / typecheck / pre-commit
+  "ruff>=0.7,<0.9",
+  "mypy>=1.13,<2.0",
+  "pre-commit>=4.0,<5.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+# ---------------------------------------------------------------------------
+# Ruff — D-45 (E,F,I,UP,B,C4,SIM,RUF)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [
+  ".venv",
+  "alembic/versions",  # Auto-generated migrations may not be ruff-clean
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+  # FastAPI dependency-injection idiom: `Depends()` in function defaults is intentional
+  "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]  # `assert False` is fine inside tests
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ---------------------------------------------------------------------------
+# Mypy — D-45 (strict on app/, lax on tests/)
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+disable_error_code = ["no-untyped-def", "no-untyped-call"]
+
+# Third-party libs without complete type stubs — lax on imports only.
+[[tool.mypy.overrides]]
+module = [
+  "celery.*",
+  "redbeat.*",
+  "flower.*",
+  "fakeredis.*",
+  "testcontainers.*",
+  "slowapi.*",
+  "dirty_equals.*",
+]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = [".", "scripts"]
+markers = [
+  "integration: tests that require testcontainers Postgres (slow)",
+]
+filterwarnings = [
+  "error",
+  # SQLAlchemy emits this for legacy session usage in deps — ignore in tests
+  "ignore::DeprecationWarning:sqlalchemy.*",
+  # asyncpg + Python 3.13 transitional warnings — out of scope for Phase 1
+  "ignore::DeprecationWarning:asyncio.*",
+]
