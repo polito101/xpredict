@@ -1,0 +1,187 @@
+# XPredict Phase 1 docker-compose stack (D-02 .. D-05).
+#
+# 8 services: db, redis, mailpit, backend, worker, beat, flower, frontend.
+# Every service has a healthcheck per D-03; dependent services wait via
+# `depends_on: { condition: service_healthy }` per D-04. Stateful volumes
+# (pg_data, redis_data, mailpit_data, beat_heartbeat) per D-05.
+#
+# Backend image is shared by worker, beat, flower (D-02); each overrides CMD.
+# Frontend builds its own Next.js 15 image.
+#
+# Dev-only (D-06). Staging/prod deploys via Railway/Fly.io using the same
+# Dockerfiles, not this compose file.
+
+# YAML anchors so backend/worker/beat/flower share env + volumes verbatim.
+x-backend-env: &backend-env
+  ENVIRONMENT: dev
+  LOG_LEVEL: INFO
+  DATABASE_URL: postgresql+asyncpg://xpredict:xpredict@db:5432/xpredict
+  DATABASE_URL_SYNC: postgresql+psycopg2://xpredict:xpredict@db:5432/xpredict
+  REDIS_URL: redis://redis:6379/0
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_TRACES_SAMPLE_RATE: "0.1"
+
+x-backend-volumes: &backend-volumes
+  - ./backend:/app
+
+services:
+  # ----------------------------------------------------------------------
+  # Stateful infrastructure
+  # ----------------------------------------------------------------------
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: xpredict
+      POSTGRES_PASSWORD: xpredict
+      POSTGRES_DB: xpredict
+      # PGDATA in a subdir avoids permission breakage when the volume is
+      # mounted at /var/lib/postgresql/data (Pitfall 9).
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xpredict -d xpredict"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # web UI
+    volumes:
+      - mailpit_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ----------------------------------------------------------------------
+  # Backend application surfaces (api, worker, beat, flower)
+  # ----------------------------------------------------------------------
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *backend-env
+    volumes: *backend-volumes
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build: ./backend
+    command: celery -A app.celery_app worker -l info -Q default
+    environment:
+      <<: *backend-env
+    volumes: *backend-volumes
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      # `$$HOSTNAME` is shell-expanded inside the container (the leading
+      # double-$$ escapes compose interpolation).
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  beat:
+    build: ./backend
+    command: celery -A app.celery_app beat -S redbeat.RedBeatScheduler -l info
+    environment:
+      <<: *backend-env
+    volumes:
+      - ./backend:/app
+      # Shared named volume so the heartbeat file written by beat is
+      # readable by the healthcheck `find` command (Pattern 1).
+      - beat_heartbeat:/tmp
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      # File mtime within the last minute => heartbeat thread alive.
+      test: ["CMD-SHELL", "[ $$(find /tmp/celerybeat.heartbeat -mmin -1 2>/dev/null | wc -l) -eq 1 ] || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  flower:
+    build: ./backend
+    command: celery -A app.celery_app flower --port=5555
+    ports:
+      - "5555:5555"
+    environment:
+      <<: *backend-env
+    volumes: *backend-volumes
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:5555/api/workers"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------
+  # Frontend (Next.js 15 dev server)
+  # ----------------------------------------------------------------------
+
+  frontend:
+    build: ./frontend
+    command: pnpm dev
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+      NEXT_PUBLIC_API_URL: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      # Anonymous volumes shadow node_modules and .next so the host's
+      # (potentially Windows-native) versions don't override the
+      # alpine-built node_modules inside the container.
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      backend: { condition: service_started }   # soft per D-04
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  pg_data:
+  redis_data:
+  mailpit_data:
+  beat_heartbeat:

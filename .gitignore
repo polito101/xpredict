@@ -1,16 +1,55 @@
-# Secrets — never commit
+# Secrets — never commit (D-32, PLT-03)
 .env.local
+.env*.local
 .env
 *.env
 # ...except the shared, non-secret Linear IDs (team + workflow states)
 !.claude/linear.shared.env
 
-# Dependencies / build output (preventive — product scaffold lands in Phase 1)
+# ---------------------------------------------------------------------------
+# Python (backend/)
+# ---------------------------------------------------------------------------
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+*.egg-info/
+.uv-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+coverage.xml
+coverage/
+
+# ---------------------------------------------------------------------------
+# Node / Next.js (frontend/)
+# ---------------------------------------------------------------------------
+
 node_modules/
 .next/
+out/
+.pnpm-store/
+.pnpm-debug.log*
+
+# ---------------------------------------------------------------------------
+# Build output (root + subprojects)
+# ---------------------------------------------------------------------------
+
 dist/
 build/
-__pycache__/
-.venv/
 *.log
+
+# ---------------------------------------------------------------------------
+# Editor / OS
+# ---------------------------------------------------------------------------
+
+.idea/
+.vscode/
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
