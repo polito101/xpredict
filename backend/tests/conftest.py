@@ -171,18 +171,28 @@ async def engine(postgres_container: PostgresContainer) -> AsyncGenerator[AsyncE
         await eng.dispose()
 
 
-@pytest_asyncio.fixture(loop_scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def async_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    """Function-scoped ``AsyncSession`` wrapped in a transaction that rolls back.
+    """Session-scoped ``AsyncSession`` wrapped in a transaction that rolls back.
 
-    Provides clean DB state between tests without recreating the schema.
+    The outer transaction is opened once for the entire test session and rolled
+    back at the end — every test sees a clean slate because writes are never
+    committed to the real DB. Using ``scope="session"`` (not the default
+    ``"function"``) prevents the fixture from being torn down and re-entered
+    within the same event loop, which would cause asyncpg
+    ``"Event loop is closed"`` errors under pytest-asyncio 0.25.
+
+    For true per-test isolation use savepoints (``conn.begin_nested()``) inside
+    individual tests that need it.
     """
     from sqlalchemy.ext.asyncio import AsyncSession
 
     async with engine.connect() as conn:
         trans = await conn.begin()
         try:
-            async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+            # Pass connection positionally — `bind=` was deprecated in
+            # SQLAlchemy 2.0 and removed in 2.1 (WR-02).
+            async with AsyncSession(conn, expire_on_commit=False) as session:
                 yield session
         finally:
             await trans.rollback()
