@@ -78,14 +78,19 @@ def _init_worker(**_kwargs: Any) -> None:
 
 @beat_init.connect
 def _init_beat(**_kwargs: Any) -> None:
-    """Configure logging + Sentry + start heartbeat thread inside the beat process."""
+    """Configure logging + Sentry + start heartbeat thread inside the beat process.
+
+    Heartbeat thread is started FIRST so it runs even when acquire_distributed_beat_lock
+    (RedBeat's beat_init receiver) blocks waiting for the distributed lock — which can
+    happen when beat restarts while a previous run's lock is still held in Redis.
+    """
+    threading.Thread(target=_heartbeat_loop, daemon=True, name="celerybeat-heartbeat").start()
     configure_logging(settings)
     init_sentry(
         service="beat",
         settings=settings,
         integrations=[CeleryIntegration(), SqlalchemyIntegration()],
     )
-    threading.Thread(target=_heartbeat_loop, daemon=True, name="celerybeat-heartbeat").start()
 
 
 @task_prerun.connect

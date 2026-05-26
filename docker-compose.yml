@@ -116,11 +116,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   beat:
     build: ./backend
-    command: celery -A app.celery_app beat -S redbeat.RedBeatScheduler -l info
+    command: celery -A app.celery_app beat -l info
     environment:
       <<: *backend-env
     volumes:

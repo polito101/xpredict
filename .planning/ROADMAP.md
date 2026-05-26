@@ -35,7 +35,6 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 ### Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations
 **Goal**: Provide a one-command local stack and lock in the non-negotiable foundations (money types, tenant seam, audit immutability, secrets hygiene, observability) so every later phase inherits them for free.
-**Mode:** mvp
 **Depends on**: Nothing (first phase)
 **Requirements**: PLT-01, PLT-02, PLT-03, PLT-04, PLT-06, PLT-08, PLT-10, WAL-05
 **Success Criteria** (what must be TRUE):
