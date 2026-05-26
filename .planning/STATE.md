@@ -11,8 +11,8 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 Phase: 1 of 11 (Project Scaffold, Infra & Cross-Cutting Foundations)
 Plan: — of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-05-25 — ROADMAP.md created (11 phases, 69/69 v1 requirements mapped, Vertical MVP mode, fine granularity)
+Status: Context gathered — ready to plan
+Last activity: 2026-05-26 — Phase 1 CONTEXT.md created in `--auto` mode (47 decisions D-01..D-47); Pol taking over Phase 1 implementation instead of Cuco
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -57,6 +57,7 @@ Recent decisions affecting current work:
 - 2026-05-25: `SettlementService` built once in Phase 5, reused unchanged in Phase 7 for Polymarket auto-resolution — the architectural payoff of the `MarketSource` abstraction.
 - 2026-05-25: Phase 1 locks money-column standards (`NUMERIC(18,4)` + Python `Decimal` from strings), `tenant_id` ghost column, audit-log immutability trigger — non-renegotiable foundations.
 - 2026-05-25: Phase 11 is the operator-demo gate; ToS + regulatory posture review is part of it (per PITFALLS.md §"The Regulatory Line").
+- **2026-05-26: Phase 1 ownership transfer to Pol.** Cuco was originally going to plan + implement Phase 1; Pol decided to do it himself. Context gathered in `--auto` mode — 47 decisions D-01..D-47 captured in `.planning/phases/01-scaffold-foundations/01-CONTEXT.md`. Locks: docker-compose with 8 services (db/redis/mailpit/backend/worker/beat/flower/frontend), modular monolith feature folders, `uv` for Python deps, `pnpm` for frontend, Alembic baseline migration creates only Phase 1 tables (`audit_log`, `feature_flags`), audit-log immutability via both Postgres trigger AND `REVOKE`, structlog (console in dev / JSON in prod), Sentry single project per env with `service=*` tag, money-column AST lint script in `scripts/`, `Money` SQLAlchemy alias for `Decimal` + `Numeric(18,4)`.
 
 ### Pending Todos
 
@@ -68,7 +69,8 @@ None yet.
 
 [Issues that affect future work]
 
-- **Phase 3 spike recommended**: Concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious. Recommend `/gsd-spike` before Phase 3 planning if Cuco hasn't implemented async double-entry before. References: PITFALLS.md §Wallet, STACK.md §3.
+- **Phase 1 ownership change (2026-05-26)**: Pol takes over Phase 1 implementation (was Cuco). CONTEXT.md captured in `--auto` mode — Pol should review before `/gsd-plan-phase 1` runs, since auto-mode skipped the chance to override defaults. Phase 2 already planned (8 PLAN.md files on `gsd/phase-02-demo-identity` branch, not yet on main) and depends on Phase 1 contracts (AuditService API, Settings keys, structlog scrubber, get_redis dep, get_async_session dep) — Phase 1 plan MUST surface these.
+- **Phase 3 spike recommended**: Concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious. Recommend `/gsd-spike` before Phase 3 planning. References: PITFALLS.md §Wallet, STACK.md §3.
 - **Phase 6 spike recommended**: Gamma API schema quirks (stringified JSON in `outcomes`/`outcomePrices`, mixed string-vs-number numerics, `umaResolutionStatus` value space). Recommend `/gsd-spike` + VCR fixture capture on day 1 of planning. References: STACK.md §2.2, PITFALLS.md #2 + #9.
 - **Phase 11 dependency**: Spanish legal counsel must review ToS and token policy before any demo to an operator. Not deferrable; this is a gating dependency on Phase 11 completion.
 
@@ -82,6 +84,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-25 (initialization)
-Stopped at: ROADMAP.md and STATE.md written; REQUIREMENTS.md traceability populated; ready for `/gsd-plan-phase 1` (or `/gsd-autonomous` for solo flow).
-Resume file: None
+Last session: 2026-05-26
+Stopped at: Phase 1 context gathered (`--auto`) — ready for `/gsd-plan-phase 1`.
+Resume file: .planning/phases/01-scaffold-foundations/01-CONTEXT.md
