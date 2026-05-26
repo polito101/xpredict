@@ -182,7 +182,9 @@ services:
     depends_on:
       backend: { condition: service_started }   # soft per D-04
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:3000/api/healthz"]
+      # node:20-alpine ships wget (BusyBox) but not curl. --spider = HEAD-like,
+      # no body download. Same pattern as mailpit's healthcheck.
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5
