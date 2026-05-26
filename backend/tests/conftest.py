@@ -1,21 +1,19 @@
-"""pytest fixtures — testcontainers Postgres + fakeredis + FastAPI client (Plan 01-01 Task 3).
+"""pytest fixtures — testcontainers Postgres + fakeredis + FastAPI client.
 
-Phase 1 Plan 01-01 ships the fixture *definitions*; only the lightweight ones
-(``fake_redis``, ``client``) are actually used in this plan's tests. The
-testcontainers Postgres fixture (``postgres_container``, ``engine``,
-``async_session``) is defined here so Plan 01-03 — which adds the audit
-immutability + feature-flag integration tests — inherits a working
-infrastructure with zero rewiring.
+Phase 1 Plan 01-01 shipped the lightweight fixtures (``fake_redis``,
+``client``); Plan 01-03 extends the heavyweight ``engine`` fixture to run
+``alembic upgrade head`` against the testcontainer Postgres so the
+integration tests in ``tests/core/`` see the schema.
 
-Crucially: the Postgres-touching fixtures are *lazy* — they only spawn Docker
-when a test actually requests them. Tests that don't reference them run with
-zero Docker dependency.
+Crucially: the Postgres-touching fixtures are *lazy* — they only spawn
+Docker when a test actually requests them. Tests that don't reference them
+run with zero Docker dependency.
 
 A session-level ``_test_env_setup`` autouse fixture seeds ``DATABASE_URL``,
 ``DATABASE_URL_SYNC``, and ``REDIS_URL`` env vars so ``Settings()`` can be
 instantiated everywhere without bespoke per-test monkeypatch. Tests that
-exercise validation errors (e.g., malformed URLs) override this with explicit
-constructor args.
+exercise validation errors (e.g., malformed URLs) override this with
+explicit constructor args.
 """
 
 from __future__ import annotations
@@ -23,9 +21,11 @@ from __future__ import annotations
 import os
 import warnings
 from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pytest
+import pytest_asyncio
 
 if TYPE_CHECKING:
     import httpx
@@ -77,7 +77,7 @@ def fake_redis() -> Generator[Any, None, None]:
         pass
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client() -> AsyncGenerator[httpx.AsyncClient, None]:
     """FastAPI test client wired through httpx ASGITransport.
 
@@ -108,7 +108,10 @@ def postgres_container() -> Generator[PostgresContainer, None, None]:
     fixture is collected. Plan 01-01 tests do NOT request it, so no Docker
     daemon is required to run the Wave-0 unit suite.
     """
-    pytest.importorskip("testcontainers", reason="testcontainers required for Postgres fixtures")
+    pytest.importorskip(
+        "testcontainers",
+        reason="testcontainers required for Postgres fixtures",
+    )
     from testcontainers.postgres import PostgresContainer
 
     with warnings.catch_warnings():
@@ -118,25 +121,57 @@ def postgres_container() -> Generator[PostgresContainer, None, None]:
             yield pg
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def engine(postgres_container: PostgresContainer) -> AsyncGenerator[AsyncEngine, None]:
-    """Async engine bound to the testcontainer.
+    """Async engine bound to the testcontainer, with ``alembic upgrade head`` applied.
 
-    Plan 01-03 will replace this fixture's body with one that runs
-    ``alembic upgrade head`` first; for now it just constructs the engine —
-    schema setup is the responsibility of the test that uses it.
+    The container's psycopg2 URL is rewritten to asyncpg for the app; the
+    psycopg2 form is set in ``DATABASE_URL_SYNC`` so Alembic's sync engine
+    can connect during upgrade. Both env vars are set BEFORE running
+    ``alembic upgrade head`` so ``Settings()`` inside ``alembic/env.py``
+    picks them up.
     """
     from sqlalchemy.ext.asyncio import create_async_engine
 
-    url = postgres_container.get_connection_url().replace("psycopg2", "asyncpg")
-    eng = create_async_engine(url, pool_pre_ping=True)
+    from alembic import command
+    from alembic.config import Config
+
+    sync_url = postgres_container.get_connection_url()
+    # testcontainers may emit psycopg2 or postgresql+psycopg2 — normalise to
+    # the SQLAlchemy form Alembic expects.
+    if "+psycopg2" not in sync_url:
+        sync_url = sync_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    async_url = sync_url.replace("+psycopg2", "+asyncpg")
+
+    # Override env vars BEFORE running alembic — env.py reads Settings() at
+    # module import, so we must clobber the conftest defaults here.
+    os.environ["DATABASE_URL"] = async_url
+    os.environ["DATABASE_URL_SYNC"] = sync_url
+
+    # Clear the lazy engine cache so subsequent `_get_engine()` calls pick
+    # up the new env (defensive — pytest may have warmed the cache).
+    try:
+        from app.db.session import _get_engine, _get_session_maker
+
+        _get_engine.cache_clear()
+        _get_session_maker.cache_clear()
+    except ImportError:  # pragma: no cover
+        pass
+
+    # Run alembic upgrade head against the container's psycopg2 URL.
+    backend_root = Path(__file__).parent.parent
+    alembic_cfg = Config(str(backend_root / "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", str(backend_root / "alembic"))
+    command.upgrade(alembic_cfg, "head")
+
+    eng = create_async_engine(async_url, pool_pre_ping=True)
     try:
         yield eng
     finally:
         await eng.dispose()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def async_session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
     """Function-scoped ``AsyncSession`` wrapped in a transaction that rolls back.
 
