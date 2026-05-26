@@ -1,0 +1,69 @@
+# Pre-commit hooks for XPredict (D-35).
+#
+# Install once after cloning: `pip install pre-commit && pre-commit install`.
+# Run all hooks against the working tree: `pre-commit run --all-files`.
+# Local hooks (lint-money-columns, frontend-lint) assume `uv` (backend) and
+# `pnpm` (frontend) are on PATH — see README §Prerequisites.
+
+repos:
+  # ---------------------------------------------------------------------------
+  # gitleaks — block secrets on every staged diff (PLT-04 / D-34).
+  # `protect --staged` only scans the diff; full-history scans are the
+  # security.yml weekly job's responsibility.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        args: ["protect", "--staged", "--config=.gitleaks.toml"]
+
+  # ---------------------------------------------------------------------------
+  # ruff — lint + format the backend Python tree.
+  # `--fix --exit-non-zero-on-fix` auto-fixes safe issues but still fails
+  # the commit so the developer re-stages the fix.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  # ---------------------------------------------------------------------------
+  # mypy — strict on backend/app/; lax on tests/ (matches pyproject.toml).
+  # `additional_dependencies` keep type stubs available inside the isolated
+  # pre-commit env.
+  # ---------------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^backend/app/
+        additional_dependencies:
+          - pydantic>=2.10
+          - pydantic-settings>=2.6
+          - sqlalchemy>=2.0.43
+          - types-redis
+          - types-python-dateutil
+
+  # ---------------------------------------------------------------------------
+  # Local hooks — invoke the project's own scripts via uv / pnpm so the
+  # versions/locks match production CI exactly (T-04-04 mitigation).
+  # ---------------------------------------------------------------------------
+  - repo: local
+    hooks:
+      - id: lint-money-columns
+        name: Money column standard (WAL-05)
+        entry: bash -c 'cd backend && uv run python scripts/lint_money_columns.py'
+        language: system
+        pass_filenames: false
+        files: ^backend/.*models.*\.py$
+
+      - id: frontend-lint
+        name: Frontend lint + typecheck
+        entry: bash -c 'cd frontend && pnpm lint && pnpm typecheck'
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx)$

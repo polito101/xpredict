@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# XPredict dev loop — POSIX entrypoint (PLT-10).
+#
+# Brings the 8-service docker-compose stack up with healthchecks waiting,
+# then applies Alembic migrations against the now-healthy Postgres.
+# Companion Windows entrypoint: `bin/dev.ps1`.
+#
+# Prerequisites: Docker Desktop (or Docker Engine + Compose v2), uv, pnpm.
+# `.env.local` must exist at the repo root (copy from `.env.example` and
+# fill in any secrets); compose reads variables from it transparently.
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${REPO_ROOT}"
+
+if [ ! -f .env.local ]; then
+  echo "ERROR: .env.local not found at the repo root."
+  echo "       Copy .env.example to .env.local and edit any secrets."
+  exit 1
+fi
+
+echo "-> Starting docker compose stack (8 services, awaiting healthchecks)..."
+docker compose up -d --wait
+
+echo "-> Running Alembic migrations..."
+docker compose exec -T backend uv run alembic upgrade head
+
+echo ""
+echo "OK: XPredict dev stack ready"
+echo "  Frontend: http://localhost:3000"
+echo "  Backend:  http://localhost:8000  (/healthz, /readyz, /_sentry-test)"
+echo "  Flower:   http://localhost:5555"
+echo "  Mailpit:  http://localhost:8025"
+echo ""
+echo "  Stop:     docker compose down"
+echo "  Reset DB: make db.reset"
