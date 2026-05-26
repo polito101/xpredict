@@ -39,15 +39,36 @@ SCRUB_KEYS: set[str] = {
 }
 
 
+def _scrub_recursive(obj: Any) -> Any:
+    """Recursively walk ``obj`` and replace values for sensitive keys with ``***``.
+
+    Handles dicts (arbitrary depth), lists, and scalars. Called by
+    ``scrub_secrets`` so the protection applies to both top-level and nested
+    structured log fields (e.g. ``logger.info("auth", payload={"password": "x"})``).
+    """
+    if isinstance(obj, dict):
+        return {
+            k: "***" if k.lower() in SCRUB_KEYS else _scrub_recursive(v)
+            for k, v in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_scrub_recursive(item) for item in obj]
+    return obj
+
+
 def scrub_secrets(
     _logger: Any,
     _name: str,
     event_dict: MutableMapping[str, Any],
 ) -> MutableMapping[str, Any]:
-    """structlog processor — replace values for sensitive keys with ``***``."""
-    for key in list(event_dict.keys()):
-        if key.lower() in SCRUB_KEYS:
-            event_dict[key] = "***"
+    """structlog processor — replace values for sensitive keys with ``***``.
+
+    Walks the event dict recursively so nested dicts (e.g.
+    ``payload={"password": "x"}``) are scrubbed in addition to top-level keys.
+    """
+    scrubbed = _scrub_recursive(dict(event_dict))
+    event_dict.clear()
+    event_dict.update(scrubbed)
     return event_dict
 
 
