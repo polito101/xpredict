@@ -70,6 +70,7 @@ async def test_audit_service_record(async_session: AsyncSession) -> None:
 
     # The row is visible WITHIN this transaction even before commit (the
     # caller owns the tx). The rollback in the fixture cleans up after.
+    assert row.id is not None, "AuditLog.id must be populated by Python-side default=uuid4 (WR-05)"
     assert row.actor == "test"
     assert row.event_type == "test.event"
     assert row.payload == {"key": "val"}

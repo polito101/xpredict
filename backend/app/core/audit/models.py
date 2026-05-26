@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID as PyUUID
+from uuid import UUID as PyUUID, uuid4
 
 from sqlalchemy import DateTime, Text, func
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
@@ -27,7 +27,9 @@ class AuditLog(Base):
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        server_default=func.gen_random_uuid(),
+        default=uuid4,                      # Python-side default (WR-05): id is set
+        server_default=func.gen_random_uuid(),  # immediately on construction, no
+        # pre-flush None window. server_default is still present for raw SQL inserts.
     )
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
