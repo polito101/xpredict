@@ -30,14 +30,18 @@ def test_settings_loads_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.SENTRY_TRACES_SAMPLE_RATE == 0.1
 
 
-def test_settings_rejects_malformed_url() -> None:
-    """A malformed DATABASE_URL raises ValidationError (Pydantic v2 PostgresDsn)."""
+def test_settings_rejects_malformed_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A malformed DATABASE_URL raises ValidationError (Pydantic v2 PostgresDsn).
+
+    Uses monkeypatch.setenv so pydantic-settings reads the bad value from the
+    environment (its highest-priority source) rather than from a constructor
+    kwarg that env vars silently shadow.
+    """
+    monkeypatch.setenv("DATABASE_URL", "not-a-url")
+    monkeypatch.setenv("DATABASE_URL_SYNC", _VALID_URLS["DATABASE_URL_SYNC"])
+    monkeypatch.setenv("REDIS_URL", _VALID_URLS["REDIS_URL"])
     with pytest.raises(ValidationError):
-        Settings(
-            DATABASE_URL="not-a-url",  # type: ignore[arg-type]
-            DATABASE_URL_SYNC=_VALID_URLS["DATABASE_URL_SYNC"],  # type: ignore[arg-type]
-            REDIS_URL=_VALID_URLS["REDIS_URL"],  # type: ignore[arg-type]
-        )
+        Settings()
 
 
 def test_settings_ignores_extras(monkeypatch: pytest.MonkeyPatch) -> None:
