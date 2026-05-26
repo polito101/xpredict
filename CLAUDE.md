@@ -15,39 +15,37 @@ Switch to individual commands only if you need step-by-step control.
 
 **`PHASES.md` in the repo root is the source of truth for who is doing what.**
 
-You MUST update it at two moments, no exceptions:
+The AI owns all updates to `PHASES.md`. The dev never edits it manually.
 
-| Moment | What to update |
-|--------|----------------|
-| **Before touching any code** (phase start) | Set status to `🔄 In progress`, fill in Owner and Branch |
-| **When opening the PR** | Set status to `👀 In review`, fill in PR number |
+### Step 1 — Before touching any code (AI does this)
 
-Pol updates the row to `✅ Done` after merging. That's it — no Linear, no tickets.
+1. Read `PHASES.md`.
+2. If the target phase is NOT `⬜ Not started` → **STOP**. Report:
+   > ⛔ Phase X is already `{status}` (owner: {owner}, branch: {branch}).
+   > Cannot start. Coordinate with {owner} or ask Pol to reassign.
+3. If `⬜ Not started` → update the row: set `🔄 In progress`, fill in Owner (the dev who asked) and Branch (`gsd/phase-{N}-{slug}`). Commit the change with message `chore: mark phase {N} in progress in PHASES.md`.
 
-### BLOCK rule — read this before starting any phase
+### Step 2 — When opening the PR (AI does this)
 
-**Read `PHASES.md` first.** If the target phase is NOT `⬜ Not started`, stop immediately and report:
+Update the row: set `👀 In review`, fill in the PR number. Commit with `chore: mark phase {N} in review in PHASES.md`.
 
-> ⛔ Phase X is already `{status}` (owner: {owner}, branch: {branch}).
-> Cannot start. Coordinate with {owner} or ask Pol to reassign.
-
-Only proceed if the status is `⬜ Not started`. No exceptions.
+Pol updates the row to `✅ Done` after merging. That's the only manual step.
 
 ## Mandatory workflow
 
 Every phase completes this flow before a PR can be opened:
 
-1. Update `PHASES.md` → `🔄 In progress`
+1. ✏️ AI reads `PHASES.md` → blocks if taken, else marks `🔄 In progress` and commits
 2. `/gsd-plan-phase`     → generates `.planning/phases/XX/PLAN.md`
 3. `/gsd-execute-phase`
 4. `/gsd-verify-work`    → generates `.planning/phases/XX/VERIFICATION.md`
 5. `/gsd-code-review`
-6. Update `PHASES.md` → `👀 In review` + PR number
+6. ✏️ AI marks `PHASES.md` → `👀 In review` + PR number and commits
 7. `/gsd-ship`           → opens the PR via GitHub MCP
 
 PR creation is blocked automatically if `PLAN.md` or `VERIFICATION.md` are missing.
 
-> **Light mode:** for straightforward phases use `/gsd-autonomous` — it covers steps 2–5 and 7 in one command. You still do steps 1 and 6 manually.
+> **Light mode:** for straightforward phases use `/gsd-autonomous` — it covers steps 2–5 and 7 in one command. Steps 1 and 6 are always done by the AI automatically.
 
 > **Skip discuss:** `/gsd-discuss-phase` is optional. Only use it when the phase has ambiguity that planning alone can't resolve.
 
