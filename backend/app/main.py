@@ -20,7 +20,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -83,5 +83,7 @@ app.include_router(health.router)
 
 @app.api_route("/_sentry-test", methods=["GET", "HEAD"])
 async def sentry_test() -> dict[str, str]:
-    """Synthetic Sentry trigger — D-29. Phase 11 may gate behind a key."""
+    """Synthetic Sentry trigger — D-29. Dev-only; returns 403 in staging/prod."""
+    if not settings.is_dev:
+        raise HTTPException(status_code=403, detail="not available")
     raise RuntimeError("sentry test from api")
