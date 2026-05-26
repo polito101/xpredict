@@ -74,14 +74,16 @@ El operador puede ofrecer un catálogo creíble de mercados de predicción (mezc
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Polymarket como inspiración + oráculo, no como reseller | Evita custodia cripto, KYC, complejidad on-chain. Catálogo creíble sin pagar nada. | — Pending |
-| Play money en v1 con arquitectura production-grade | Valida UX/venta sin entrar en regulación. Cero deuda técnica el día que se conecte Stripe. | — Pending |
+| Play money en v1 con arquitectura production-grade | Valida UX/venta sin entrar en regulación. Cero deuda técnica el día que se conecte Stripe. | Confirmed — Phase 01: money-column lint + NUMERIC(18,4) + Decimal alias shipped, CI enforces at every PR |
 | House markets con resolución manual desde admin | Mantiene el sistema simple. Admin tiene control total sobre outcomes de mercados propios. | — Pending |
-| Single-tenant en v1, refactor a multi-tenant en v2 | Velocidad ahora. Pol acepta el coste de refactor consciente. | — Pending |
-| Stack: FastAPI (backend) + Next.js (frontend) | UI necesita parecer SaaS real para vender; backend Python para integrar live-bets más adelante. | — Pending |
-| Auth self-hosted (FastAPI-users) | White-label SaaS no debe forzar al operador a pagar Clerk/Auth0 también. | — Pending |
+| Single-tenant en v1, refactor a multi-tenant en v2 | Velocidad ahora. Pol acepta el coste de refactor consciente. | Confirmed — Phase 01: tenant_id ghost column on audit_log + feature_flags; schema seam in place |
+| Stack: FastAPI (backend) + Next.js (frontend) | UI necesita parecer SaaS real para vender; backend Python para integrar live-bets más adelante. | Confirmed — Phase 01: 8-service docker-compose (FastAPI + Next.js 15) boots in one command, all health checks green |
+| Auth self-hosted (FastAPI-users) | White-label SaaS no debe forzar al operador a pagar Clerk/Auth0 también. | — Pending (Phase 02) |
 | Top 25 mercados de Polymarket al inicio (no catálogo completo) | Suficiente para la demo, evita UX cara (search/filters/paginación) que no aporta a la venta. | — Pending |
 | Demo sin timeline ni presión de fecha | Calidad sobre velocidad — el demo debe convencer a un comprador, no llegar a tiempo. | — Pending |
-| Workflow colaborativo GSD con Linear + Slack | Pol = PM aprueba PRs, Cuco = Dev ejecuta fases. 1 PR por fase, AI review automático. | — Pending |
+| Workflow colaborativo GSD con Linear + Slack | Pol = PM aprueba PRs, Cuco = Dev ejecuta fases. 1 PR por fase, AI review automático. | Confirmed — Phase 01 ejecutada en ~83 min con GSD full-cycle (discuss → plan → execute → verify → review) |
+| uv (Python) + pnpm (Node) como gestores de dependencias | Velocidad de resolución + lockfiles deterministas en CI/docker | Confirmed — Phase 01: ambos integrados en docker multi-stage y GitHub Actions sin fricción |
+| Celery Beat con RedBeat scheduler (Redis distributed lock) | Evita que dos instancias de beat corran en paralelo en deploy multi-pod | Confirmed — Phase 01: bug encontrado y corregido (flag -S conflictaba con señal beat_init; eliminado) |
 
 ## Evolution
 
@@ -101,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-25 after initialization*
+*Last updated: 2026-05-26 after Phase 01 (Scaffold & Foundations)*

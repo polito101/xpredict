@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executed
-last_updated: "2026-05-26T07:18:31Z"
-last_activity: 2026-05-26 -- Phase 01 plan 01-04 closed out (auto-approved acceptance gate); Phase 1 Executed — 4/4 plans complete, code + tests + CI shipped; SC#1 runtime + SC#5 Sentry round-trip move to /gsd-verify-work step
+status: ready_to_plan
+last_updated: 2026-05-26T19:05:26.416Z
+last_activity: 2026-05-26 -- Phase 01 verified and transitioned complete; 9/9 UAT tests passed (2 issues — cold-start fix applied, sentry-test 405 is test-cmd artifact); code review applied; pushed gsd/phase-01-scaffold-foundations; Phase 2 ready to plan
 progress:
   total_phases: 11
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
   completed_plans: 4
   percent: 9
+stopped_at: Phase 01 complete (4/4) — ready to discuss Phase 2
 ---
 
 # Project State
@@ -20,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 01 — scaffold-foundations (Executed; awaiting /gsd-verify-work)
+**Current focus:** Phase 2 — auth & identity
 
 ## Current Position
 
-Phase: 01 (scaffold-foundations) — EXECUTED (planning + execution complete; verification pending)
-Plan: 4 of 4 (01-01 + 01-02 + 01-03 + 01-04 all shipped; 01-04 acceptance gate auto-approved per --auto mode)
-Status: Phase 1 ready for /gsd-verify-work
-Last activity: 2026-05-26 -- Phase 01 plan 01-04 closed out (auto-approved acceptance gate); 6 commits total for plan 01-04 (a5d7601 → 4c515ad → 99ee37e → 1f4bc61 → 675a58f → closeout); SC#1 docker-compose runtime + SC#5 Sentry event round-trip flagged as manual-verify items for the verifier
+Phase: 2
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-26
 
-Progress: [██████████] 100% (Phase 1: 4/4 plans complete — ready for /gsd-verify-work)
+Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase 2: Auth & Identity next)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 4
+- Total plans completed: 8
 - Average duration: ~21min
 - Total execution time: ~83min
 
@@ -54,6 +55,7 @@ Progress: [██████████] 100% (Phase 1: 4/4 plans complete —
 | 9. User App UX Polish | 0/TBD | — | — |
 | 10. Admin Dashboard & Branding | 0/TBD | — | — |
 | 11. Hardening & Demo Gate | 0/TBD | — | — |
+| 01 | 4 | - | - |
 
 **Recent Trend:**
 
@@ -99,7 +101,6 @@ None yet.
 
 [Issues that affect future work]
 
-- **Phase 1 manual-verify items pending before /gsd-ship** (2026-05-26): The `/gsd-verify-work 1` audit will surface 2 manual-verify items for Pol: (a) SC#1 docker-compose runtime acceptance — Pol's machine has `cc_redis` + `cc_postgres` from the crypto-casino project occupying host ports 5432/6379, so `bin\dev.ps1` will fail-fast on bind until those are stopped (5-min checklist in 01-03-SUMMARY.md §"Task 3 — Runtime Acceptance (Manual-Verify)"). (b) SC#5 Sentry event round-trip — needs a real `SENTRY_DSN` in `.env.local` and the 4 surfaces (api/worker/beat/frontend) each triggered manually (10-min checklist in 01-04-SUMMARY.md §"Manual-verify items deferred"). Both are environmental, not implementation gaps.
 - **Phase 3 spike recommended**: Concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious. Recommend `/gsd-spike` before Phase 3 planning. References: PITFALLS.md §Wallet, STACK.md §3.
 - **Phase 6 spike recommended**: Gamma API schema quirks (stringified JSON in `outcomes`/`outcomePrices`, mixed string-vs-number numerics, `umaResolutionStatus` value space). Recommend `/gsd-spike` + VCR fixture capture on day 1 of planning. References: STACK.md §2.2, PITFALLS.md #2 + #9.
 - **Phase 11 dependency**: Spanish legal counsel must review ToS and token policy before any demo to an operator. Not deferrable; this is a gating dependency on Phase 11 completion.
@@ -110,11 +111,10 @@ Items acknowledged and carried forward from previous milestone close:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| Phase 1 manual-verify | SC#1 docker-compose runtime acceptance (5-min host checklist; stop cc_redis/cc_postgres first) | Pending /gsd-verify-work | 2026-05-26 |
-| Phase 1 manual-verify | SC#5 Sentry event round-trip (10-min host checklist; needs real SENTRY_DSN) | Pending /gsd-verify-work | 2026-05-26 |
+| (none) | — | — | — |
 
 ## Session Continuity
 
-Last session: 2026-05-26T07:18:31Z
-Stopped at: Phase 1 Executed — all 4 plans complete (01-01 + 01-02 + 01-03 + 01-04 with acceptance gate auto-approved per --auto mode). 41/41 backend tests + 2/2 frontend tests + ruff/mypy/money-lint/gitleaks all green. Manual-verify items (SC#1 docker-compose runtime + SC#5 Sentry round-trip) move to `/gsd-verify-work 1`. After verify + manual gates clear, `/gsd-code-review` then `/gsd-ship` opens the Phase 1 PR via GitHub MCP per the CLAUDE.md workflow.
-Resume file: Next step is `/gsd-verify-work 1` — read `.planning/phases/01-scaffold-foundations/01-04-SUMMARY.md` for the closeout summary + manual-verify checklists.
+Last session: 2026-05-26
+Stopped at: Phase 01 complete — UAT passed (9/9), code review applied (37 fixes committed), pushed gsd/phase-01-scaffold-foundations. Phase 02 (Auth & Identity) ready to plan.
+Resume file: None — `/gsd-discuss-phase 2` or `/gsd-plan-phase 2` to start Phase 02.
