@@ -148,6 +148,9 @@ services:
       - "5555:5555"
     environment:
       <<: *backend-env
+      # Flower 2.0+ requires explicit opt-in to expose the /api/* endpoints
+      # without basic auth. Dev-only; staging/prod sets FLOWER_BASIC_AUTH.
+      FLOWER_UNAUTHENTICATED_API: "true"
     volumes: *backend-volumes
     depends_on:
       redis: { condition: service_healthy }
