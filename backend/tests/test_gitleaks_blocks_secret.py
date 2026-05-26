@@ -29,9 +29,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GITLEAKS_CONFIG = REPO_ROOT / ".gitleaks.toml"
-FIXTURE_DIR = (
-    REPO_ROOT / "backend" / "tests" / "fixtures" / "synthetic_secrets"
-)
+FIXTURE_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "synthetic_secrets"
 
 GITLEAKS = shutil.which("gitleaks")
 
@@ -108,14 +106,12 @@ def test_gitleaks_fires_on_synthetic_fixture(tmp_path: Path) -> None:
 
     # Gitleaks 8.30.x writes the JSON report regardless of exit code; the
     # load-bearing assertion is the report contents.
-    assert report_path.exists(), (
-        f"gitleaks did not produce a JSON report at {report_path}"
-    )
+    assert report_path.exists(), f"gitleaks did not produce a JSON report at {report_path}"
 
     findings = json.loads(report_path.read_text(encoding="utf-8"))
-    assert isinstance(findings, list), (
-        f"expected JSON array, got {type(findings).__name__}: {findings!r}"
-    )
+    assert isinstance(
+        findings, list
+    ), f"expected JSON array, got {type(findings).__name__}: {findings!r}"
     assert len(findings) == 2, (
         f"expected exactly 2 findings (admin token + session signing key); "
         f"got {len(findings)}: {findings!r}"
@@ -136,9 +132,7 @@ def test_gitleaks_clean_scan_of_full_repo(tmp_path: Path) -> None:
     zero findings — the synthetic fixture is allowlisted, no other real
     secrets exist, and the default ruleset catches nothing.
     """
-    assert GITLEAKS_CONFIG.exists(), (
-        f".gitleaks.toml missing at repo root: {GITLEAKS_CONFIG}"
-    )
+    assert GITLEAKS_CONFIG.exists(), f".gitleaks.toml missing at repo root: {GITLEAKS_CONFIG}"
 
     report_path = tmp_path / "clean-findings.json"
 
@@ -154,18 +148,16 @@ def test_gitleaks_clean_scan_of_full_repo(tmp_path: Path) -> None:
         cwd=REPO_ROOT,
     )
 
-    assert report_path.exists(), (
-        f"gitleaks did not produce a JSON report at {report_path}"
-    )
+    assert report_path.exists(), f"gitleaks did not produce a JSON report at {report_path}"
 
     findings = json.loads(report_path.read_text(encoding="utf-8"))
     # Empty result file may serialize as null/empty list depending on the
     # gitleaks version — both mean "no leaks found".
     if findings is None:
         findings = []
-    assert isinstance(findings, list), (
-        f"expected JSON array or null, got {type(findings).__name__}: {findings!r}"
-    )
+    assert isinstance(
+        findings, list
+    ), f"expected JSON array or null, got {type(findings).__name__}: {findings!r}"
     assert len(findings) == 0, (
         f"expected 0 findings on the allowlisted full-repo scan; got "
         f"{len(findings)} unexpected leak(s): {findings!r}"

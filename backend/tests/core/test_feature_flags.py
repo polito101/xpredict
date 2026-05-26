@@ -32,9 +32,7 @@ pytestmark = [
 async def test_seed_flags(async_session: AsyncSession) -> None:
     """The 3 seed flags exist after ``alembic upgrade head`` (D-39, PLT-06)."""
     rows = (
-        await async_session.execute(
-            text("SELECT key, enabled FROM feature_flags ORDER BY key")
-        )
+        await async_session.execute(text("SELECT key, enabled FROM feature_flags ORDER BY key"))
     ).all()
     # Convert to dict for stable assertions
     seeded = {row[0]: row[1] for row in rows}
@@ -52,18 +50,9 @@ async def test_seed_flags(async_session: AsyncSession) -> None:
 
 async def test_is_enabled_returns_seeded_value(async_session: AsyncSession) -> None:
     """Default-tenant seeded value is what ``is_enabled`` returns (D-38)."""
-    assert (
-        await FeatureFlagService.is_enabled(async_session, "stripe_recharge_enabled")
-        is False
-    )
-    assert (
-        await FeatureFlagService.is_enabled(async_session, "polymarket_sync_enabled")
-        is False
-    )
-    assert (
-        await FeatureFlagService.is_enabled(async_session, "admin_2fa_required")
-        is False
-    )
+    assert await FeatureFlagService.is_enabled(async_session, "stripe_recharge_enabled") is False
+    assert await FeatureFlagService.is_enabled(async_session, "polymarket_sync_enabled") is False
+    assert await FeatureFlagService.is_enabled(async_session, "admin_2fa_required") is False
 
 
 # ---------------------------------------------------------------------------
@@ -82,10 +71,7 @@ async def test_is_enabled_toggle(async_session: AsyncSession) -> None:
             """
         )
     )
-    assert (
-        await FeatureFlagService.is_enabled(async_session, "stripe_recharge_enabled")
-        is True
-    )
+    assert await FeatureFlagService.is_enabled(async_session, "stripe_recharge_enabled") is True
 
 
 # ---------------------------------------------------------------------------
@@ -97,9 +83,7 @@ async def test_is_enabled_unknown_key_defaults_false(
     async_session: AsyncSession,
 ) -> None:
     """No matching row → ``is_enabled`` returns False (default-deny)."""
-    assert (
-        await FeatureFlagService.is_enabled(async_session, "nonexistent_key") is False
-    )
+    assert await FeatureFlagService.is_enabled(async_session, "nonexistent_key") is False
 
 
 # ---------------------------------------------------------------------------

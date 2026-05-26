@@ -46,9 +46,7 @@ async def test_tenant_id_default(async_session: AsyncSession) -> None:
 
     row = (
         await async_session.execute(
-            text(
-                "SELECT tenant_id FROM audit_log WHERE event_type = 'test.tenant_default'"
-            )
+            text("SELECT tenant_id FROM audit_log WHERE event_type = 'test.tenant_default'")
         )
     ).one()
     tenant_id = row[0]
@@ -132,9 +130,7 @@ async def test_audit_log_delete_blocked(async_session: AsyncSession) -> None:
 
     with pytest.raises(DBAPIError) as exc_info:
         await async_session.execute(
-            text(
-                "DELETE FROM audit_log WHERE event_type = 'test.delete_blocked'"
-            )
+            text("DELETE FROM audit_log WHERE event_type = 'test.delete_blocked'")
         )
     msg = str(exc_info.value).lower()
     assert "append-only" in msg or "permission denied" in msg
