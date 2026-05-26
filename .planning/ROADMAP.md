@@ -47,8 +47,8 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Plans**: 4 plans
 **Plan list**:
 - [x] 01-01-PLAN.md — Backend Python scaffold: pyproject.toml + Settings + Money alias + structlog + Sentry helpers + FastAPI/Celery factories + money-column AST lint + Wave-0 unit tests (PLT-03, PLT-08, WAL-05) — **shipped 2026-05-26, 26 min, 30 tests passing**
-- [x] 01-02-PLAN.md — Frontend Next.js 15 + Tailwind 4 + TypeScript scaffold with Sentry on server + client surfaces + /api/healthz + /api/sentry-test + Vitest (PLT-08, PLT-10)
-- [ ] 01-03-PLAN.md — docker-compose.yml (8 services) + Alembic baseline 0001 (audit_log + feature_flags with ghost column + immutability trigger + seeded flags) + integration tests against testcontainers Postgres + docker-compose smoke (PLT-01, PLT-02, PLT-06, PLT-10)
+- [x] 01-02-PLAN.md — Frontend Next.js 15 + Tailwind 4 + TypeScript scaffold with Sentry on server + client surfaces + /api/healthz + /api/sentry-test + Vitest (PLT-08, PLT-10) — **shipped 2026-05-26, 12 min, 2 Vitest tests green**
+- [x] 01-03-PLAN.md — docker-compose.yml (8 services) + Alembic baseline 0001 (audit_log + feature_flags with ghost column + immutability trigger + seeded flags) + integration tests against testcontainers Postgres + docker-compose smoke (PLT-01, PLT-02, PLT-06, PLT-10) — **shipped 2026-05-26, 13 min, 9 integration tests green (39/39 total); Task 3 runtime acceptance manual-verify gated by host port conflicts**
 - [ ] 01-04-PLAN.md — gitleaks + pre-commit + GitHub Actions (backend-ci, frontend-ci, security) + bin/dev + README + Phase 1 acceptance gate (PLT-04, PLT-08, PLT-10)
 **Research/spike flags**: None — well-documented patterns.
 **Critical pitfalls covered**: PITFALL #3 (regulatory — secrets/ToS posture begins here), PITFALL #4 (Decimal/NUMERIC locked at schema), PITFALL #7 (connection-pool / SET LOCAL discipline established).
@@ -231,7 +231,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 2/4 | In Progress|  |
+| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 3/4 | In Progress|  |
 | 2. Auth & Identity | 0/TBD | Not started | - |
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |

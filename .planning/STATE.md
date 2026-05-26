@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-26T06:38:13.129Z"
-last_activity: 2026-05-26 -- Phase 01 plan 01-02 complete (frontend Next.js scaffold + Sentry + Vitest)
+last_updated: "2026-05-26T06:55:35Z"
+last_activity: 2026-05-26 -- Phase 01 plan 01-03 complete (docker-compose 8-service + Alembic 0001 baseline + 9 integration tests)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -25,25 +25,25 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 01 (scaffold-foundations) — EXECUTING
-Plan: 3 of 4 (01-01 + 01-02 complete; next is Wave 2 sibling 01-03 docker-compose + Alembic baseline + integration tests)
+Plan: 4 of 4 (01-01 + 01-02 + 01-03 complete; next is final plan 01-04 — CI + gitleaks + bin/dev + README + acceptance gate)
 Status: Ready to execute
-Last activity: 2026-05-26 -- Phase 01 plan 01-02 complete (frontend Next.js scaffold + Sentry + Vitest)
+Last activity: 2026-05-26 -- Phase 01 plan 01-03 complete (docker-compose 8-service + Alembic 0001 baseline + 9 integration tests)
 
-Progress: [█████░░░░░] 50%
+Progress: [████████░░] 75%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2
-- Average duration: ~19min
-- Total execution time: ~38min
+- Total plans completed: 3
+- Average duration: ~17min
+- Total execution time: ~51min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1. Scaffold & Foundations | 2/4 | ~38min | ~19min |
+| 1. Scaffold & Foundations | 3/4 | ~51min | ~17min |
 | 2. Auth & Identity | 0/TBD | — | — |
 | 3. Wallet & Ledger | 0/TBD | — | — |
 | 4. Markets Domain & HouseAdapter | 0/TBD | — | — |
@@ -57,8 +57,8 @@ Progress: [█████░░░░░] 50%
 
 **Recent Trend:**
 
-- Last 5 plans: 01-02 (12min, 2 atomic commits, 2 Vitest tests green, pnpm build/typecheck clean, 6 auto-fix deviations all scaffold-level); 01-01 (26min, 3 atomic commits, 30 tests passing, ruff/mypy/money-lint clean)
-- Trend: on-track — Phase 1 at 50% (2 of 4 plans); both Wave-1 plans (backend + frontend scaffolds) delivered. Wave 2 = 01-03 (compose + Alembic baseline) and 01-04 (CI + acceptance gate) remaining.
+- Last 5 plans: 01-03 (13min, 3 atomic commits, 9 integration tests + 30 unit = 39/39 green, docker compose config + alembic heads clean, 3 Rule-3 auto-fix deviations all infra-level + Task 3 runtime acceptance manual-verify gated by host port conflicts); 01-02 (12min, 2 atomic commits, 2 Vitest tests green, pnpm build/typecheck clean, 6 auto-fix deviations all scaffold-level); 01-01 (26min, 3 atomic commits, 30 tests passing, ruff/mypy/money-lint clean)
+- Trend: on-track — Phase 1 at 75% (3 of 4 plans). PLT-01 + PLT-02 + PLT-06 + PLT-10 (compose-config portion) shipped this plan. Final plan 01-04 (CI + acceptance gate) remaining; runtime acceptance (Task 3 manual-verify) merges into 01-04 or the phase verifier.
 
 *Updated after each plan completion*
 
@@ -81,6 +81,10 @@ Recent decisions affecting current work:
 - **2026-05-26 (Plan 01-02): Pinned `next@^15.5.18` (NOT 16+).** `create-next-app@latest` defaulted to Next 16.2.6 but STACK.md §4.1 locks Phase 1 on Next 15. Rewrote `frontend/package.json` by hand. Affects Phase 8+ frontend work — they inherit 15.x patterns (`async cookies()/headers()`, `withSentryConfig` wrapper, `instrumentation.ts` shape).
 - **2026-05-26 (Plan 01-02): Frontend `test` script `vitest` → `vitest run`.** pnpm 9.x parses `pnpm test --run` as an unknown pnpm option; non-watch is the right CI default. `test:watch` added for the dev loop. Affects Plan 01-04 CI workflow + Phase 2+ frontend test conventions.
 - **2026-05-26 (Plan 01-02): `@sentry/nextjs` pinned to `^10.53`.** Source-map upload disabled in Phase 1 (`sourcemaps.disable=true`) — Phase 11 polish re-enables for staging. Frontend Sentry `initialScope.tags.service='frontend'` on BOTH `instrumentation.ts` (server) AND `instrumentation-client.ts` (browser) — mirrors Plan 01-01 backend tagging shape so all 4 Sentry surfaces share a single filter (CONTEXT D-27).
+- **2026-05-26 (Plan 01-03): `TENANT_DEFAULT = "00000000-0000-0000-0000-000000000001"` defined once at the top of `0001_phase1_foundations.py` and reused on both `audit_log` and `feature_flags`** — Pitfall 10 mitigation. Single source of truth for the v1 default UUID; grep returns exactly one definition.
+- **2026-05-26 (Plan 01-03): `pytest_asyncio.fixture(loop_scope="session")` for engine + async_session.** pytest-asyncio 0.25 defaults to function-loop on async fixtures; without `loop_scope="session"` the session-scoped engine fixture's asyncpg pool errors with "Event loop is closed" on the second test. Each integration test file also sets `pytestmark = [pytest.mark.integration, pytest.mark.asyncio(loop_scope="session")]`. Phase 2+ integration tests inherit this shape.
+- **2026-05-26 (Plan 01-03): Frontend Dockerfile pnpm pin to 9.15.0.** `corepack prepare pnpm@latest --activate` resolves to pnpm 11 which requires Node ≥22.13; node:20-alpine is the locked image. Pinned to 9.15.0 (matches the host pnpm + lockfile generator from Plan 01-02). Surgical 1-line fix; no frontend source touched.
+- **2026-05-26 (Plan 01-03): Task 3 runtime acceptance documented as manual-verify.** Host port conflicts with Pol's `crypto-casino` `cc_redis` (port 6379) and `cc_postgres` (port 5432) containers prevented `docker compose up -d --wait` from binding. 5-min manual checklist captured in `01-03-SUMMARY.md §"Task 3 — Runtime Acceptance (Manual-Verify)"` (stop cc_*, run compose, verify 8 healthy, run alembic + HTTP triple-trigger, restart cc_*).
 
 ### Pending Todos
 
@@ -107,6 +111,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-26T06:38:13Z
-Stopped at: Phase 1 Plan 01-02 complete (frontend Next.js 15 + Sentry + Vitest) — sequential executor next runs Plan 01-03 (docker-compose + Alembic baseline + integration tests).
-Resume file: .planning/phases/01-scaffold-foundations/01-03-PLAN.md
+Last session: 2026-05-26T06:55:35Z
+Stopped at: Phase 1 Plan 01-03 complete (docker-compose 8-service + Alembic 0001 baseline + 9 integration tests) — sequential executor next runs Plan 01-04 (CI + gitleaks + bin/dev + README + acceptance gate). Task 3 runtime acceptance pending manual-verify (5-min checklist in 01-03-SUMMARY.md, gated by host port conflicts with crypto-casino containers).
+Resume file: .planning/phases/01-scaffold-foundations/01-04-PLAN.md

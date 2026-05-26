@@ -104,12 +104,12 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Platform — Cross-cutting (PLT)
 
-- [ ] **PLT-01**: All tenant-scoped tables include nullable `tenant_id UUID` column with default constant for v1 (multi-tenant migration prep — flipping to NOT NULL + RLS is mechanical in v2)
-- [ ] **PLT-02**: All money mutations and admin actions go through the audit log: `actor_user_id`, `event_type`, `payload`, `timestamp`, `ip` — append-only enforced by Postgres trigger
+- [x] **PLT-01**: All tenant-scoped tables include nullable `tenant_id UUID` column with default constant for v1 (multi-tenant migration prep — flipping to NOT NULL + RLS is mechanical in v2)
+- [x] **PLT-02**: All money mutations and admin actions go through the audit log: `actor_user_id`, `event_type`, `payload`, `timestamp`, `ip` — append-only enforced by Postgres trigger
 - [ ] **PLT-03**: All secrets via Pydantic BaseSettings reading from environment (`.env.local` in dev, Railway env in staging); never hardcoded
 - [ ] **PLT-04**: `gitleaks` runs in CI to block accidental secret commits
 - [ ] **PLT-05**: Stripe stub interface present: disabled "Add funds" button in player UI + `WalletService.recharge(payment_provider="stripe")` method signature ready for v2 wiring without refactor
-- [ ] **PLT-06**: Feature flags table exists with prep for per-tenant config in v2 (single-row default for v1)
+- [x] **PLT-06**: Feature flags table exists with prep for per-tenant config in v2 (single-row default for v1)
 - [ ] **PLT-07**: Player-facing UI is fully responsive on mobile browsers (≥360px width); admin UI desktop-only acceptable
 - [x] **PLT-08**: Sentry receives errors from FastAPI + Celery + Next.js; alert rules wired for: settlement failures, Polymarket sync error-rate spikes, ledger reconciliation drift, auth abuse spikes
 - [ ] **PLT-09**: Nightly Celery task reconciles materialized wallet balances against ledger entries; any drift logs CRITICAL and alerts
@@ -238,16 +238,16 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADD-04 | Phase 8 | Pending |
 | ADD-05 | Phase 10 | Pending |
 | ADD-06 | Phase 10 | Pending |
-| PLT-01 | Phase 1 | Pending |
-| PLT-02 | Phase 1 | Pending |
-| PLT-03 | Phase 1 | Partial (01-01: Settings(BaseSettings) + scrub_secrets + structlog SCRUB_KEYS; .env.example/.gitignore in 01-04) |
+| PLT-01 | Phase 1 | Complete (01-03: audit_log + feature_flags both ship tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'; integration test test_tenant_id_default green) |
+| PLT-02 | Phase 1 | Complete (01-03: audit_log immutability trigger + REVOKE UPDATE, DELETE FROM PUBLIC; integration tests test_audit_log_update_blocked + test_audit_log_delete_blocked green; AuditService.record atomic with caller's session) |
+| PLT-03 | Phase 1 | Partial (01-01: Settings(BaseSettings) + scrub_secrets + structlog SCRUB_KEYS; 01-03: .env.example committed + .env.local gitignored; gitleaks CI in 01-04) |
 | PLT-04 | Phase 1 | Pending |
 | PLT-05 | Phase 3 | Pending |
-| PLT-06 | Phase 1 | Pending |
+| PLT-06 | Phase 1 | Complete (01-03: feature_flags composite PK (key, tenant_id) + 3 seeded rows + FeatureFlagService.is_enabled with tenant fallback; 5 integration tests green) |
 | PLT-07 | Phase 11 | Pending |
 | PLT-08 | Phase 1 | Partial (01-01: init_sentry + FastAPI + Celery worker/beat + tags + triple-trigger backend; Next.js surface in 01-02; alert rules deferred to Phase 11) |
 | PLT-09 | Phase 3 | Pending |
-| PLT-10 | Phase 1 | Complete |
+| PLT-10 | Phase 1 | Partial (01-03: docker-compose.yml 8 services + healthchecks valid; runtime `docker compose up -d --wait` is manual-verify gated by Pol's host port conflicts with crypto-casino; full automation gate is 01-04 acceptance) |
 
 **Coverage:**
 - v1 requirements: 69 total
