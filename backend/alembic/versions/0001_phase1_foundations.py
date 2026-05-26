@@ -142,7 +142,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop both tables, the trigger, and the function."""
+    """Drop both tables, the trigger, and the function.
+
+    ``audit_log`` is dropped with CASCADE so that any Phase 2+ foreign keys
+    referencing it are removed cleanly without manual intervention (WR-06).
+    ``feature_flags`` is listed first because Phase 2+ may reference it; if a
+    downstream FK exists and ``feature_flags`` is dropped first, Postgres will
+    error — at that point the migration author must update the downgrade order.
+    """
     op.execute(
         "DROP TRIGGER IF EXISTS audit_log_immutability_trigger ON audit_log;"
     )
@@ -151,4 +158,4 @@ def downgrade() -> None:
     op.drop_index("ix_audit_log_actor", table_name="audit_log")
     op.drop_index("ix_audit_log_event_type", table_name="audit_log")
     op.drop_index("ix_audit_log_occurred_at", table_name="audit_log")
-    op.drop_table("audit_log")
+    op.execute("DROP TABLE IF EXISTS audit_log CASCADE;")
