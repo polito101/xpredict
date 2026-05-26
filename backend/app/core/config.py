@@ -11,6 +11,7 @@ the shape.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Literal
 from uuid import UUID
 
@@ -49,3 +50,15 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.ENVIRONMENT == "prod"
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Return the cached application settings singleton.
+
+    Use this everywhere outside of tests — it validates env vars once and
+    re-uses the result, avoiding per-request pydantic-settings construction
+    overhead (WR-01).  Tests that need a fresh ``Settings()`` call it directly
+    or use ``monkeypatch``; the cache is transparent to callers.
+    """
+    return Settings()

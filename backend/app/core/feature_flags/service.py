@@ -12,7 +12,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import Settings
+from app.core.config import get_settings
 from app.core.feature_flags.models import FeatureFlag
 
 
@@ -31,7 +31,7 @@ class FeatureFlagService:
         ``tenant_id`` matches an explicit row, that row wins over the
         default-tenant row.
         """
-        settings = Settings()
+        settings = get_settings()
         default_tenant = settings.TENANT_ID_DEFAULT
         target_tenant = tenant_id or default_tenant
 

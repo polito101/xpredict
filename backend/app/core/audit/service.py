@@ -18,7 +18,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit.models import AuditLog
-from app.core.config import Settings
+from app.core.config import get_settings
 
 
 class AuditService:
@@ -51,7 +51,7 @@ class AuditService:
             event_type=event_type,
             payload=payload,
             ip=ip,
-            tenant_id=tenant_id or Settings().TENANT_ID_DEFAULT,
+            tenant_id=tenant_id or get_settings().TENANT_ID_DEFAULT,
         )
         session.add(row)
         await session.flush()

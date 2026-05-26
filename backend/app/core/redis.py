@@ -11,7 +11,7 @@ from collections.abc import AsyncGenerator
 
 from redis.asyncio import Redis
 
-from app.core.config import Settings
+from app.core.config import get_settings
 
 
 async def get_redis() -> AsyncGenerator[Redis, None]:
@@ -21,7 +21,7 @@ async def get_redis() -> AsyncGenerator[Redis, None]:
     that need a shared connection pool, consider promoting to a lifespan-managed
     singleton — but the per-request pattern keeps tests trivial.
     """
-    settings = Settings()
+    settings = get_settings()
     client: Redis = Redis.from_url(str(settings.REDIS_URL), decode_responses=True)
     try:
         yield client

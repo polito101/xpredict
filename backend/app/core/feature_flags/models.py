@@ -15,7 +15,7 @@ from sqlalchemy import Boolean, DateTime, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.config import Settings
+from app.core.config import get_settings
 from app.db.base import Base
 
 
@@ -36,5 +36,5 @@ class FeatureFlag(Base):
     tenant_id: Mapped[PyUUID | None] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=lambda: Settings().TENANT_ID_DEFAULT,
+        default=lambda: get_settings().TENANT_ID_DEFAULT,
     )
