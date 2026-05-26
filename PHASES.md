@@ -7,7 +7,7 @@
 | # | Phase | Owner | Status | Branch | PR |
 |---|-------|-------|--------|--------|----|
 | 1 | Scaffold & Foundations | Pol | ✅ Done | `gsd/phase-01-scaffold-foundations` | — |
-| 2 | Auth & Identity | — | ⬜ Not started | — | — |
+| 2 | Auth & Identity | Pol | 🔄 In progress | `gsd/phase-02-auth-identity` | — |
 | 3 | Wallet & Double-Entry Ledger | — | ⬜ Not started | — | — |
 | 4 | Markets Domain & HouseAdapter | — | ⬜ Not started | — | — |
 | 5 | Bets, Settlement & First E2E Demo | — | ⬜ Not started | — | — |
