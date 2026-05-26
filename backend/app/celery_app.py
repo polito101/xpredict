@@ -24,7 +24,7 @@ from typing import Any
 
 import structlog
 from celery import Celery
-from celery.signals import beat_init, task_postrun, task_prerun, worker_process_init
+from celery.signals import beat_init, task_failure, task_postrun, task_prerun, worker_process_init
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
@@ -103,6 +103,26 @@ def _on_task_prerun(task_id: str | None = None, task: Any = None, **_kwargs: Any
 def _on_task_postrun(**_kwargs: Any) -> None:
     """Drop the task's contextvars before the worker accepts the next task."""
     structlog.contextvars.clear_contextvars()
+
+
+@task_failure.connect
+def _on_task_failure(
+    task_id: str | None = None,
+    exception: BaseException | None = None,
+    **_kwargs: Any,
+) -> None:
+    """Belt-and-suspenders Sentry capture for task failures.
+
+    CeleryIntegration auto-captures via its own task_failure subscriber, but
+    initialising Sentry in worker_process_init (after Celery has already
+    wired its signal dispatch table) means the integration's subscriber is
+    not always reachable. This explicit handler guarantees every uncaught
+    task exception is reported to Sentry tagged service=worker.
+    """
+    if exception is None:
+        return
+    import sentry_sdk
+    sentry_sdk.capture_exception(exception)
 
 
 @celery_app.task(name="app.core.sentry.sentry_test_task")
