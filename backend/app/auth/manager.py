@@ -25,7 +25,7 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi_users import BaseUserManager, UUIDIDMixin
+from fastapi_users import BaseUserManager, UUIDIDMixin, exceptions
 from fastapi_users.exceptions import InvalidPasswordException
 from fastapi_users.password import PasswordHelperProtocol
 from sqlalchemy import update
@@ -38,6 +38,7 @@ from app.auth.schemas import UserCreate
 from app.core.audit.service import AuditService
 from app.core.config import get_settings
 from app.db.session import _get_session_maker
+from app.wallet.service import WalletService
 
 logger = structlog.get_logger(__name__)
 
@@ -59,6 +60,71 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         super().__init__(user_db, password_helper)
         self.email_service = email_service or EmailService()
         self.audit_session_factory = audit_session_factory or _get_session_maker()
+
+    # ------------------------------------------------------------------
+    # WAL-01 / SC#1 — register creates the user + wallet in ONE transaction
+    # ------------------------------------------------------------------
+    async def create(  # type: ignore[override]
+        self,
+        user_create: UserCreate,
+        safe: bool = False,
+        request: Request | None = None,
+    ) -> User:
+        """Create a user AND its ``user_wallet`` account in a single transaction.
+
+        WHY this override exists (RESEARCH SC#1, Pitfall 1): the stock
+        ``SQLAlchemyUserDatabase.create()`` calls ``session.commit()`` BEFORE
+        ``BaseUserManager.create()`` invokes ``on_after_register``. That means
+        the existing ``on_after_register`` hook CANNOT host same-transaction
+        work — by the time it runs the user row is already committed, so a
+        wallet created there would land in a SEPARATE transaction and a wallet
+        failure would leave a committed user with no wallet (an orphan).
+
+        The fix (RESEARCH Option A — minimal blast radius, stays inside the
+        already-customized ``UserManager``): re-implement ``create()`` to
+        co-insert the wallet on the adapter's OWN session between the user
+        INSERT and a SINGLE ``commit()``. ``WalletService.create_wallet`` adds +
+        flushes the wallet but MUST NEVER commit (its caller-owned-transaction
+        contract, mirroring ``AuditService.record``) — this method owns the one
+        commit, so user + wallet land atomically (SC#1 / WAL-01).
+
+        Behaviour preserved vs. the stock path: ``validate_password`` runs
+        first, ``UserAlreadyExists`` is raised on a duplicate email, the
+        ``safe`` flag still gates ``create_update_dict`` vs.
+        ``create_update_dict_superuser``, and ``on_after_register`` still fires
+        (audit + best-effort verification email) AFTER the single commit.
+        """
+        await self.validate_password(user_create.password, user_create)
+
+        existing_user = await self.user_db.get_by_email(user_create.email)
+        if existing_user is not None:
+            raise exceptions.UserAlreadyExists()
+
+        user_dict = (
+            user_create.create_update_dict()
+            if safe
+            else user_create.create_update_dict_superuser()
+        )
+        password = user_dict.pop("password")
+        user_dict["hashed_password"] = self.password_helper.hash(password)
+
+        # Use the SAME session the user_db adapter holds, and do NOT let the
+        # stock adapter commit early — we own the single commit below so the
+        # user row and the wallet row land in ONE transaction (SC#1).
+        session: AsyncSession = self.user_db.session
+        user = self.user_db.user_table(**user_dict)
+        session.add(user)
+        await session.flush()  # user.id is now populated, NOT yet committed
+
+        # Co-insert the wallet on the SAME session (add + flush only — the
+        # service never commits; that is this method's job).
+        await WalletService.create_wallet(session, user=user)
+
+        await session.commit()  # ONE transaction → user + wallet commit atomically
+        await session.refresh(user)
+
+        await self.on_after_register(user, request)
+        return user
 
     # ------------------------------------------------------------------
     # AUTH-01 — server-side password strength validation
