@@ -30,6 +30,18 @@ import { jwtVerify } from "jose";
 const ADMIN_PROTECTED = /^\/admin(\/|$)/;
 const ADMIN_LOGIN = "/admin/login";
 
+// Fail loudly at module load if the secret is absent — a missing secret means
+// every admin JWT verification will fail-closed (redirect loop) with no
+// visible error to operators.  Throwing here surfaces the misconfiguration
+// immediately on cold-start rather than silently on every admin request.
+const _rawSecret = process.env.ADMIN_JWT_PUBLIC_SECRET;
+if (!_rawSecret) {
+  throw new Error(
+    "ADMIN_JWT_PUBLIC_SECRET is not set — admin middleware cannot function",
+  );
+}
+const ADMIN_SECRET = new TextEncoder().encode(_rawSecret);
+
 export async function middleware(req: NextRequest) {
   if (!ADMIN_PROTECTED.test(req.nextUrl.pathname)) return NextResponse.next();
   if (req.nextUrl.pathname === ADMIN_LOGIN) return NextResponse.next();
@@ -38,12 +50,18 @@ export async function middleware(req: NextRequest) {
   if (!token) return NextResponse.redirect(new URL(ADMIN_LOGIN, req.url));
 
   try {
-    const secret = new TextEncoder().encode(
-      process.env.ADMIN_JWT_PUBLIC_SECRET!,
-    );
-    await jwtVerify(token, secret, { algorithms: ["HS256"] });
+    await jwtVerify(token, ADMIN_SECRET, { algorithms: ["HS256"] });
     return NextResponse.next();
-  } catch {
+  } catch (err) {
+    // JWTExpired is normal (session timed out) — redirect silently.
+    // Any other error (wrong secret, algorithm mismatch, invalid key) is
+    // a misconfiguration signal that warrants a server-side log.
+    if (!(err instanceof Error && err.name === "JWTExpired")) {
+      console.warn(
+        "[admin-middleware] jwt verification failed:",
+        (err as Error).message,
+      );
+    }
     return NextResponse.redirect(new URL(ADMIN_LOGIN, req.url));
   }
 }
