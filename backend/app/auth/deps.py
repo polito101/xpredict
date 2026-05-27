@@ -59,7 +59,23 @@ async def get_user_manager(
     user_db: SQLAlchemyUserDatabase[User, UUID] = Depends(get_user_db),
     email_service: EmailService = Depends(get_email_service),
 ) -> AsyncGenerator[UserManager, None]:
-    """Yield a UserManager wired with the request user_db + shared email service."""
+    """Yield a UserManager wired with the request user_db + shared email service.
+
+    SAFETY NOTE — this dependency is only safe when called from a
+    fastapi-users-managed route (register, login, verify, reset-password, etc.)
+    or from routes that explicitly commit the session themselves.
+
+    Rationale: ``UserManager`` does not hold its own session; all DB mutations
+    go through the request-scoped session from ``get_user_db``.
+    ``get_user_manager`` does NOT call ``session.commit()`` at teardown — it
+    relies entirely on fastapi-users' internal commit logic.
+
+    If you add a CUSTOM route that uses ``Depends(get_user_manager)`` and
+    directly mutates the user object (e.g. ``user.is_verified = True`` without
+    going through a fastapi-users method), you MUST call
+    ``await session.commit()`` inside that route before returning, otherwise
+    the mutation will be silently lost when the session closes.
+    """
     yield UserManager(user_db, email_service=email_service)
 
 
