@@ -33,6 +33,7 @@ import {
   ForgotSchema,
   ResetSchema,
   VerifySchema,
+  AdminLoginSchema,
   type ActionErrors,
   type ActionState,
   type VerifyResult,
@@ -282,4 +283,82 @@ export async function verifyEmailAction(token: string): Promise<VerifyResult> {
       detail: e instanceof Error ? e.message : "Verification failed",
     };
   }
+}
+
+// ---------------------------------------------------------------------------
+// adminLoginAction (Plan 02-05 — AUTH-07, D-13)
+// ---------------------------------------------------------------------------
+//
+// POSTs OAuth2 username/password to FastAPI's `/admin/auth/login` (shipped in
+// Plan 02-03), parses the `{access_token, token_type}` JSON response, and
+// stores the access_token in an HttpOnly `admin_jwt` cookie SCOPED TO `/admin/`
+// so the admin Bearer NEVER leaks to player routes (T-02-50 — browser-side
+// defense-in-depth). Mirrors the player `loginAction` shape with three key
+// differences:
+//
+//   - Backend response is JSON (not Set-Cookie) — admin surface uses Bearer
+//     transport (Plan 02-03 D-03); we manually re-wrap it as a cookie.
+//   - Cookie `path: '/admin'` — browser only sends `admin_jwt` on /admin/*.
+//   - `maxAge` matches backend's ACCESS_TOKEN_LIFETIME_SECONDS=900 (15 min).
+//
+// Trust boundary: T-02-55 — the access_token is set via cookies().set()
+// server-side; the action's return value is `{success: true}` or an error
+// object. The token NEVER leaves the server-side rendering boundary.
+export async function adminLoginAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const parsed = AdminLoginSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const res = await fetch(`${getBackendUrl()}/admin/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      username: parsed.data.email,
+      password: parsed.data.password,
+    }),
+  });
+
+  if (res.status === 429) return tooManyAttempts();
+  if (!res.ok) {
+    return { errors: { _form: ["Invalid credentials"] } };
+  }
+
+  let access_token: string | undefined;
+  let token_type: string | undefined;
+  try {
+    const data = (await res.json()) as {
+      access_token?: unknown;
+      token_type?: unknown;
+    };
+    if (typeof data.access_token === "string") access_token = data.access_token;
+    if (typeof data.token_type === "string") token_type = data.token_type;
+  } catch {
+    return {
+      errors: { _form: ["Admin login failed: unexpected response shape"] },
+    };
+  }
+
+  if (!access_token || token_type !== "bearer") {
+    return {
+      errors: { _form: ["Admin login failed: missing access_token"] },
+    };
+  }
+
+  const store = await cookies();
+  store.set("admin_jwt", access_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/admin",
+    maxAge: 900, // matches ACCESS_TOKEN_LIFETIME_SECONDS (Plan 02-01)
+  });
+
+  redirect("/admin");
 }
