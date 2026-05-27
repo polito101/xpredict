@@ -181,6 +181,7 @@ async def admin_login_proxy(
 
 
 @admin_proxy_router.post("/logout")
+@limiter.limit("20/minute", key_func=get_remote_address)
 async def admin_logout_proxy(
     request: Request,
     token: Annotated[str | None, Depends(_oauth2_bearer_scheme)],
