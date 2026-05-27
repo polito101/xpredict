@@ -46,7 +46,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.wallet.constants import (
@@ -354,10 +354,75 @@ class WalletService:
 
     @classmethod
     async def get_balance(cls, session: AsyncSession, *, user_id: UUID) -> Decimal:
-        """Return the user's wallet balance cache (read-only; full reads are 03-05)."""
+        """Return the user's wallet balance cache (read-only; WAL-03).
+
+        Reads the ``user_wallet`` account's denormalized ``balance`` for
+        ``user_id``. Raises :class:`sqlalchemy.exc.NoResultFound` (via
+        ``scalar_one()`` in ``_resolve_user_wallet_id``) if the user has no
+        wallet — the router catches that and returns a defensive balance ``0``
+        (registration guarantees a wallet, SC#1, so this is belt-and-braces).
+        Read-only: no INSERT/UPDATE/commit.
+        """
         wallet_id = await cls._resolve_user_wallet_id(session, user_id=user_id)
         return (
             await session.execute(
                 select(Account.balance).where(Account.id == wallet_id)
             )
         ).scalar_one()
+
+    @classmethod
+    async def get_transactions(
+        cls,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> tuple[list[Any], int]:
+        """Return one offset page of ``user_id``'s wallet history + the total (WAL-04).
+
+        Resolves the caller's ``user_wallet`` account id, then SELECTs that
+        wallet's ``entries`` joined to their parent ``transfers`` ordered newest
+        first, with ``LIMIT page_size OFFSET (page-1)*page_size``. Returns a tuple
+        of ``(rows, total)`` where each row exposes ``kind`` (the transfer kind),
+        ``amount`` (the entry amount), ``direction`` (debit/credit of THIS leg
+        against the caller's wallet), ``created_at`` (the entry timestamp) and
+        ``reason`` (``transfer.transfer_metadata->>'reason'``), and ``total`` is
+        the full entry count for the wallet (drives ``has_next``).
+
+        Strictly read-only and self-scoped — the only account queried is the
+        caller's own wallet (no ``user_id`` ever crosses from the request body;
+        T-03-18). No INSERT/UPDATE/commit.
+
+        Raises :class:`sqlalchemy.exc.NoResultFound` if the user has no wallet;
+        the router maps that to an empty page (defensive — SC#1 guarantees one).
+        """
+        wallet_id = await cls._resolve_user_wallet_id(session, user_id=user_id)
+
+        total = (
+            await session.execute(
+                select(func.count())
+                .select_from(Entry)
+                .where(Entry.account_id == wallet_id)
+            )
+        ).scalar_one()
+
+        offset = (page - 1) * page_size
+        rows = (
+            await session.execute(
+                select(
+                    Transfer.kind.label("kind"),
+                    Entry.amount.label("amount"),
+                    Entry.direction.label("direction"),
+                    Entry.created_at.label("created_at"),
+                    Transfer.transfer_metadata.label("metadata"),
+                )
+                .join(Transfer, Entry.transfer_id == Transfer.id)
+                .where(Entry.account_id == wallet_id)
+                .order_by(Entry.created_at.desc(), Entry.id.desc())
+                .limit(page_size)
+                .offset(offset)
+            )
+        ).all()
+
+        return list(rows), int(total)

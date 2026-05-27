@@ -1,4 +1,8 @@
-"""Pydantic API schemas for the wallet surface (Phase 3, Plan 03-04).
+"""Pydantic API schemas for the wallet surface (Phase 3, Plans 03-04 + 03-05).
+
+03-04 added the admin recharge request/response; 03-05 adds the player read
+projections (``BalanceResponse`` / ``TransactionItem`` / ``TransactionPage``),
+all reusing the same ``MoneyStr`` money-as-string contract.
 
 Two responsibilities live here:
 
@@ -20,6 +24,7 @@ Two responsibilities live here:
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -62,6 +67,59 @@ class RechargeResponse(BaseModel):
     amount: MoneyStr
     currency: str
     idempotent_replay: bool
+
+
+# --------------------------------------------------------------------------- #
+# Player read surface (Plan 03-05) — WAL-03 balance, WAL-04 history.
+#
+# Money is a JSON string everywhere via ``MoneyStr`` (SC#4). These responses
+# are READ-ONLY projections of the caller's OWN wallet — there is no
+# destination/user field of any kind, so a cross-user read is structurally
+# impossible at the schema boundary (T-03-18 mitigation reinforces the
+# router's ``current_active_player`` gate).
+# --------------------------------------------------------------------------- #
+class BalanceResponse(BaseModel):
+    """Result of ``GET /wallet/me/balance`` — the caller's wallet balance (WAL-03).
+
+    ``balance`` is the ``user_wallet`` account's denormalized cache, serialized
+    as a JSON string (SC#4). A player with no wallet (should not happen — the
+    registration override guarantees one, SC#1) reads as balance ``"0"``.
+    """
+
+    balance: MoneyStr
+    currency: str
+
+
+class TransactionItem(BaseModel):
+    """One row of the caller's transaction history (WAL-04).
+
+    Derived from an ``entries`` leg joined to its parent ``transfer``: ``kind``
+    from ``transfer.kind`` (e.g. ``recharge``), ``amount`` the entry amount as a
+    JSON string (SC#4), ``direction`` whether this leg debited or credited the
+    caller's wallet, ``created_at`` the entry timestamp (TIMESTAMPTZ → ISO 8601),
+    and ``reason`` from ``transfer.transfer_metadata.get("reason")`` (may be NULL).
+    """
+
+    kind: str
+    amount: MoneyStr
+    direction: str
+    created_at: datetime
+    reason: str | None = None
+
+
+class TransactionPage(BaseModel):
+    """A page of the caller's transaction history (WAL-04).
+
+    Offset pagination over the caller's wallet entries (newest first). ``total``
+    is the full row count for the wallet; ``has_next`` is ``True`` when more rows
+    exist beyond this page (``page * page_size < total``).
+    """
+
+    items: list[TransactionItem]
+    page: int
+    page_size: int
+    total: int
+    has_next: bool
 
 
 if __name__ == "__main__":  # pragma: no cover - import smoke for the verify step
