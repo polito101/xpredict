@@ -24,7 +24,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [x] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints.
  (completed 2026-05-27)
 
-- [ ] **Phase 3: Wallet & Double-Entry Ledger** - `accounts` + `transfers` + `entries` schema (append-only, immutable, ACID-bound), `NUMERIC(18,4)` everywhere, idempotent transfers, `CHECK (balance >= 0)`, admin recharge primitive, Stripe stub interface, nightly reconciliation.
+- [x] **Phase 3: Wallet & Double-Entry Ledger** - `accounts` + `transfers` + `entries` schema (append-only, immutable, ACID-bound), `NUMERIC(18,4)` everywhere, idempotent transfers, `CHECK (balance >= 0)`, admin recharge primitive, Stripe stub interface, nightly reconciliation. (completed 2026-05-27)
 - [ ] **Phase 4: Markets Domain & HouseAdapter** - `MarketSource` Protocol, Market/Outcome/OddsSnapshot models, HouseAdapter implementation, admin CRUD for house markets (create/edit-while-zero-bets/close), criteria locked at first bet.
 - [ ] **Phase 5: Bets, Settlement & First End-to-End Demo (House Markets Only)** - Place-bet flow (ACID-wrapped, idempotent), portfolio with P&L, sign-up bonus on email verify, admin two-step resolve with mandatory justification, idempotent SettlementService, reversal path. **First demoable happy path lands here.**
 - [ ] **Phase 6: Polymarket Sync (Catalog Replication)** - Custom httpx + tenacity Gamma client, PolymarketAdapter implements `MarketSource`, Celery Beat 30s top-25 poll + 5min odds snapshot, Redis distributed lock for dedupe, `closed` vs `resolved` distinction enforced.
@@ -119,7 +119,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-  - [ ] 03-05-PLAN.md — Player reads (balance + paginated history, money-as-string SC#4) + Stripe stub + disabled Add funds button (SC#6) [W4]
+  - [x] 03-05-PLAN.md — Player reads (balance + paginated history, money-as-string SC#4) + Stripe stub + disabled Add funds button (SC#6) [W4]
 
 **Research/spike flags**: **SPIKE COMPLETE** — concurrent locking resolved by Spikes 001-004 (FOR UPDATE chosen; see `.planning/spikes/LOCKING-ATOMICITY-ANALYSIS.md`). Original note: **SPIKE recommended** — concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious; recommend a 1-2 hour spike via `/gsd-spike` before planning if Cuco hasn't implemented async double-entry before. PITFALLS.md §"Wallet / Ledger Correctness" is the primary reference.
 **Critical pitfalls covered**: PITFALL #1 (wallet race conditions via `FOR UPDATE` + `CHECK (balance >= 0)`), PITFALL #4 (NUMERIC + Decimal end-to-end), PITFALL #10 (single-transaction discipline established; pattern that bet placement in Phase 5 will reuse).
@@ -296,7 +296,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Complete    | 2026-05-26 |
 | 2. Auth & Identity | 5/5 | Complete    | 2026-05-27 |
-| 3. Wallet & Double-Entry Ledger | 5/6 | In Progress|  |
+| 3. Wallet & Double-Entry Ledger | 6/6 | Complete   | 2026-05-27 |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
 | 6. Polymarket Sync (Catalog Replication) | 0/TBD | Not started | - |
