@@ -14,6 +14,9 @@ XPredict — validate the two highest-risk technical unknowns before building Ph
 - Gamma API fields `outcomes`/`outcomePrices`/`clobTokenIds` are stringified JSON — `json.loads()` required
 - Use string numeric fields (`volume`), never float variants (`volumeNum`) for Decimal precision
 - `umaResolutionStatus` is absent (not null) when no UMA process — always check for `None`
+- Settlement must atomically set `markets.status = SETTLING` before querying bets (prevents late-bet pot imbalance)
+- Losers' stakes stay in market_liability (no separate debit during settlement) — they fund winner payouts
+- `settled_at IS NULL` is the idempotency gate for settlement replay protection
 
 ## Spikes
 
@@ -22,4 +25,4 @@ XPredict — validate the two highest-risk technical unknowns before building Ph
 | 001 | async-wallet-concurrency | standard | Given 50 concurrent transfers, when `SELECT ... FOR UPDATE` + `CHECK (balance >= 0)`, then zero drift and no deadlocks | **VALIDATED** | sqlalchemy, asyncpg, postgres, concurrency, wallet |
 | 002 | polymarket-gamma-parser | standard | Given real Gamma API responses, when parsed with Pydantic v2, then stringified JSON, mixed numerics, and umaResolutionStatus state machine produce correct status | **VALIDATED** | polymarket, gamma-api, pydantic, parsing |
 | 003 | websocket-price-streaming | standard | Given a FastAPI WebSocket endpoint broadcasting odds changes, when a Celery task publishes a price update via Redis pub/sub, then a Next.js client receives the update in <2s with auto-reconnect on disconnect | **VALIDATED** | fastapi, websocket, redis, pubsub, nextjs |
-| 004 | settlement-acid-transaction | standard | Given a bet on a resolved market, when SettlementService.resolve_market() runs with 50 concurrent bets, then all bets are settled in one ACID transaction with correct multi-entry ledger, zero drift, and idempotent replay | **PENDING** | sqlalchemy, asyncpg, settlement, ledger, concurrency |
+| 004 | settlement-acid-transaction | standard | Given a bet on a resolved market, when SettlementService.resolve_market() runs with 50 concurrent bets, then all bets are settled in one ACID transaction with correct multi-entry ledger, zero drift, and idempotent replay | **VALIDATED** | sqlalchemy, asyncpg, settlement, ledger, concurrency |
