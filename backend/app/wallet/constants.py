@@ -39,6 +39,7 @@ KIND_HOUSE_REVENUE = "house_revenue"
 # --------------------------------------------------------------------------- #
 TRANSFER_RECHARGE = "recharge"
 TRANSFER_OPENING = "opening"
+TRANSFER_SIGNUP_BONUS = "signup_bonus"  # Phase 5 SC#4 — one-time bonus on email verify
 
 # --------------------------------------------------------------------------- #
 # Entry direction — the two legs of every double-entry transfer.

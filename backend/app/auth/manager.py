@@ -223,6 +223,25 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             payload={"email": user.email},
             request=request,
         )
+        # Phase 5 SC#4 / WAL-02 — grant the one-time sign-up bonus on verification.
+        # ``is_verified=True`` is ALREADY committed by fastapi-users before this
+        # hook runs, so a bonus failure MUST NOT propagate (verification stands).
+        # The grant is idempotent (key ``bonus:{user.id}``), so a retry — or an
+        # admin recharge — recovers safely and never double-credits.
+        try:
+            async with self.audit_session_factory() as session:
+                await WalletService.grant_signup_bonus(
+                    session,
+                    user_id=user.id,
+                    amount=get_settings().SIGNUP_BONUS_AMOUNT,
+                )
+        except Exception as exc:
+            logger.error(
+                "signup_bonus_grant_failed",
+                user_id=str(user.id),
+                error_type=type(exc).__name__,
+                error=str(exc)[:200],
+            )
 
     # ------------------------------------------------------------------
     # AUTH-06 — forgot-password (audit + email)

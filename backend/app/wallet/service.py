@@ -57,6 +57,7 @@ from app.wallet.constants import (
     OWNER_USER,
     PLAY_USD,
     TRANSFER_RECHARGE,
+    TRANSFER_SIGNUP_BONUS,
 )
 from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account, Entry, Transfer
@@ -251,6 +252,78 @@ class WalletService:
             if getattr(exc.orig, "sqlstate", None) == SQLSTATE_UNIQUE_VIOLATION:
                 # The begin() block already rolled back; read the winner's transfer
                 # on a fresh statement and return it (idempotent 200 — no re-apply).
+                existing = (
+                    await session.execute(
+                        select(Transfer).where(
+                            Transfer.idempotency_key == idempotency_key
+                        )
+                    )
+                ).scalar_one()
+                return existing
+            raise
+
+    # ------------------------------------------------------------------ #
+    # Sign-up bonus — one-time house-funded grant on email verification.
+    # ------------------------------------------------------------------ #
+    @classmethod
+    async def grant_signup_bonus(
+        cls,
+        session: AsyncSession,
+        *,
+        user_id: UUID,
+        amount: Decimal,
+    ) -> Transfer:
+        """Credit ``user_id``'s wallet with the one-time sign-up bonus (Phase 5, SC#4).
+
+        A ``house_promo`` -> ``user_wallet`` credit of ``kind=signup_bonus`` with a
+        per-user ``idempotency_key`` of ``bonus:{user_id}``. Structurally a
+        specialization of :meth:`recharge` — it reuses the SAME validated
+        FOR-UPDATE canonical-lock-order + :meth:`_post_transfer` + idempotent
+        ``23505`` path; only the kind and the derived key differ. Owns its own
+        ``session.begin()`` unit of work.
+
+        Idempotency is intrinsic: a second grant for the same user (e.g. a replayed
+        verification) hits the UNIQUE ``idempotency_key`` and raises ``23505``; we
+        catch it and return the EXISTING transfer, so a verified user is never
+        double-credited (SC#4). ``amount`` must be a positive ``Decimal``.
+        """
+        if amount <= 0:
+            raise ValueError("signup bonus amount must be > 0")
+
+        idempotency_key = f"bonus:{user_id}"
+        src_id = HOUSE_PROMO_ACCOUNT_ID
+
+        try:
+            async with session.begin():
+                # Resolve the target wallet INSIDE the unit of work — issuing it
+                # before ``session.begin()`` would autobegin an implicit tx and
+                # make ``begin()`` raise "a transaction is already begun" (mirrors
+                # ``recharge``).
+                dst_id = await cls._resolve_user_wallet_id(session, user_id=user_id)
+
+                # Canonical UUID lock order (Spike 004 / Pitfall 3) BEFORE mutating.
+                first_id, second_id = sorted((src_id, dst_id), key=str)
+                await session.execute(
+                    select(Account.id).where(Account.id == first_id).with_for_update()
+                )
+                await session.execute(
+                    select(Account.id).where(Account.id == second_id).with_for_update()
+                )
+
+                return await cls._post_transfer(
+                    session,
+                    kind=TRANSFER_SIGNUP_BONUS,
+                    idempotency_key=idempotency_key,
+                    actor_user_id=None,  # system-initiated (verification reward)
+                    debit_account_id=src_id,
+                    credit_account_id=dst_id,
+                    amount=amount,
+                    metadata={"reason": "signup_bonus"},
+                )
+        except IntegrityError as exc:
+            if getattr(exc.orig, "sqlstate", None) == SQLSTATE_UNIQUE_VIOLATION:
+                # Already granted — return the EXISTING transfer (idempotent, no
+                # re-apply / no double-credit). Mirrors recharge's 23505 path.
                 existing = (
                     await session.execute(
                         select(Transfer).where(
