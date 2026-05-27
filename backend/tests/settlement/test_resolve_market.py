@@ -37,6 +37,7 @@ from app.bets.constants import (
 from app.bets.market_port import MARKET_OPEN, MarketView, OutcomeView
 from app.bets.models import Bet
 from app.bets.service import BetService
+from app.core.audit.models import AuditLog
 from app.db.session import _get_session_maker
 from app.settlement.service import SettlementService
 from app.wallet.constants import (
@@ -193,6 +194,45 @@ async def _place(user_id: UUID, market: MarketView, outcome_id: UUID, stake: Dec
         )
 
 
+async def _resolve(
+    session,
+    *,
+    market_id: UUID,
+    winning_outcome_id: UUID,
+    market_resolver,
+    actor_user_id: UUID | None = None,
+    justification: str = "resolved for test",
+):
+    """Call ``SettlementService.resolve_market`` with a default justification (SC#5 makes it
+    mandatory). Tests that assert on the audit justification pass it explicitly."""
+    return await SettlementService.resolve_market(
+        session,
+        market_id=market_id,
+        winning_outcome_id=winning_outcome_id,
+        market_resolver=market_resolver,
+        actor_user_id=actor_user_id,
+        justification=justification,
+    )
+
+
+async def _audit_for_market(event_type: str, market_id: UUID) -> list[AuditLog]:
+    """Audit rows of ``event_type`` whose payload ``market_id`` matches (committed state)."""
+    sm = _get_session_maker()
+    async with sm() as s:
+        return list(
+            (
+                await s.execute(
+                    select(AuditLog).where(
+                        AuditLog.event_type == event_type,
+                        AuditLog.payload["market_id"].astext == str(market_id),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+
 # --------------------------------------------------------------------------- #
 # Happy path — winners paid, losers swept, liability drained, bets flipped, market resolved.
 # --------------------------------------------------------------------------- #
@@ -215,7 +255,7 @@ async def test_resolve_market_pays_winners_and_sweeps_losers() -> None:
     resolver = FakeMarketResolver()
     sm = _get_session_maker()
     async with sm() as session:
-        plan = await SettlementService.resolve_market(
+        plan = await _resolve(
             session,
             market_id=m.id,
             winning_outcome_id=yes.id,
@@ -256,16 +296,14 @@ async def test_resolve_market_is_idempotent() -> None:
     resolver = FakeMarketResolver()
     sm = _get_session_maker()
     async with sm() as s1:
-        await SettlementService.resolve_market(
-            s1, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver
-        )
+        await _resolve(s1, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver)
     alice_after_first = await _balance(alice_w)
     promo_after_first = await _balance(HOUSE_PROMO_ACCOUNT_ID)
     revenue_after_first = await _balance(HOUSE_REVENUE_ACCOUNT_ID)
 
     # Resolve AGAIN — the bets are no longer PENDING, so nothing is settled.
     async with sm() as s2:
-        plan2 = await SettlementService.resolve_market(
+        plan2 = await _resolve(
             s2, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver
         )
 
@@ -294,7 +332,7 @@ async def test_resolve_market_is_atomic_on_failure() -> None:
     sm = _get_session_maker()
     with pytest.raises(RuntimeError):
         async with sm() as session:
-            await SettlementService.resolve_market(
+            await _resolve(
                 session,
                 market_id=m.id,
                 winning_outcome_id=yes.id,
@@ -327,7 +365,7 @@ async def test_resolve_market_certainty_pays_stake_only() -> None:
     resolver = FakeMarketResolver()
     sm = _get_session_maker()
     async with sm() as session:
-        plan = await SettlementService.resolve_market(
+        plan = await _resolve(
             session, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver
         )
 
@@ -355,7 +393,7 @@ async def test_resolve_market_all_losers_sweeps_to_house_revenue() -> None:
     resolver = FakeMarketResolver()
     sm = _get_session_maker()
     async with sm() as session:
-        plan = await SettlementService.resolve_market(
+        plan = await _resolve(
             session, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver
         )
 
@@ -377,7 +415,7 @@ async def test_resolve_empty_market_marks_resolved_only() -> None:
     resolver = FakeMarketResolver()
     sm = _get_session_maker()
     async with sm() as session:
-        plan = await SettlementService.resolve_market(
+        plan = await _resolve(
             session,
             market_id=market_id,
             winning_outcome_id=winning_outcome_id,
@@ -386,3 +424,41 @@ async def test_resolve_empty_market_marks_resolved_only() -> None:
     assert plan.settled == ()
     assert plan.total_payout == Decimal("0")
     assert resolver.resolved == [(market_id, winning_outcome_id)]
+
+
+# --------------------------------------------------------------------------- #
+# Audit (SC#5) — resolve writes ONE immutable audit_log row inside the same tx.
+# --------------------------------------------------------------------------- #
+async def test_resolve_market_writes_settlement_audit() -> None:
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))
+    yes, no = m.outcomes
+    alice, _ = await _seed_wallet(Decimal("100.0000"))
+    bob, _ = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, m, yes.id, Decimal("40.0000"), src)  # winner
+    await _place(bob, m, no.id, Decimal("60.0000"), src)  # loser
+    admin_id = uuid4()
+
+    resolver = FakeMarketResolver()
+    sm = _get_session_maker()
+    async with sm() as session:
+        await _resolve(
+            session,
+            market_id=m.id,
+            winning_outcome_id=yes.id,
+            market_resolver=resolver,
+            actor_user_id=admin_id,
+            justification="YES per the official source",
+        )
+
+    rows = await _audit_for_market("settlement.resolved", m.id)
+    assert len(rows) == 1
+    audit = rows[0]
+    assert audit.actor == f"user:{admin_id}"
+    payload = audit.payload
+    assert payload["market_id"] == str(m.id)
+    assert payload["winning_outcome"] == str(yes.id)
+    assert payload["resolver"] == str(admin_id)
+    assert payload["justification"] == "YES per the official source"
+    # Money is a STRING in the audit payload, never a JSON float (SC#4 discipline).
+    assert payload["total_payout"] == "80.0000"

@@ -37,6 +37,7 @@ from sqlalchemy import select
 
 from app.bets.constants import BET_PENDING, KIND_MARKET_LIABILITY
 from app.bets.models import Bet
+from app.core.audit.service import AuditService
 from app.settlement.constants import (
     SETTLE_LEG_LOSS,
     SETTLE_LEG_STAKE,
@@ -77,14 +78,20 @@ class SettlementService:
         market_id: UUID,
         winning_outcome_id: UUID,
         market_resolver: MarketResolvePort,
+        justification: str,
         actor_user_id: UUID | None = None,
     ) -> SettlementPlan:
         """Resolve ``market_id`` on ``winning_outcome_id`` and settle its pending bets (SC#5).
 
         Returns the :class:`SettlementPlan` describing what was paid. Idempotent (SC#6):
         a second call settles nothing because the bets are no longer ``PENDING``. The whole
-        operation is one ACID transaction — a mid-way failure leaves NO payout, the bets
-        ``PENDING``, and the market unresolved.
+        operation is one ACID transaction — the payouts, the market-status flip, AND the
+        immutable audit row all commit together (a mid-way failure leaves NO payout, the bets
+        ``PENDING``, the market unresolved, and no audit row).
+
+        ``justification`` is the mandatory resolution reason (SC#5 two-step confirm); it is
+        recorded in the ``settlement.resolved`` audit entry. ``actor_user_id`` is the resolving
+        admin (``None`` => a system resolution, e.g. Phase 7 auto-resolution).
 
         ``winning_outcome_id`` is trusted to be a valid outcome of the market (the admin
         resolve endpoint validates it against Phase 4 at integration); the pure plan simply
@@ -202,6 +209,24 @@ class SettlementService:
             #    the markets row at integration).
             await market_resolver.mark_resolved(
                 session, market_id=market_id, winning_outcome_id=winning_outcome_id
+            )
+
+            # 7. One immutable audit row, on THIS session so it commits atomically with the
+            #    payouts (SC#5). The row's own occurred_at is the settlement_timestamp; money
+            #    is recorded as a string, never a JSON float.
+            await AuditService.record(
+                session,
+                actor=f"user:{actor_user_id}" if actor_user_id is not None else "system",
+                event_type="settlement.resolved",
+                payload={
+                    "market_id": str(market_id),
+                    "winning_outcome": str(winning_outcome_id),
+                    "resolver": str(actor_user_id) if actor_user_id is not None else "system",
+                    "justification": justification,
+                    "total_payout": str(plan.total_payout),
+                    "total_loser_stake": str(plan.total_loser_stake),
+                    "bets_settled": len(plan.settled),
+                },
             )
 
             return plan
