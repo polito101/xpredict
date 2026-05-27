@@ -237,7 +237,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Complete    | 2026-05-26 |
-| 2. Auth & Identity | 5/5 | Complete   | 2026-05-27 |
+| 2. Auth & Identity | 5/5 | Complete    | 2026-05-27 |
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |

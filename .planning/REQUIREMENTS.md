@@ -21,15 +21,15 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Authentication & Identity (AUTH)
 
-- [ ] **AUTH-01**: Player can register with email + password (Argon2id hashed, server-side validation, password strength enforced)
-- [ ] **AUTH-02**: Player receives email verification message after signup (Mailpit in dev; real SMTP in staging — provider decided Phase 2 planning)
-- [ ] **AUTH-03**: Player can verify email by clicking single-use, time-limited link
-- [ ] **AUTH-04**: Player can log in with email + password; session persists across browser refresh
-- [ ] **AUTH-05**: Player can log out from any page (server-side session/token revoked)
-- [ ] **AUTH-06**: Player can reset password via email link (single-use token; password_reset bumps token_version invalidating prior sessions)
-- [ ] **AUTH-07**: Admin uses separate login route and `is_admin` flag; admin auth surface is distinct from player auth surface
-- [ ] **AUTH-08**: All auth endpoints (register, login, password reset, email verify) are rate-limited per IP and per email via slowapi + Redis
-- [ ] **AUTH-09**: Refresh token rotation with reuse detection; HTTP-only Secure cookies for player session, Bearer JWT for admin API access
+- [x] **AUTH-01**: Player can register with email + password (Argon2id hashed, server-side validation, password strength enforced)
+- [x] **AUTH-02**: Player receives email verification message after signup (Mailpit in dev; real SMTP in staging — provider decided Phase 2 planning)
+- [x] **AUTH-03**: Player can verify email by clicking single-use, time-limited link
+- [x] **AUTH-04**: Player can log in with email + password; session persists across browser refresh
+- [x] **AUTH-05**: Player can log out from any page (server-side session/token revoked)
+- [x] **AUTH-06**: Player can reset password via email link (single-use token; password_reset bumps token_version invalidating prior sessions)
+- [x] **AUTH-07**: Admin uses separate login route and `is_admin` flag; admin auth surface is distinct from player auth surface
+- [x] **AUTH-08**: All auth endpoints (register, login, password reset, email verify) are rate-limited per IP and per email via slowapi + Redis
+- [x] **AUTH-09**: Refresh token rotation with reuse detection; HTTP-only Secure cookies for player session, Bearer JWT for admin API access
 
 ### Wallet & Double-Entry Ledger (WAL)
 
@@ -179,15 +179,15 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
-| AUTH-06 | Phase 2 | Pending |
-| AUTH-07 | Phase 2 | Pending |
-| AUTH-08 | Phase 2 | Pending |
-| AUTH-09 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
+| AUTH-04 | Phase 2 | Complete |
+| AUTH-05 | Phase 2 | Complete |
+| AUTH-06 | Phase 2 | Complete |
+| AUTH-07 | Phase 2 | Complete |
+| AUTH-08 | Phase 2 | Complete |
+| AUTH-09 | Phase 2 | Complete |
 | WAL-01 | Phase 3 | Pending |
 | WAL-02 | Phase 5 | Pending |
 | WAL-03 | Phase 3 | Pending |
