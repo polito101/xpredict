@@ -19,6 +19,10 @@ Patterns and stack choices established across spike sessions. New spikes follow 
 - **Dual-format validators:** Gamma API fields may arrive as stringified JSON or pre-parsed lists — always handle both via Pydantic `field_validator(mode="before")`
 - **Decimal-first:** Use string numeric fields from APIs, parse to `Decimal`. Never trust float variants.
 - **ASCII output:** Avoid Unicode arrows/symbols in print statements (Windows cp1252 encoding)
+- **Double-entry bookkeeping:** Every wallet operation writes both the balance update AND a ledger entry — verify `SUM(entries) == balance` for integrity
+- **Pessimistic locking:** `SELECT ... FOR UPDATE` inside `AsyncSession.begin()` for all wallet state mutations
+- **Lock ordering:** Always sort account IDs before acquiring FOR UPDATE locks on multiple rows
+- **State machine validation:** Market status derived from `closed` + `umaResolutionStatus` combination, never from a single field
 
 ## Tools & Libraries
 - `sqlalchemy>=2.0.43` + `asyncpg>=0.30` — proven for concurrent wallet operations

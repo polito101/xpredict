@@ -1,0 +1,33 @@
+{
+  "id": "1919425",
+  "question": "US x Iran permanent peace deal by May 31, 2026?",
+  "conditionId": "0x0e4a0c937b8934c2475613b6322b3f8edc8dedc24762e01e42b0e6f87424a089",
+  "slug": "us-x-iran-permanent-peace-deal-by-may-31-2026",
+  "resolutionSource": "",
+  "endDate": "2026-05-31T00:00:00Z",
+  "liquidity": "595820.0548",
+  "startDate": "2026-04-08T16:19:31.125Z",
+  "description": "This market will resolve to Yes if Iran and the US agree to a permanent peace deal.",
+  "outcomes": ["Yes", "No"],
+  "outcomePrices": ["0.225", "0.775"],
+  "volume": "57367327.83401454",
+  "active": true,
+  "closed": false,
+  "acceptingOrders": true,
+  "resolvedBy": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+  "volumeNum": 57367327.83401454,
+  "liquidityNum": 595820.0548,
+  "endDateIso": "2026-05-31",
+  "volume24hr": 4091121.7182170013,
+  "clobTokenIds": [
+    "72094069823942324362885404801938332659316240217382754851102758232469673300092",
+    "42918220085288219341491829385501246298233444593663440094436147850542032590016"
+  ],
+  "umaBond": "500",
+  "umaResolutionStatuses": [],
+  "negRisk": false,
+  "spread": 0.01,
+  "bestBid": 0.22,
+  "bestAsk": 0.23,
+  "lastTradePrice": 0.23
+}

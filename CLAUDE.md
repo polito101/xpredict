@@ -72,6 +72,9 @@ Reserve inline execution for strictly-sequential or shared-state steps.
 ## Slack
 - `#general` — PR + merge notifications via native GitHub↔Slack integration.
 
+## Spike findings
+- **Spike findings for xpredict** (implementation patterns, constraints, gotchas) → `Skill("spike-findings-xpredict")`
+
 ## Environment
 - GitHub MCP is pinned in `.mcp.json`, authenticated via a PAT from the `GITHUB_PERSONAL_ACCESS_TOKEN` env var (GitHub OAuth isn't usable — no MCP dynamic client registration). Set that env var per-dev (`setx`, or `~/.claude/settings.local.json` "env"); the repo stays secret-free.
 - `.env.local` (optional, gitignored) only needs secrets. Never commit it.

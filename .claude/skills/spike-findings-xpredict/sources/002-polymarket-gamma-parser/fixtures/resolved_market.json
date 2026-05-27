@@ -1,0 +1,23 @@
+{
+  "id": "2308935",
+  "question": "Spurs vs. Thunder",
+  "conditionId": "0xabc123",
+  "slug": "spurs-vs-thunder",
+  "resolutionSource": "https://www.nba.com/",
+  "endDate": "2026-05-27T00:00:00Z",
+  "liquidity": "0",
+  "description": "Will the Spurs beat the Thunder?",
+  "outcomes": ["Spurs", "Thunder"],
+  "outcomePrices": ["0", "1"],
+  "volume": "5000000.00",
+  "active": false,
+  "closed": true,
+  "closedTime": "2026-05-27 03:37:32+00",
+  "acceptingOrders": false,
+  "umaResolutionStatus": "resolved",
+  "umaResolutionStatuses": ["proposed", "resolved"],
+  "automaticallyResolved": true,
+  "volume24hr": 100000.0,
+  "clobTokenIds": ["111111", "222222"],
+  "negRisk": false
+}
