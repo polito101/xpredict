@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import current_active_player
 from app.auth.models import User
+from app.bets.adapters import HouseMarketReadAdapter
 from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound
 from app.bets.market_port import MarketReadPort
 from app.bets.schemas import (
@@ -62,14 +63,15 @@ async def current_betting_player(
     return player
 
 
-def get_market_source() -> MarketReadPort | None:
+def get_market_source() -> MarketReadPort:
     """The market read port used to validate the bet's market.
 
-    Returns ``None`` until Phase 4's HouseAdapter is wired here at integration (then this
-    returns the adapter); the endpoint responds 503 while unwired. Tests override this with
-    an in-memory stub via ``app.dependency_overrides``.
+    Wired (integration) to Phase 4's market domain via :class:`HouseMarketReadAdapter`, which
+    reads on its OWN session (the port contract — place_bet validates BEFORE its
+    ``session.begin()``). Tests override this with an in-memory stub via
+    ``app.dependency_overrides``.
     """
-    return None
+    return HouseMarketReadAdapter()
 
 
 @bets_router.post("", response_model=BetResponse, status_code=status.HTTP_201_CREATED)
@@ -77,7 +79,7 @@ async def place_bet(
     body: PlaceBetRequest,
     player: Annotated[User, Depends(current_betting_player)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    market_source: Annotated[MarketReadPort | None, Depends(get_market_source)],
+    market_source: Annotated[MarketReadPort, Depends(get_market_source)],
 ) -> BetResponse:
     """Place ``body.stake`` on ``body.outcome_id`` of ``body.market_id`` for the player.
 
@@ -92,12 +94,6 @@ async def place_bet(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Stake must be between {settings.BET_MIN_STAKE} and {settings.BET_MAX_STAKE}.",
-        )
-
-    if market_source is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Betting is not available yet.",
         )
 
     try:

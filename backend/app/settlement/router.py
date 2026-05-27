@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import current_active_admin
 from app.auth.models import User
 from app.db.session import get_async_session
+from app.settlement.adapters import HouseMarketResolveAdapter
 from app.settlement.market_port import MarketResolvePort
 from app.settlement.schemas import (
     ResolveMarketRequest,
@@ -39,13 +40,14 @@ from app.settlement.service import SettlementService
 settlement_admin_router = APIRouter(prefix="/admin/markets", tags=["admin-settlement"])
 
 
-def get_market_resolver() -> MarketResolvePort | None:
+def get_market_resolver() -> MarketResolvePort:
     """The market write port used to flip market status during settle/reverse.
 
-    Returns ``None`` until Phase 4's market service is wired here at integration (then this
-    returns the adapter); the endpoints respond 503 while unwired. Tests override it.
+    Wired (integration) to Phase 4's market domain via :class:`HouseMarketResolveAdapter`,
+    which writes on the SETTLEMENT session so the status flip commits atomically with the
+    payouts + audit. Tests override it with a fake via ``app.dependency_overrides``.
     """
-    return None
+    return HouseMarketResolveAdapter()
 
 
 @settlement_admin_router.post("/{market_id}/resolve", response_model=ResolveMarketResponse)
@@ -54,14 +56,9 @@ async def resolve_market(
     body: ResolveMarketRequest,
     admin: Annotated[User, Depends(current_active_admin)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    resolver: Annotated[MarketResolvePort | None, Depends(get_market_resolver)],
+    resolver: Annotated[MarketResolvePort, Depends(get_market_resolver)],
 ) -> ResolveMarketResponse:
     """Resolve ``market_id`` on the confirmed winning outcome (admin-only, SC#5)."""
-    if resolver is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Settlement is not available yet.",
-        )
     # Capture the admin id as a plain value BEFORE the service's begin()/commit churns the
     # session (would expire the dependency-loaded admin -> MissingGreenlet). Then clear any
     # autobegun read tx (the admin lookup) so resolve_market can open its own unit of work.
@@ -99,14 +96,9 @@ async def reverse_settlement(
     body: ReverseSettlementRequest,
     admin: Annotated[User, Depends(current_active_admin)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    resolver: Annotated[MarketResolvePort | None, Depends(get_market_resolver)],
+    resolver: Annotated[MarketResolvePort, Depends(get_market_resolver)],
 ) -> ReverseSettlementResponse:
     """Reverse ``market_id``'s settlement via compensating entries (admin-only, SC#8)."""
-    if resolver is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Settlement is not available yet.",
-        )
     admin_id = admin.id
     await session.rollback()
 

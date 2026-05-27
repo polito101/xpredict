@@ -187,14 +187,15 @@ async def test_post_bets_403_when_banned(api: httpx.AsyncClient) -> None:
 # --------------------------------------------------------------------------- #
 # Wiring + placement.
 # --------------------------------------------------------------------------- #
-async def test_post_bets_503_when_market_source_unwired(api: httpx.AsyncClient) -> None:
-    """With no Phase 4 adapter wired (get_market_source -> None) the endpoint 503s."""
-    _auth_as(_User(uuid4()))  # active, not banned; no market source override
+async def test_post_bets_404_when_market_unknown(api: httpx.AsyncClient) -> None:
+    """With the REAL market adapter wired (no override), a bet on a non-existent market is
+    404 — the market is validated at the app layer via MarketReadPort (integration)."""
+    _auth_as(_User(uuid4()))  # active, not banned; the real HouseMarketReadAdapter is wired
     r = await api.post(
         "/bets",
         json={"market_id": str(uuid4()), "outcome_id": str(uuid4()), "stake": "10.0000"},
     )
-    assert r.status_code == 503
+    assert r.status_code == 404
 
 
 async def test_post_bets_happy_path_201(api: httpx.AsyncClient) -> None:

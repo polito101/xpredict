@@ -167,13 +167,15 @@ async def test_resolve_requires_admin(api: httpx.AsyncClient) -> None:
     assert r.status_code == 401
 
 
-async def test_resolve_503_when_resolver_unwired(api: httpx.AsyncClient) -> None:
-    _admin(uuid4())  # no resolver override -> get_market_resolver returns None
+async def test_resolve_404_when_market_unknown(api: httpx.AsyncClient) -> None:
+    """With the REAL resolve adapter wired (no override), resolving a non-existent market is
+    404 — the adapter raises NoResultFound, the endpoint maps it (integration)."""
+    _admin(uuid4())  # no resolver override -> the real HouseMarketResolveAdapter is wired
     r = await api.post(
         f"/admin/markets/{uuid4()}/resolve",
         json={"winning_outcome_id": str(uuid4()), "justification": "x"},
     )
-    assert r.status_code == 503
+    assert r.status_code == 404
 
 
 async def test_resolve_422_when_justification_blank(api: httpx.AsyncClient) -> None:

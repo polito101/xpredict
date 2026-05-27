@@ -24,10 +24,10 @@ from alembic import context
 # `target_metadata`. The
 # imports are pure side-effect registrations.
 from app.auth.models import RefreshToken, User  # noqa: F401  (Plan 02-01)
+from app.bets.models import Bet  # noqa: F401  (Phase 5)
 from app.core.audit.models import AuditLog  # noqa: F401
 from app.core.config import Settings
 from app.core.feature_flags.models import FeatureFlag  # noqa: F401
-from app.bets.models import Bet  # noqa: F401  (Phase 5)
 from app.db.base import Base
 from app.markets.models import Market, OddsSnapshot, Outcome  # noqa: F401  (Plan 04-01)
 from app.wallet.models import Account, Entry, Transfer  # noqa: F401  (Plan 03-01)
