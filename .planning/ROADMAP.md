@@ -114,7 +114,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Wave 3** *(blocked on Wave 2 completion)*
 
   - [x] 03-03-PLAN.md — Registration wallet auto-creation in one transaction (SC#1, UserManager.create override) [W3]
-  - [ ] 03-04-PLAN.md — Admin recharge endpoint + Idempotency-Key (SC#3) + no-user-to-user firewall (SC#5) [W3]
+  - [x] 03-04-PLAN.md — Admin recharge endpoint + Idempotency-Key (SC#3) + no-user-to-user firewall (SC#5) [W3]
   - [x] 03-06-PLAN.md — Nightly reconcile_wallets Celery task: SUM(entries) vs balance, drift -> CRITICAL + Sentry (SC#7) [W3]
 
 **Wave 4** *(blocked on Wave 3 completion)*
@@ -296,7 +296,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Complete    | 2026-05-26 |
 | 2. Auth & Identity | 5/5 | Complete    | 2026-05-27 |
-| 3. Wallet & Double-Entry Ledger | 4/6 | In Progress|  |
+| 3. Wallet & Double-Entry Ledger | 5/6 | In Progress|  |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
 | 6. Polymarket Sync (Catalog Replication) | 0/TBD | Not started | - |

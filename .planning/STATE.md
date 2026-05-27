@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-27T15:57:29.922Z"
+last_updated: "2026-05-27T16:16:38.345Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 18
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 03 (wallet-double-entry-ledger) — EXECUTING
-Plan: 5 of 6
-Status: 03-03 complete (SC#1/WAL-01) — 03-01/03-02/03-03/03-06 shipped; 03-04 (recharge endpoint) + 03-05 (wallet reads) remain
+Plan: 6 of 6
+Status: Ready to execute
 Last activity: 2026-05-27
 
-Progress: [█████████░] 87%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
@@ -67,6 +67,7 @@ Progress: [█████████░] 87%
 | Phase 03 P02 | ~8min | 2 tasks | 4 files |
 | Phase 03-wallet-double-entry-ledger P06 | ~26min | 2 tasks | 3 files |
 | Phase 03-wallet-double-entry-ledger P03 | ~5min | 2 tasks | 2 files |
+| Phase 03-wallet-double-entry-ledger P04 | ~13min | 3 tasks tasks | 5 files files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-06: reconcile_wallets nightly Celery task (RedBeat 03:00 UTC) sums SUM(credit)-SUM(debit) per account vs accounts.balance; clean->INFO, drift->CRITICAL + Sentry (SC#7/PLT-09); sync task wraps asyncio.run
 - [Phase 03]: 03-06: seeded house_promo singleton excluded from reconciliation (1e9 opening balance is a deliberate non-ledger-backed seed); reconciling it would emit a nightly false CRITICAL/Sentry alert (alert fatigue)
 - [Phase ?]: Plan 03-03: UserManager.create override (RESEARCH Option A) co-inserts the user_wallet on the adapter's own session between the user INSERT and a SINGLE commit -- user + wallet land atomically (SC#1/WAL-01). The stock fastapi-users SQLAlchemyUserDatabase.create() commits BEFORE on_after_register fires (verified in installed v15.0.5 source), so the hook can never host same-transaction work (Pitfall 1); the override is the fix. WalletService.create_wallet stays add+flush-only (caller-owned tx). Fault injection proves a wallet-creation failure rolls the user back too (no orphan).
+- [Phase ?]: [Phase 03]: 03-04: POST /admin/wallets/{user_id}/recharge -- first money-moving endpoint. Admin-Bearer-gated (current_active_admin), Idempotency-Key required (400 if absent), debits house_promo + credits path user only via WalletService.recharge, money-as-string response (MoneyStr=Annotated[Decimal,PlainSerializer]), wallet.recharge audited. SC#5/WAL-09 firewall: RechargeRequest extra=forbid (no destination field -> dst_user_id is 422) + route inventory + Entry.account_id FK targets accounts only. Audit is action-THEN-audit (recharge self-commits its session.begin(); handler audits + commits after) mirroring the auth surface, NOT same-tx-as-transfer -- avoids rewriting validated 03-02 concurrency code. Two Rule-1 fixes: pre-read autobegan tx -> rollback() before recharge.begin(); session churn expired admin/transfer ORM instances -> capture .id as plain values before commit (MissingGreenlet). WAL-09 complete.
 
 ### Pending Todos
 
@@ -126,6 +128,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-27T15:57:23.550Z
-Stopped at: Completed 03-03-PLAN.md (registration wallet auto-creation, SC#1/WAL-01)
+Last session: 2026-05-27T16:16:38.336Z
+Stopped at: Completed 03-04-PLAN.md (admin recharge endpoint, WAL-09/SC#3/SC#4/SC#5)
 Resume file: None

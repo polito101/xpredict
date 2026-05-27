@@ -41,7 +41,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [x] **WAL-06**: All wallet mutations are recorded in append-only double-entry ledger (accounts + transfers + entries tables); balance column on accounts is a denormalized cache reconciled nightly
 - [x] **WAL-07**: All wallet writes use `SELECT ... FOR UPDATE` inside a single transaction with `idempotency_key UNIQUE`; race conditions and double-spend blocked at DB level
 - [x] **WAL-08**: `CHECK (balance >= 0)` constraint on every wallet account; negative balance impossible
-- [ ] **WAL-09**: Tokens are strictly non-transferable between users at DB schema level; no UI path and no API endpoint exists for player-to-player transfers (regulatory firewall)
+- [x] **WAL-09**: Tokens are strictly non-transferable between users at DB schema level; no UI path and no API endpoint exists for player-to-player transfers (regulatory firewall)
 
 ### Markets — Browsing & Sync (MKT)
 
@@ -196,7 +196,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | WAL-06 | Phase 3 | Complete |
 | WAL-07 | Phase 3 | Complete |
 | WAL-08 | Phase 3 | Complete |
-| WAL-09 | Phase 3 | Pending |
+| WAL-09 | Phase 3 | Complete |
 | MKT-01 | Phase 6 | Pending |
 | MKT-02 | Phase 6 | Pending |
 | MKT-03 | Phase 9 | Pending |
