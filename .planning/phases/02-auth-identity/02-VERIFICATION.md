@@ -97,7 +97,7 @@ All 9 requirement IDs from PLAN frontmatter are present in REQUIREMENTS.md with 
 | `.env.example` | All Phase 2 vars with safe placeholder values; no real secrets | VERIFIED | SECRET_KEY=change-me-32+chars; ADMIN_JWT_PUBLIC_SECRET=change-me-32+chars-must-match-backend-SECRET_KEY; gitleaks allowlist covers this file |
 | `frontend/src/lib/auth.ts` | 5 player Server Actions + adminLoginAction; forwardSessionCookie; admin_jwt path=/admin | VERIFIED | "use server"; 5 player actions; adminLoginAction sets admin_jwt with path:'/admin', maxAge:900, httpOnly:true |
 | `frontend/src/lib/auth-schemas.ts` | Zod schemas; LoginSchema, RegisterSchema (mirrors backend rules); AdminLoginSchema | VERIFIED | Separate module (Next 15 constraint); RegisterSchema 12+chars+upper+lower+digit; all 6 schemas present |
-| `frontend/src/middleware.ts` | Edge middleware; jose HS256 jwtVerify; guards /admin/*; allows /admin/login | VERIFIED | ADMIN_PROTECTED regex; ADMIN_LOGIN bypass; jwtVerify with algorithms:['HS256']; redirect to /admin/login on failure |
+| `frontend/src/middleware.ts` | Edge middleware; cookie-presence gate; guards /admin/*; allows /admin/login | VERIFIED (fixed) | ADMIN_PROTECTED regex; ADMIN_LOGIN bypass; checks `admin_jwt` cookie presence only; redirect to /admin/login when absent. Originally had jose jwtVerify (HS256) which always failed against opaque DatabaseStrategy tokens — mismatch found and fixed during UAT 2026-05-27 (see Deviations). |
 | `frontend/src/app/admin/login/page.tsx` | Admin login page with form | VERIFIED | Exists (confirmed in 02-05-SUMMARY key-files; commit fd03396) |
 | `frontend/src/app/admin/page.tsx` | Admin home placeholder | VERIFIED | Exists (commit fd03396) |
 | `frontend/src/app/(auth)/login/page.tsx` | Player login page with shadcn form | VERIFIED | Exists (commit a771d1f; test login.test.tsx) |
@@ -120,7 +120,7 @@ All 9 requirement IDs from PLAN frontmatter are present in REQUIREMENTS.md with 
 | `main.py` | slowapi middleware | `app.state.limiter + SlowAPIMiddleware + RateLimitExceeded handler` | VERIFIED | All three wiring points present in main.py |
 | `auth.ts` | FastAPI `/auth/login` | `fetch + forwardSessionCookie` | VERIFIED | fetch(`${getBackendUrl()}/auth/login`); forwardSessionCookie parses Set-Cookie and re-sets via cookies().set() |
 | `auth.ts` adminLoginAction | FastAPI `/admin/auth/login` | `fetch + cookies().set('admin_jwt', ..., {path:'/admin'})` | VERIFIED | Bearer parsed from JSON response; admin_jwt cookie scoped to /admin path |
-| `middleware.ts` | `admin_jwt` cookie | `jose.jwtVerify` + `ADMIN_JWT_PUBLIC_SECRET` | VERIFIED | jwtVerify with correct env var; config.matcher limits to /admin/:path* |
+| `middleware.ts` | `admin_jwt` cookie | cookie-presence check (fixed) | VERIFIED (fixed) | Cookie presence checked; redirect to /admin/login when absent. `jose.jwtVerify` removed — it always failed because the backend uses opaque DatabaseStrategy tokens, not JWTs. Fixed during UAT 2026-05-27. |
 | `0002_phase2_auth.py` | `0001_phase1_foundations` | `down_revision` chain | VERIFIED | down_revision="0001_phase1_foundations" confirmed |
 
 ---
@@ -165,6 +165,7 @@ All deviations were auto-fixed during plan execution and documented in SUMMARY f
 | `auth.ts` + `auth-schemas.ts` module split instead of single `auth.ts` | 02-04 | Required by Next 15 "use server" constraint | Both modules present; schemas re-exported |
 | `AdminLoginSchema` does not enforce password length | 02-05 | Intentional — `bin/create_admin.py` bypasses validate_password for operator bootstrap | Documented in 02-05-SUMMARY |
 | `from __future__ import annotations` removed from router.py + admin_router.py | 02-02, 02-03 | Python 3.13 + FastAPI inspect.signature breaks with forward-ref strings | Removed; Annotated[T, Depends()] used instead |
+| **proxy-jwt-mismatch** — `middleware.ts` used `jose.jwtVerify` (HS256) against `admin_jwt` cookie | 02-05 | Token is opaque (DatabaseStrategy), not a JWT → `jwtVerify` always threw → every admin request redirected to `/admin/login` (redirect loop) | Fixed during UAT 2026-05-27: replaced JWT verification with cookie-presence check; removed `jose` import. The authoritative gate remains FastAPI's `current_active_admin` dependency on every `/admin/*` API call. |
 
 ---
 
