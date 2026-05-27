@@ -1,12 +1,15 @@
 /**
  * Plan 02-04 — Player auth Server Actions.
  *
- * Five Server Actions and the zod schemas they consume:
+ * Five Server Actions for the player surface:
  *   - loginAction               — OAuth2 form post to /auth/login (cookie session)
  *   - registerAction            — JSON post to /auth/register
  *   - forgotPasswordAction      — JSON post to /auth/forgot-password (enumeration-safe)
  *   - resetPasswordAction       — JSON post to /auth/reset-password
  *   - verifyEmailAction         — JSON post to /auth/verify (called from the page on mount)
+ *
+ * Schemas + types live in `./auth-schemas` because Next 15's `"use server"`
+ * files may only export async functions.
  *
  * Trust boundaries (see <threat_model> in 02-04-PLAN.md):
  *   - Browser → Server Action: zod schemas are UX-only; the backend always re-validates.
@@ -18,76 +21,25 @@
  *   SameSite=Lax; Path=/; Max-Age=2592000`. The Server Action runtime cannot transparently
  *   relay a cookie set by a cross-origin response; instead, parse the Set-Cookie header
  *   and re-set it via `cookies().set(...)` so Next.js serializes it back to the browser.
- *
- * RESEARCH §"Pattern 5" is the canonical source for the loginAction body shape.
  */
 "use server";
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
-// ---------------------------------------------------------------------------
-// Schemas — zod definitions mirror the backend `validate_password` rules.
-// They are UX-only pre-checks; backend is authoritative (RESEARCH
-// §"Architectural Responsibility Map" line 98).
-// ---------------------------------------------------------------------------
+import {
+  LoginSchema,
+  RegisterSchema,
+  ForgotSchema,
+  ResetSchema,
+  VerifySchema,
+  type ActionErrors,
+  type ActionState,
+  type VerifyResult,
+} from "./auth-schemas";
 
-const passwordRule = z
-  .string()
-  .min(12, "Password must be at least 12 characters")
-  .regex(/[A-Z]/, "Password must contain an uppercase letter")
-  .regex(/[a-z]/, "Password must contain a lowercase letter")
-  .regex(/\d/, "Password must contain a digit");
-
-export const LoginSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-export const RegisterSchema = z
-  .object({
-    email: z.string().email("Enter a valid email address"),
-    password: passwordRule,
-    confirm_password: z.string(),
-    display_name: z.string().optional(),
-  })
-  .refine((d) => d.password === d.confirm_password, {
-    message: "Passwords must match",
-    path: ["confirm_password"],
-  });
-
-export const ForgotSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
-});
-
-export const ResetSchema = z
-  .object({
-    token: z.string().min(1, "Reset token is required"),
-    password: passwordRule,
-    confirm_password: z.string(),
-  })
-  .refine((d) => d.password === d.confirm_password, {
-    message: "Passwords must match",
-    path: ["confirm_password"],
-  });
-
-export const VerifySchema = z.object({
-  token: z.string().min(1, "Verification token is required"),
-});
-
-// ---------------------------------------------------------------------------
-// Return-shape contracts for action state (Next 15 `useActionState` idiom).
-// ---------------------------------------------------------------------------
-
-export type ActionErrors = Record<string, string[] | undefined> & {
-  _form?: string[];
-};
-
-export type ActionState =
-  | { errors: ActionErrors }
-  | { success: true; message: string }
-  | undefined;
+// Schemas + types are re-exported through `./auth-schemas` — import them from
+// there directly in client components.
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -112,12 +64,14 @@ function tooManyAttempts(): { errors: ActionErrors } {
  * Server Action's response to the browser carries the same shape — Next.js
  * does not transparently forward Set-Cookie across origins.
  */
-async function forwardSessionCookie(setCookieHeader: string | null): Promise<void> {
+async function forwardSessionCookie(
+  setCookieHeader: string | null,
+): Promise<void> {
   if (!setCookieHeader) return;
   const match = setCookieHeader.match(/xpredict_session=([^;]+)/);
   if (!match) return;
   const value = match[1];
-  // Best-effort attribute parsing (Path / Max-Age) — fall back to safe defaults.
+  // Best-effort attribute parsing (Max-Age) — fall back to safe defaults.
   const maxAgeMatch = setCookieHeader.match(/Max-Age=(\d+)/i);
   const maxAge = maxAgeMatch ? Number(maxAgeMatch[1]) : 60 * 60 * 24 * 30;
   const store = await cookies();
@@ -306,8 +260,6 @@ export async function resetPasswordAction(
 // verifyEmailAction — called from the verify-email page on mount.
 // Not a form action; returns a status object (not ActionState).
 // ---------------------------------------------------------------------------
-
-export type VerifyResult = { status: "success" | "error"; detail?: string };
 
 export async function verifyEmailAction(token: string): Promise<VerifyResult> {
   const parsed = VerifySchema.safeParse({ token });

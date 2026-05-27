@@ -54,10 +54,8 @@ import {
   forgotPasswordAction,
   resetPasswordAction,
   verifyEmailAction,
-  LoginSchema,
-  RegisterSchema,
-  type ActionState,
 } from "../auth";
+import { LoginSchema, RegisterSchema, type ActionState } from "../auth-schemas";
 
 const { redirectMock, cookieStore } = mocks;
 
@@ -85,12 +83,17 @@ function fd(fields: Record<string, string>): FormData {
   return f;
 }
 
-// Spy on global fetch (different impl per test). Use the loose `Mock` type
-// rather than the narrow `ReturnType<typeof vi.spyOn<...>>` overload because
+// Spy on global fetch (different impl per test). Use a generic `unknown`-keyed
+// mock rather than the narrow `ReturnType<typeof vi.spyOn<...>>` overload —
 // `globalThis.fetch` is declared as a Web-API + Node.js intersection that the
-// TS compiler refuses to feed into the constrained overload.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let fetchSpy: any;
+// TS compiler refuses to feed into the constrained overload, and next-lint's
+// `@typescript-eslint/no-explicit-any` blocks plain `any` at build time.
+type FetchMock = {
+  mockResolvedValue: (v: Response) => void;
+  mockResolvedValueOnce: (v: Response) => void;
+  mock: { calls: unknown[][] };
+};
+let fetchSpy: FetchMock;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -99,7 +102,7 @@ beforeEach(() => {
   // Default fetch — tests override per-case.
   fetchSpy = vi
     .spyOn(globalThis, "fetch")
-    .mockResolvedValue(new Response(null, { status: 200 }));
+    .mockResolvedValue(new Response(null, { status: 200 })) as unknown as FetchMock;
   process.env.BACKEND_URL = "http://backend.test";
 });
 
