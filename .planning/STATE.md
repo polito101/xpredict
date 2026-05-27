@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-27T15:09:18.261Z"
+last_updated: "2026-05-27T15:46:03.313Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 12
   percent: 18
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 03 (wallet-double-entry-ledger) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-05-27
 
-Progress: [███████░░░] 73%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [███████░░░] 73%
 *Updated after each plan completion*
 | Phase 03 P01 | 12min | 3 tasks | 10 files |
 | Phase 03 P02 | ~8min | 2 tasks | 4 files |
+| Phase 03-wallet-double-entry-ledger P06 | ~26min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,8 @@ Recent decisions affecting current work:
 - **2026-05-27 (Plan 03-01): house_promo / house_revenue UUIDs fixed in `app/wallet/constants.py`** (`…00a1` / `…00a2`) and seeded by migration 0003 (ON CONFLICT DO NOTHING). house_promo funded with `1000000000.0000` so admin recharges (which debit it) never underflow the balance floor in v1. The recharge service (03-04) and settlement (Phase 5) reference these singletons directly — no runtime lookup-by-kind.
 - **2026-05-27 (Plan 03-01): Integration-test savepoint discipline.** Statements expected to raise a `DBAPIError` (CHECK/trigger/UNIQUE violations) must be wrapped in `async_session.begin_nested()` so the abort is savepoint-scoped and does not poison the shared session-scoped transaction. Without this, the next test fails with `InFailedSQLTransactionError`. NOTE: the pre-existing `tests/core/test_audit_immutability.py` has this latent flaw (fails on its 4th test under `-x`) — out of scope for this plan, logged for a follow-up retrofit.
 - [Phase 03]: Plan 03-02: WalletService shipped as the single race-safe ledger writer (WAL-07) -- FOR UPDATE inside one session.begin(), atomic paired-entry double-entry, 23505->return-existing idempotency, canonical UUID lock order; ported from the validated spike harness. SC#2 signature gate (50 concurrent overdraft -> drift 0, balance exact, 25/25 succeed/reject) green on production code. Added public WalletService.transfer (balance-checked debit->credit primitive recharge specializes + Phase 5 bets reuse); fixed recharge autobegin (resolve wallet INSIDE session.begin()); create_wallet is add+flush only (caller-owned tx, SC#1). — Faithful harness port keeps every concurrency/atomicity invariant in one place; the transfer primitive was required to drive the overdraft gate on production code since recharge debits the billion-funded house_promo and never rejects.
+- [Phase 03]: 03-06: reconcile_wallets nightly Celery task (RedBeat 03:00 UTC) sums SUM(credit)-SUM(debit) per account vs accounts.balance; clean->INFO, drift->CRITICAL + Sentry (SC#7/PLT-09); sync task wraps asyncio.run
+- [Phase 03]: 03-06: seeded house_promo singleton excluded from reconciliation (1e9 opening balance is a deliberate non-ledger-backed seed); reconciling it would emit a nightly false CRITICAL/Sentry alert (alert fatigue)
 
 ### Pending Todos
 
@@ -121,6 +124,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-27T15:09:18.253Z
-Stopped at: Completed 03-02-PLAN.md (WalletService + SC#2 gate)
+Last session: 2026-05-27T15:46:03.306Z
+Stopped at: Completed 03-06-PLAN.md (reconciliation safety net)
 Resume file: None

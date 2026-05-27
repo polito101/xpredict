@@ -112,7 +112,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [x] **PLT-06**: Feature flags table exists with prep for per-tenant config in v2 (single-row default for v1)
 - [ ] **PLT-07**: Player-facing UI is fully responsive on mobile browsers (≥360px width); admin UI desktop-only acceptable
 - [x] **PLT-08**: Sentry receives errors from FastAPI + Celery + Next.js; alert rules wired for: settlement failures, Polymarket sync error-rate spikes, ledger reconciliation drift, auth abuse spikes (code complete; Sentry event round-trip is a manual-verify item for /gsd-verify-work — needs real SENTRY_DSN; alert rules deferred to Phase 11 polish)
-- [ ] **PLT-09**: Nightly Celery task reconciles materialized wallet balances against ledger entries; any drift logs CRITICAL and alerts
+- [x] **PLT-09**: Nightly Celery task reconciles materialized wallet balances against ledger entries; any drift logs CRITICAL and alerts
 - [x] **PLT-10**: `docker-compose up` brings up the full stack locally (api, worker, beat, db, redis, frontend, mailpit) with one command (code complete; runtime acceptance is a manual-verify item for /gsd-verify-work — gated by host port conflicts)
 
 ## v2 / Deferred Requirements
@@ -246,7 +246,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | PLT-06 | Phase 1 | Done (01-03: feature_flags composite PK (key, tenant_id) + 3 seeded rows + FeatureFlagService.is_enabled with tenant fallback; 5 integration tests green) |
 | PLT-07 | Phase 11 | Pending |
 | PLT-08 | Phase 1 | Done with manual-verify pending (01-01: init_sentry + FastAPI + Celery worker/beat + tags + triple-trigger backend; 01-02: Next.js surface; 01-04: HTTP wiring verified, alert rules deferred to Phase 11; **manual-verify**: Sentry event round-trip needs real SENTRY_DSN — 10-min checklist in 01-04-SUMMARY.md) |
-| PLT-09 | Phase 3 | Pending |
+| PLT-09 | Phase 3 | Complete |
 | PLT-10 | Phase 1 | Done with manual-verify pending (01-03: docker-compose.yml 8 services + healthchecks valid; 01-04: bin/dev + bin/dev.ps1 + Makefile + README shipped; **manual-verify**: `bin\dev.ps1` runtime acceptance gated by host port conflicts with crypto-casino — 5-min checklist in 01-03-SUMMARY.md) |
 
 **Coverage:**
