@@ -42,6 +42,7 @@ from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
 from app.routers import health
+from app.settlement.router import settlement_admin_router
 from app.wallet.admin_router import wallet_admin_router
 from app.wallet.router import wallet_router
 
@@ -140,6 +141,7 @@ app.include_router(build_auth_routers())
 app.include_router(wallet_admin_router)
 app.include_router(wallet_router)
 app.include_router(bets_router)
+app.include_router(settlement_admin_router)
 
 
 @app.api_route("/_sentry-test", methods=["GET", "HEAD"])
