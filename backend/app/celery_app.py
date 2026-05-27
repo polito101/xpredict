@@ -24,6 +24,7 @@ from typing import Any
 
 import structlog
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import beat_init, task_failure, task_postrun, task_prerun, worker_process_init
 from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
@@ -48,6 +49,19 @@ celery_app.conf.beat_schedule = {}  # Phases 2-9 append tasks here
 celery_app.conf.task_default_queue = "default"
 celery_app.conf.task_default_exchange = "default"
 celery_app.conf.task_default_routing_key = "default"
+
+# Periodic schedule (RedBeat — stored in Redis, loaded by beat on restart).
+# Phases 2-9 each .update() this dict; never reassign it (D-?? shared schedule).
+# Phase 3 SC#7 / PLT-09: nightly ledger-vs-cache drift reconciliation at 03:00 UTC
+# (Claude's Discretion — low-traffic window).
+celery_app.conf.beat_schedule.update(
+    {
+        "reconcile-wallets-nightly": {
+            "task": "app.wallet.reconcile.reconcile_wallets",
+            "schedule": crontab(hour=3, minute=0),
+        },
+    }
+)
 
 
 # Path used by the beat heartbeat thread (D-03 healthcheck reads its mtime)
@@ -138,3 +152,16 @@ def sentry_test_task() -> None:
         celery -A app.celery_app call app.core.sentry.sentry_test_task
     """
     raise RuntimeError("sentry test from worker")
+
+
+# --------------------------------------------------------------------------- #
+# Task module registration (Pitfall 5 — task reachability).
+#
+# Periodic-task modules whose tasks are declared with @celery_app.task in a
+# SEPARATE module must be imported so the worker/beat process registers them;
+# an unregistered task makes beat fire into a silent no-op (T-03-22). This
+# import is placed at the BOTTOM of the module on purpose: ``celery_app`` is
+# fully constructed above, so ``app.wallet.reconcile``'s
+# ``from app.celery_app import celery_app`` resolves cleanly (no circular-import
+# partial-init). Mirror this line for each future periodic-task module.
+import app.wallet.reconcile  # noqa: E402, F401
