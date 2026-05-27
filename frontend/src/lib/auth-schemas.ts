@@ -55,6 +55,20 @@ export const VerifySchema = z.object({
   token: z.string().min(1, "Verification token is required"),
 });
 
+/**
+ * Plan 02-05 — Admin login schema.
+ *
+ * Mirror of `LoginSchema` but consumed by `adminLoginAction` which POSTs to
+ * `/admin/auth/login` (OAuth2 username/password form, per Plan 02-03). The
+ * client-side password length is intentionally NOT enforced here: admins are
+ * SEEDED via `bin/create_admin.py`, which BYPASSES `UserManager.validate_password`
+ * (operator-trusted bootstrap path). Backend remains authoritative.
+ */
+export const AdminLoginSchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
+});
+
 // Shared return-shape contract for Server Actions consumed via `useActionState`.
 export type ActionErrors = Record<string, string[] | undefined> & {
   _form?: string[];
