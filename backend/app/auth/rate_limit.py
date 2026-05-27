@@ -72,6 +72,16 @@ limiter = Limiter(
     headers_enabled=True,
 )
 
+# Guard against slowapi internal API changes.  ``check_email_limit`` accesses
+# ``limiter._limiter.hit()``, which is NOT part of slowapi's public surface.
+# This assertion runs at module import time (before the first request) so a
+# version upgrade that renames or removes ``_limiter`` raises immediately with
+# a clear message rather than crashing on the first authenticated request.
+assert hasattr(limiter, "_limiter") and callable(getattr(limiter._limiter, "hit", None)), (
+    "slowapi private API changed — limiter._limiter.hit() is not available. "
+    "Update check_email_limit in app/auth/rate_limit.py to use the new API."
+)
+
 
 def check_email_limit(
     request: Request,
