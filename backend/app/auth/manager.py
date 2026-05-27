@@ -188,17 +188,38 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     async def on_after_reset_password(
         self, user: User, request: Request | None = None
     ) -> None:
-        """Bump token_version AND revoke all active refresh tokens (Pitfall 6)."""
+        """Bump token_version AND revoke all active refresh tokens (Pitfall 6).
+
+        Uses a CAS (check-and-set) WHERE clause to avoid a lost-update race
+        with the fastapi-users request session that concurrently writes
+        hashed_password.  If token_version was already bumped by a concurrent
+        request (rowcount == 0), we log a warning and continue — the DB row
+        already has the correct post-bump value.
+        """
         from datetime import UTC, datetime
 
         now = datetime.now(UTC)
         async with self.audit_session_factory() as session:
-            # Bump token_version (AUTH-06 invalidation gate)
-            await session.execute(
+            # CAS bump: only update the row whose token_version still matches
+            # the value we read.  This prevents a second concurrent reset from
+            # silently overwriting a newer version back to the old value + 1.
+            result = await session.execute(
                 update(User)
-                .where(User.id == user.id)  # type: ignore[arg-type]
+                .where(
+                    User.id == user.id,  # type: ignore[arg-type]
+                    User.token_version == user.token_version,  # type: ignore[arg-type]
+                )
                 .values(token_version=User.token_version + 1)
+                .returning(User.token_version)
             )
+            if result.rowcount == 0:
+                # Concurrent reset already bumped the version — the DB is in
+                # the correct state; log for observability but do not re-bump.
+                logger.warning(
+                    "token_version_cas_missed",
+                    user_id=str(user.id),
+                    observed_version=user.token_version,
+                )
             # Bulk revoke all currently-active tokens (clean DB state)
             await session.execute(
                 update(RefreshToken)
