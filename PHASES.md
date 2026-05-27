@@ -8,7 +8,7 @@
 |---|-------|-------|--------|--------|----|
 | 1 | Scaffold & Foundations | Pol | ✅ Done | `gsd/phase-01-scaffold-foundations` | — |
 | 2 | Auth & Identity | Pol | 👀 In review | `gsd/phase-02-auth-identity` | [#5](https://github.com/polito101/xpredict/pull/5) |
-| 3 | Wallet & Double-Entry Ledger | Agustin | 🔄 In progress | `gsd/phase-03-wallet-ledger` | — |
+| 3 | Wallet & Double-Entry Ledger | Agustin | 🔄 In progress | `gsd/phase-03-wallet-double-entry-ledger` | — |
 | 4 | Markets Domain & HouseAdapter | — | ⬜ Not started | — | — |
 | 5 | Bets, Settlement & First E2E Demo | — | ⬜ Not started | — | — |
 | 6 | Polymarket Sync | — | ⬜ Not started | — | — |
