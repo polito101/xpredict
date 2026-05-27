@@ -16,6 +16,7 @@ Fixtures:
 
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
@@ -32,6 +33,10 @@ _PHASE2_TEST_ENV: dict[str, str] = {
     "SMTP_HOST": "mailpit",
     "SMTP_PORT": "1025",
     "RESEND_API_KEY": "",
+    # slowapi uses limits' MovedTemporarily storage backend when targeted at
+    # ``memory://`` — no Redis required. Production uses Redis DB /1
+    # (see app.auth.rate_limit._build_storage_uri).
+    "SLOWAPI_STORAGE_URI": "memory://",
 }
 for _k, _v in _PHASE2_TEST_ENV.items():
     os.environ.setdefault(_k, _v)
@@ -134,6 +139,25 @@ async def admin_user(async_session: AsyncSession) -> AsyncGenerator[User, None]:
     finally:
         await async_session.execute(delete(User).where(User.id == user.id))
         await async_session.flush()
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_storage():
+    """Clear slowapi's in-memory rate-limit storage before each test.
+
+    Tests share the same memory:// storage; without resetting, the per-IP
+    counter accumulates across tests and the 6th hit (whichever test runs
+    6th) trips the limit.
+    """
+    from app.auth.rate_limit import limiter
+
+    try:
+        limiter._limiter.reset()
+    except Exception:
+        # Storage may not implement reset() — best-effort.
+        with contextlib.suppress(Exception):
+            limiter._storage.reset()
+    yield
 
 
 @pytest.fixture

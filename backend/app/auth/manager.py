@@ -87,12 +87,18 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             )
         # Email-substring rule — applies to both UserCreate (register) AND
         # User (password change), since BaseUserManager passes whichever is
-        # available.
+        # available. We check BOTH the full address and the local part, so
+        # ``Subtest-Word-1234`` is rejected when the email is
+        # ``subtest@example.com``.
         email = getattr(user, "email", None)
-        if email and email.lower() in password.lower():
-            raise InvalidPasswordException(
-                reason="Password must not contain your email."
-            )
+        if email:
+            password_lc = password.lower()
+            email_lc = email.lower()
+            local_part = email_lc.split("@", 1)[0]
+            if email_lc in password_lc or (local_part and local_part in password_lc):
+                raise InvalidPasswordException(
+                    reason="Password must not contain your email."
+                )
 
     # ------------------------------------------------------------------
     # AUTH-02 — register / request_verify hook chain
@@ -109,10 +115,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         )
         try:
             await self.request_verify(user, request)
-        except Exception:
-            logger.exception(
+        except Exception as exc:
+            logger.error(
                 "verification_email_send_failed",
                 user_id=str(user.id),
+                error_type=type(exc).__name__,
+                error=str(exc)[:200],
             )
             # Pitfall 5: do NOT re-raise — registration succeeds even on
             # SMTP outage. The user can retry via /auth/request-verify-token.
@@ -128,10 +136,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             await self.email_service.send_verification_email(
                 to=user.email, token=token
             )
-        except Exception:
-            logger.exception(
+        except Exception as exc:
+            logger.error(
                 "verification_email_send_failed",
                 user_id=str(user.id),
+                error_type=type(exc).__name__,
+                error=str(exc)[:200],
             )
 
     # ------------------------------------------------------------------
@@ -164,10 +174,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             await self.email_service.send_reset_password_email(
                 to=user.email, token=token
             )
-        except Exception:
-            logger.exception(
+        except Exception as exc:
+            logger.error(
                 "reset_password_email_send_failed",
                 user_id=str(user.id),
+                error_type=type(exc).__name__,
+                error=str(exc)[:200],
             )
 
     # ------------------------------------------------------------------
