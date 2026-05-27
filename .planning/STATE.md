@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-27T14:00:53.936Z"
-last_activity: 2026-05-27 -- Phase 3 planning complete
+last_updated: "2026-05-27T14:51:26.764Z"
+last_activity: 2026-05-27
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 15
-  completed_plans: 9
+  completed_plans: 10
   percent: 18
 ---
 
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 3 — wallet & double entry ledger
+**Current focus:** Phase 03 — wallet-double-entry-ledger
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
+Phase: 03 (wallet-double-entry-ledger) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-05-27 -- Phase 3 planning complete
+Last activity: 2026-05-27
 
-Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase 2: Auth & Identity next)
+Progress: [███████░░░] 67%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase
 - Trend: Phase 1 execution complete — all 4 plans shipped within the day; PLT-04 negative-test acceptance machine-verified (`tests/test_gitleaks_blocks_secret.py` 2/2 green); pre-commit + 3 GitHub Actions workflows + bin/dev/Makefile/README all shipped. Manual-verify items (SC#1 docker compose runtime + SC#5 Sentry round-trip) move to the `/gsd-verify-work 1` audit step; Pol's 5-15 min checklist (in 01-04-SUMMARY.md + 01-03-SUMMARY.md) closes them before `/gsd-ship`.
 
 *Updated after each plan completion*
+| Phase 03 P01 | 12min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,9 @@ Recent decisions affecting current work:
 - **2026-05-26 (Plan 01-04): `.gitleaks.toml` allowlist extended to cover `.planning/*`.** Beyond the D-33 baseline (`tests/.*fixtures.* + docs/*.md + README*.md + .gitleaks.toml`), Pol's GSD planning artifacts contain example secret strings (e.g., `SESSION_SIGNING_KEY=…` mentions in 01-CONTEXT.md D-33). The `.planning/*` allowlist path keeps the linter from flagging its own context documents. In-spec extension of D-46.
 - **2026-05-26 (Plan 01-04): Three-tier secret-scanning architecture committed.** Pre-commit `gitleaks protect --staged` (developer machine, sub-second) → backend-ci.yml `gitleaks/gitleaks-action@v2` (every PR diff) → security.yml `fetch-depth: 0` weekly cron (full-history sweep). Different latency/coverage tradeoffs per tier per Pitfall 9; pre-commit is the recommendation (can be bypassed `--no-verify`), CI is the gate (cannot bypass on `main`).
 - **2026-05-26 (Plan 01-04): Phase 1 acceptance gate auto-approved per --auto mode.** 3.5/5 ROADMAP Success Criteria machine-verified; 1.5/5 deferred as documented manual-verify items (environmental, not implementation gaps). User response `"approved"` recorded; closeout commit captured the auto-approval rationale. Manual-verify items (SC#1 docker-compose runtime + SC#5 Sentry event round-trip) move to the `/gsd-verify-work 1` audit step.
+- **2026-05-27 (Plan 03-01): Wallet ledger schema shipped.** accounts/transfers/entries (UUID PKs, NUMERIC(18,4) money via `Mapped[Money]`, version column, tenant_id ghost) created by migration `0003_phase3_wallet_ledger` (single head off `0002_phase2_auth`). Immutability ported from the Phase 1 audit_log pattern, generalized to a shared `raise_ledger_immutable()` deny-trigger + `REVOKE UPDATE, DELETE` applied to `transfers` + `entries` ONLY (accounts.balance is a mutable denormalized cache). `CHECK (balance >= 0)` (WAL-08) + `idempotency_key UNIQUE` enforced and DB-verified. 8 Wave-0 integration tests green against testcontainers Postgres (tenant_id default, CHECK→23514, append-only UPDATE/DELETE blocked, idempotency→23505, seeded singletons). Requirements WAL-06 + WAL-08 complete.
+- **2026-05-27 (Plan 03-01): house_promo / house_revenue UUIDs fixed in `app/wallet/constants.py`** (`…00a1` / `…00a2`) and seeded by migration 0003 (ON CONFLICT DO NOTHING). house_promo funded with `1000000000.0000` so admin recharges (which debit it) never underflow the balance floor in v1. The recharge service (03-04) and settlement (Phase 5) reference these singletons directly — no runtime lookup-by-kind.
+- **2026-05-27 (Plan 03-01): Integration-test savepoint discipline.** Statements expected to raise a `DBAPIError` (CHECK/trigger/UNIQUE violations) must be wrapped in `async_session.begin_nested()` so the abort is savepoint-scoped and does not poison the shared session-scoped transaction. Without this, the next test fails with `InFailedSQLTransactionError`. NOTE: the pre-existing `tests/core/test_audit_immutability.py` has this latent flaw (fails on its 4th test under `-x`) — out of scope for this plan, logged for a follow-up retrofit.
 
 ### Pending Todos
 
@@ -115,6 +119,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-26T19:43:46.539Z
+Last session: 2026-05-27T14:50:47.461Z
 Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-auth-identity/02-CONTEXT.md
+Resume file: None

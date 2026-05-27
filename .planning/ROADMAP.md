@@ -105,7 +105,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 1**
 
-  - [ ] 03-01-PLAN.md — Ledger schema + migration 0003 (accounts/transfers/entries, immutability, CHECK, seed) + Wave-0 scaffold [W1]
+  - [x] 03-01-PLAN.md — Ledger schema + migration 0003 (accounts/transfers/entries, immutability, CHECK, seed) + Wave-0 scaffold [W1]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -296,7 +296,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Complete    | 2026-05-26 |
 | 2. Auth & Identity | 5/5 | Complete    | 2026-05-27 |
-| 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
+| 3. Wallet & Double-Entry Ledger | 1/6 | In Progress|  |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
 | 6. Polymarket Sync (Catalog Replication) | 0/TBD | Not started | - |

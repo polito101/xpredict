@@ -38,9 +38,9 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **WAL-03**: Player can view current wallet balance on any page (cached in session header)
 - [ ] **WAL-04**: Player can view full transaction history (deposits, bets, settlements, adjustments) with timestamps and reasons
 - [x] **WAL-05**: All money columns use `NUMERIC(18,4)`; all Python money values use `Decimal` constructed from strings — never float, never Postgres MONEY (Phase 1 ships: Money alias + AST lint + 17 lint tests + CI workflow step; full schema enforcement when Phase 3 ships money columns)
-- [ ] **WAL-06**: All wallet mutations are recorded in append-only double-entry ledger (accounts + transfers + entries tables); balance column on accounts is a denormalized cache reconciled nightly
+- [x] **WAL-06**: All wallet mutations are recorded in append-only double-entry ledger (accounts + transfers + entries tables); balance column on accounts is a denormalized cache reconciled nightly
 - [ ] **WAL-07**: All wallet writes use `SELECT ... FOR UPDATE` inside a single transaction with `idempotency_key UNIQUE`; race conditions and double-spend blocked at DB level
-- [ ] **WAL-08**: `CHECK (balance >= 0)` constraint on every wallet account; negative balance impossible
+- [x] **WAL-08**: `CHECK (balance >= 0)` constraint on every wallet account; negative balance impossible
 - [ ] **WAL-09**: Tokens are strictly non-transferable between users at DB schema level; no UI path and no API endpoint exists for player-to-player transfers (regulatory firewall)
 
 ### Markets — Browsing & Sync (MKT)
@@ -193,9 +193,9 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | WAL-03 | Phase 3 | Pending |
 | WAL-04 | Phase 3 | Pending |
 | WAL-05 | Phase 1 | Done (01-01: Money alias + AST lint + 17 lint tests; 01-04: CI workflow money-lint step; full schema enforcement when Phase 3 ships money columns) |
-| WAL-06 | Phase 3 | Pending |
+| WAL-06 | Phase 3 | Complete |
 | WAL-07 | Phase 3 | Pending |
-| WAL-08 | Phase 3 | Pending |
+| WAL-08 | Phase 3 | Complete |
 | WAL-09 | Phase 3 | Pending |
 | MKT-01 | Phase 6 | Pending |
 | MKT-02 | Phase 6 | Pending |
