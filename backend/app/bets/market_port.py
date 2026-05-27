@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
@@ -31,6 +32,7 @@ class OutcomeView:
 
     id: UUID
     label: str
+    price: Decimal  # the outcome's price/probability in (0, 1] — Phase 4 current_odds
 
 
 @dataclass(frozen=True, slots=True)

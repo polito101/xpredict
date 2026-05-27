@@ -83,14 +83,20 @@ class StubMarketSource:
         return self._markets.get(market_id)
 
 
-def _market(status: str = MARKET_OPEN, *, deadline: datetime | None = None) -> MarketView:
+def _market(
+    status: str = MARKET_OPEN,
+    *,
+    deadline: datetime | None = None,
+    yes_price: Decimal = Decimal("0.5"),
+    no_price: Decimal = Decimal("0.5"),
+) -> MarketView:
     return MarketView(
         id=uuid4(),
         status=status,
         deadline=deadline or (datetime.now(UTC) + timedelta(days=1)),
         outcomes=(
-            OutcomeView(id=uuid4(), label="YES"),
-            OutcomeView(id=uuid4(), label="NO"),
+            OutcomeView(id=uuid4(), label="YES", price=yes_price),
+            OutcomeView(id=uuid4(), label="NO", price=no_price),
         ),
     )
 
@@ -213,6 +219,37 @@ async def test_place_bet_moves_stake_and_records_bet() -> None:
     assert debit.account_id == wallet_id
     assert credit.account_id == liability_id
     assert debit.amount == stake
+
+
+# --------------------------------------------------------------------------- #
+# 1b) Odds locked at placement (the Phase 4 odds seam) — captured on the bet
+# --------------------------------------------------------------------------- #
+async def test_place_bet_captures_odds_at_placement() -> None:
+    """The chosen outcome's price (Phase 4 ``current_odds``) is locked onto the bet.
+
+    Settlement later pays a winner ``stake / odds_at_placement`` — so the price MUST be
+    captured at placement (the "odds locked at placement" model), not re-read at
+    resolution when odds may have moved.
+    """
+    user_id, _ = await _seed_wallet(Decimal("100.0000"))
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN, yes_price=Decimal("0.4"), no_price=Decimal("0.6")))
+    yes = m.outcomes[0]
+    sm = _get_session_maker()
+    async with sm() as session:
+        await BetService.place_bet(
+            session,
+            user_id=user_id,
+            market_id=m.id,
+            outcome_id=yes.id,
+            stake=Decimal("30.0000"),
+            market_source=src,
+        )
+
+    bets = await _bets_for_user(user_id)
+    assert len(bets) == 1
+    assert bets[0].outcome_id == yes.id
+    assert bets[0].odds_at_placement == Decimal("0.4")  # locked YES price, not NO's 0.6
 
 
 # --------------------------------------------------------------------------- #

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
@@ -31,8 +32,8 @@ def _market(
     outcomes: tuple[OutcomeView, ...] | None = None,
 ) -> MarketView:
     outs = outcomes or (
-        OutcomeView(id=uuid4(), label="YES"),
-        OutcomeView(id=uuid4(), label="NO"),
+        OutcomeView(id=uuid4(), label="YES", price=Decimal("0.5")),
+        OutcomeView(id=uuid4(), label="NO", price=Decimal("0.5")),
     )
     return MarketView(id=uuid4(), status=status, deadline=deadline, outcomes=outs)
 
@@ -74,8 +75,8 @@ def test_is_open_true_only_when_open_and_before_deadline() -> None:
 
 
 def test_outcome_lookup() -> None:
-    yes = OutcomeView(id=uuid4(), label="YES")
-    no = OutcomeView(id=uuid4(), label="NO")
+    yes = OutcomeView(id=uuid4(), label="YES", price=Decimal("0.5"))
+    no = OutcomeView(id=uuid4(), label="NO", price=Decimal("0.5"))
     m = _market(
         MARKET_OPEN,
         deadline=datetime.now(UTC) + timedelta(days=1),
@@ -87,6 +88,17 @@ def test_outcome_lookup() -> None:
 
 
 def test_views_are_frozen() -> None:
-    o = OutcomeView(id=uuid4(), label="YES")
+    o = OutcomeView(id=uuid4(), label="YES", price=Decimal("0.5"))
     with pytest.raises(FrozenInstanceError):
         o.label = "NO"  # type: ignore[misc]
+
+
+def test_outcome_view_carries_price() -> None:
+    """An outcome view carries the price/probability in (0,1] bets lock at placement.
+
+    This is the Phase 4 odds seam: at integration the adapter fills ``price`` from
+    ``Outcome.current_odds`` (a probability, verified, NOT decimal odds) so
+    ``place_bet`` can lock it onto the bet for settlement payout.
+    """
+    o = OutcomeView(id=uuid4(), label="YES", price=Decimal("0.65"))
+    assert o.price == Decimal("0.65")

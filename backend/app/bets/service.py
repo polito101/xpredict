@@ -82,7 +82,8 @@ class BetService:
             raise MarketNotFound(f"no market {market_id}")
         if not market.is_open(datetime.now(UTC)):
             raise MarketClosed(f"market {market_id} is not open for bets")
-        if market.outcome(outcome_id) is None:
+        chosen = market.outcome(outcome_id)
+        if chosen is None:
             raise InvalidOutcome(f"outcome {outcome_id} not in market {market_id}")
 
         # 2. Ensure the per-market liability account exists (race-safe, own unit of work).
@@ -114,6 +115,9 @@ class BetService:
                 market_id=market_id,
                 outcome_id=outcome_id,
                 stake=stake,
+                # Lock the chosen outcome's price (Phase 4 odds) at placement — settlement
+                # pays a winner stake / odds_at_placement, so it must NOT be re-read later.
+                odds_at_placement=chosen.price,
                 status=BET_PENDING,
             )
             session.add(bet)

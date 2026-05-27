@@ -25,7 +25,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.bets.constants import BET_PENDING
 from app.core.config import get_settings
 from app.db.base import Base
-from app.db.types import Money
+from app.db.types import Money, Odds
 
 
 class Bet(Base):
@@ -50,6 +50,11 @@ class Bet(Base):
     market_id: Mapped[PyUUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     outcome_id: Mapped[PyUUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     stake: Mapped[Money] = mapped_column()
+    # The chosen outcome's price/probability in (0,1] locked at placement — the "odds
+    # locked at placement" payout model (ARCHITECTURE.md): a winning bet pays stake /
+    # odds_at_placement. Numeric(8,6) via the Odds alias (NOT money) so the money-column
+    # lint stays green; mirrors Phase 4's Outcome.current_odds precision.
+    odds_at_placement: Mapped[Odds] = mapped_column()
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=BET_PENDING)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

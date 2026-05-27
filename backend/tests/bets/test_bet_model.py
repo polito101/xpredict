@@ -36,6 +36,20 @@ def test_stake_is_numeric_18_4() -> None:
     assert stake_type.scale == 4
 
 
+def test_odds_at_placement_is_numeric_8_6() -> None:
+    """``odds_at_placement`` is the probability locked at placement — Numeric(8,6).
+
+    It mirrors Phase 4's ``Outcome.current_odds`` precision (a probability in (0,1],
+    NOT money) so the locked price is captured faithfully and ``scripts/lint_money_columns.py``
+    stays green via the dedicated ``Odds`` type alias (not the money ``Numeric(18,4)``).
+    """
+    col = Bet.__table__.c.odds_at_placement
+    assert isinstance(col.type, Numeric)
+    assert col.type.precision == 8
+    assert col.type.scale == 6
+    assert col.nullable is False
+
+
 def test_status_server_default_is_pending() -> None:
     server_default = Bet.__table__.c.status.server_default
     assert server_default is not None
