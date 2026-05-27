@@ -137,7 +137,8 @@ disable_error_code = ["misc", "untyped-decorator"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-pythonpath = [".", "scripts"]
+# ``bin`` added in Plan 02-03 so tests can ``import bin.create_admin``.
+pythonpath = [".", "scripts", "bin"]
 markers = [
   "integration: tests that require testcontainers Postgres (slow)",
 ]

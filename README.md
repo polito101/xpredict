@@ -47,6 +47,26 @@ Built phase by phase via the [GSD workflow](README-SETUP.md).
 If host ports 5432 or 6379 are occupied (e.g., by other Docker projects), stop
 those containers first; `docker compose up` cannot rebind a bound host port.
 
+## First-time setup
+
+### Seed the first admin
+
+Phase 2 ships a separate admin authentication surface at `/admin/auth/*`
+(AUTH-07). Admins are seeded from the environment — there is no self-
+registration route. Set `FIRST_ADMIN_EMAIL` and `FIRST_ADMIN_PASSWORD`
+in your `.env.local`, then:
+
+```bash
+cd backend
+uv run python bin/create_admin.py
+```
+
+The script is idempotent — re-running it after the admin row already
+exists prints "already exists" and returns 0 (no-op). It hashes the
+password with Argon2id via `pwdlib` (same hasher the player surface
+uses), so the seeded admin can log in at `POST /admin/auth/login` and
+receive a Bearer JWT token (D-11, AUTH-07).
+
 ## Running tests
 
 | Surface  | Command                                                      |
