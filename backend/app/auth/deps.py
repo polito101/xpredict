@@ -4,20 +4,24 @@ Re-exports the dependencies that Phase 3+ will consume:
 - ``get_user_db`` — produces ``SQLAlchemyUserDatabase(session, User)``
 - ``get_email_service`` — singleton-ish ``EmailService`` factory
 - ``get_user_manager`` — produces a ``UserManager`` wired to user_db + email
-- ``current_active_player`` / ``current_active_admin`` — re-exported from router
+- ``current_active_player`` — re-exported from ``router.py`` (Plan 02-02)
+- ``current_active_admin`` — re-exported from ``admin_router.py`` (Plan 02-03)
 
 The ``current_active_*`` symbols are bound at the bottom of ``router.py``
-and re-exported here so consumers can:
+and ``admin_router.py`` and re-exported here so consumers can:
 
-    from app.auth.deps import current_active_player
+    from app.auth.deps import current_active_player, current_active_admin
 
-without importing ``app.auth.router`` (which is FastAPI-app-scoped).
+without importing the router modules (which are FastAPI-app-scoped).
+Re-exports use module-level ``__getattr__`` to break the import cycle
+(``admin_router`` imports ``get_user_manager`` from this module).
 """
 
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 from functools import lru_cache
+from typing import Any
 from uuid import UUID
 
 from fastapi import Depends
@@ -59,7 +63,27 @@ async def get_user_manager(
     yield UserManager(user_db, email_service=email_service)
 
 
+def __getattr__(name: str) -> Any:
+    """Lazy re-exports — break import cycle with admin_router / router."""
+    if name == "current_active_admin":
+        from app.auth.admin_router import current_active_admin
+
+        return current_active_admin
+    if name == "current_active_player":
+        from app.auth.router import current_active_player
+
+        return current_active_player
+    raise AttributeError(f"module 'app.auth.deps' has no attribute {name!r}")
+
+
+# ``current_active_admin`` + ``current_active_player`` are resolved by
+# the module-level ``__getattr__`` above (lazy import to break cycle).
+# Ruff sees them as undefined in ``__all__`` (F822); the ``noqa`` keeps
+# the lint clean. The names ARE importable at call time, as the unit
+# tests assert.
 __all__ = [
+    "current_active_admin",  # noqa: F822 — lazy __getattr__
+    "current_active_player",  # noqa: F822 — lazy __getattr__
     "get_email_service",
     "get_user_db",
     "get_user_manager",

@@ -38,3 +38,43 @@ before changing.
 inserts and either explicitly clean up (e.g. `test_users_tenant_id_default`
 issues a `DELETE … WHERE email = 'tenantdefault-test@example.com'`) or
 use sufficiently unique data that intra-session collisions are unlikely.
+
+## Cross-worktree gitleaks history scan picks up sibling commits
+
+**Discovered:** During Plan 02-03 final verification (`uv run pytest tests/`).
+
+**Symptom:** `tests/test_gitleaks_blocks_secret.py::test_gitleaks_clean_scan_of_full_repo`
+fails with 23 leaks. Inspecting the JSON report shows ALL the leaks
+come from commit `54af9454…` on a sibling worktree branch (the 02-04
+frontend worktree-agent, running in parallel) — files like
+`frontend/src/lib/__tests__/auth.test.ts` introduce test passwords
+(`"Valid-Pass-1234"`) that gitleaks' `generic-api-key` rule flags.
+
+**Why this is out-of-scope for 02-03:** The commit is NOT in the 02-03
+worktree branch (`git log --all --oneline | grep 54af9454` shows it
+exists, but `git log --oneline -5` on `worktree-agent-…` does not have
+it). The leak files are frontend-only (`frontend/src/lib/__tests__/`)
+and 02-03 does not touch the frontend.
+
+**Root cause:** gitleaks `detect` operates on the **shared git history**
+of the repository, not the worktree's working tree. Worktrees share the
+same `.git/` directory, so a commit landed by ANY worktree is visible
+to ALL worktrees' `gitleaks detect` runs.
+
+**Recommended fix (owner 02-04 or Phase 11 hardening):**
+- Either extend `.gitleaks.toml` `[allowlist].paths` with
+  `frontend/src/lib/__tests__/.*` (mirror of the existing
+  `tests/.*fixtures.*` allowlist for backend test data — Plan 01-04
+  D-46 patterns), OR
+- Change test fixtures in `frontend/src/lib/__tests__/auth.test.ts` to
+  use a clearly non-secret form (`"Valid-Pass-1234"` has high entropy
+  and triggers the generic-api-key heuristic; using a clearly-marked
+  fixture like `"FIXTURE_PASSWORD_NOT_REAL"` would pass the entropy
+  threshold).
+
+**Phase 2 Wave 3 status:** Other 7 pre-existing test failures
+(`tests/core/test_audit_immutability.py` + `tests/core/test_feature_flags.py`)
+are the unchanged Phase 1 isolation bug above; plus the new
+`test_gitleaks_clean_scan_of_full_repo` failure documented here. Total:
+8 pre-existing failures, 0 introduced by Plan 02-03. Plan 02-03's own
+test surface (`tests/auth/`) is 74/74 green.

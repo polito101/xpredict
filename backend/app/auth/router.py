@@ -16,7 +16,13 @@ Player surface (CookieTransport):
 - POST /auth/logout             — fastapi-users (AUTH-05)
 - GET  /auth/users/me           — fastapi-users (gated active+verified)
 
-Admin surface (BearerTransport) ships in Plan 02-03.
+Admin surface (BearerTransport) — Plan 02-03 (D-03, AUTH-07):
+- POST /admin/auth/login        — proxy (rate-limited; AUTH-07, AUTH-08)
+- POST /admin/auth/logout       — proxy (revokes Bearer; T-02-36)
+
+Both surfaces share the same ``User`` model, ``UserManager`` class, and
+custom ``DatabaseStrategy`` — only the transport differs. See
+``admin_router.py`` for the cross-surface isolation rationale.
 """
 
 import uuid
@@ -246,7 +252,7 @@ def _strip_proxy_owned(fu_router: APIRouter) -> APIRouter:
 # build_auth_routers — included in main.py
 # ----------------------------------------------------------------------
 def build_auth_routers() -> APIRouter:
-    """Return a parent router containing all auth routes (player surface)."""
+    """Return a parent router containing all auth routes (player + admin)."""
     parent = APIRouter()
 
     # 1) Proxy router — owns rate-limited routes (register/login/forgot/
@@ -289,6 +295,16 @@ def build_auth_routers() -> APIRouter:
         prefix="/auth/users",
         tags=["auth"],
     )
+
+    # 3) Admin surface (Plan 02-03, D-03, AUTH-07). The admin proxy owns
+    #    /admin/auth/login + /admin/auth/logout — both rate-limited /
+    #    audit-aware. No additional fastapi-users router is mounted for
+    #    the admin instance because admins are seeded via
+    #    ``bin/create_admin.py`` (no register flow) and don't need
+    #    email-verification or password-reset endpoints in v1.
+    from app.auth.admin_router import admin_proxy_router  # local import — avoid circular
+
+    parent.include_router(admin_proxy_router)
     return parent
 
 
