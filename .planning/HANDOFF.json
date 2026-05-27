@@ -6,7 +6,7 @@
   "phase_dir": ".planning/phases/05-bets-settlement",
   "owner": "Agustin",
   "branch": "gsd/phase-05-bets-settlement",
-  "head": "01ca94f",
+  "head": "d60026b",
   "status": "paused",
   "plan": null,
   "task": null,
@@ -22,14 +22,15 @@
     {"name": "Odds-at-placement capture: OutcomeView.price + Bet.odds_at_placement (Odds alias, Numeric(8,6)) + place_bet captures it — the Phase 4 odds seam", "status": "done", "commit": "d56c7b4"},
     {"name": "SC#5 core + SC#6: transactional SettlementService.resolve_market (winners liability+house_promo->wallet, losers liability->house_revenue, liability nets to 0) + idempotency (PENDING guard + settle:{bet_id}:{leg} keys) + MarketResolvePort write seam", "status": "done", "commit": "95455aa"},
     {"name": "SC#5 audit: mandatory justification + in-tx settlement.resolved audit_log row (AuditService.record, money-as-string)", "status": "done", "commit": "d503baa"},
-    {"name": "SC#8: reverse_settlement via compensating entries (inverse of every settle leg, bets SETTLED->PENDING, mark_unresolved reopen, settlement.reversed audit, idempotent + atomic)", "status": "done", "commit": "01ca94f"}
+    {"name": "SC#8: reverse_settlement via compensating entries (inverse of every settle leg, bets SETTLED->PENDING, mark_unresolved reopen, settlement.reversed audit, idempotent + atomic)", "status": "done", "commit": "01ca94f"},
+    {"name": "SC#2: bet API router POST /bets (current_betting_player active+verified+not-banned -> 401/403; MarketReadPort via get_market_source -> 503 until Phase 4 adapter; domain->HTTP mapping; money/odds as JSON strings)", "status": "done", "commit": "7ba5cbb"},
+    {"name": "SC#5/#8 API: admin resolve + reverse endpoints POST /admin/markets/{id}/{resolve,reverse} (admin-Bearer-gated, MarketResolvePort via get_market_resolver -> 503 until wired, mandatory justification, session.rollback before service begin)", "status": "done", "commit": "d60026b"}
   ],
   "remaining_tasks": [
-    {"name": "SC#2 — bet API router POST /bets, 403 unverified/banned", "status": "not_started", "note": "needs a real MarketReadPort adapter over Phase 4's app/markets (integration) + auth deps"},
-    {"name": "SC#3 — confirm modal + per-market min/max stake limits (TenantConfig, server+client) + sell->405", "status": "not_started"},
-    {"name": "SC#5 endpoint — admin two-step resolve HTTP endpoint wiring the DONE SettlementService.resolve_market", "status": "not_started", "note": "needs a MarketResolvePort adapter over app/markets + admin auth (current_active_admin)"},
+    {"name": "SC#3 — confirm modal + per-market min/max stake limits (TenantConfig, server+client) + sell->405", "status": "not_started", "note": "TenantConfig (operator-set limits) does not exist yet -- the main remaining backend piece"},
     {"name": "SC#7 — portfolio read API (compute_payout/profit_or_loss for unrealized+realized P&L) + resolution display (Next.js frontend)", "status": "not_started"},
-    {"name": "INTEGRATION — rebase onto Phase-4 main + migration 0005_phase5_bets (bets table incl. odds_at_placement + FKs) + swap port fakes for Phase 4 adapters + E2E demo", "status": "blocked", "note": "gated by Phase 3 merge + 0003->0004 renumber (Pol-coordinated)"}
+    {"name": "FRONTEND — bet confirm modal (SC#3), portfolio/resolution UI (SC#7), admin two-step resolve/reverse UI (Next.js)", "status": "not_started"},
+    {"name": "INTEGRATION — rebase onto Phase-4 main + migration 0005_phase5_bets (bets table incl. odds_at_placement + FKs) + WIRE Phase 4 adapters into get_market_source (bets router) + get_market_resolver (settlement admin router) (both return None -> 503 now) + E2E demo", "status": "blocked", "note": "gated by Phase 3 merge + 0003->0004 renumber (Pol-coordinated)"}
   ],
   "blockers": [
     {"description": "Alembic 0003 COLLISION: Phase 3 (wallet, unmerged, on this branch) and Phase 4 (markets, merged to main) both created 0003 off 0002. Renumber 0003_phase3_wallet_ledger -> 0004 (down_revision 0003_phase4_markets) when Phase 3 lands on the Phase-4 main. INTEGRATION-only — the backend engine was built migration-free.", "type": "technical", "workaround": "Resolve at the Phase 3 merge; Phase 5 bets migration becomes 0005 off 0004"},
@@ -53,6 +54,6 @@
     {"decision": "re-RESOLVE after reverse deferred", "rationale": "Would reuse settle:{bet_id}:{leg} keys -> 23505. Needs a per-bet settlement epoch in the key. v1 reverse restores state for audit/correction, not yet re-resolvable.", "phase": "05"}
   ],
   "uncommitted_files": [],
-  "next_action": "Read .continue-here.md (top SESSION LOG #2). Then either build the API layer (admin two-step resolve endpoint wiring the DONE SettlementService.resolve_market, or the bet router SC#2) — both need Phase 4 read/resolve adapters at integration — or start the INTEGRATION (coordinate Phase 3 merge + 0003->0004 renumber with Pol, rebase, migration 0005, swap port fakes for Phase 4 adapters, E2E demo). Optionally push the 7 commits.",
-  "context_notes": "Session #2 (2026-05-27): SETTLEMENT ENGINE COMPLETED. 4 additive TDD commits efbacbd->01ca94f (d56c7b4 odds capture, 95455aa resolve_market SC#5/#6, d503baa audit+justification SC#5, 01ca94f reverse SC#8). NO migration, NO rebase (those are integration-time). Backend green: bets 21/21 + settlement 34/34 + wallet 38/38; ruff/format/mypy/money-lint clean on touched files. Branch 7 ahead of origin, NOT pushed. Pre-existing NON-mine issues flagged (NOT touched): 9 mypy errors in app/wallet/reconcile.py + app/auth/manager.py; AuditLog I001 + ~30 ruff-format-drift files (tests/wallet/* etc.); Phase 4 odds columns fail money-lint on main. Remaining Phase 5 = API (SC#2/#5-endpoint) + stake limits/sell-405 (SC#3) + portfolio/frontend (SC#7) + the integration (rebase onto Phase-4 main, migration 0005, Phase 4 adapters, E2E demo)."
+  "next_action": "Read .continue-here.md (top SESSION LOG #2). Settlement engine + API layer are DONE. Next: (a) SC#3 = TenantConfig (operator-set per-market min/max stake) + server+client enforcement + sell->405; (b) SC#7 = portfolio read API (compute_payout/profit_or_loss for unrealized+realized P&L) + Next.js frontend (bet confirm modal, portfolio/resolution UI, admin resolve/reverse UI); (c) INTEGRATION = coordinate Phase 3 merge + 0003->0004 renumber with Pol, rebase, migration 0005, then WIRE the Phase 4 adapters into get_market_source + get_market_resolver (both return None -> 503 now), E2E demo.",
+  "context_notes": "Session #2 (2026-05-27): SETTLEMENT ENGINE + API LAYER. 6 additive TDD commits efbacbd->d60026b, PUSHED to origin. Engine: d56c7b4 odds capture, 95455aa resolve_market SC#5/#6, d503baa audit+justification SC#5, 01ca94f reverse SC#8. API: 7ba5cbb bet router SC#2 (POST /bets, 403 banned/unverified), d60026b admin resolve+reverse endpoints SC#5/#8 (POST /admin/markets/{id}/{resolve,reverse}). The endpoints 503 until the Phase 4 read/resolve adapters replace the get_market_source/get_market_resolver None defaults at integration (auth gating/validation/mapping all work + tested now). NO migration, NO rebase (integration-time). Backend green: bets 28/28 + settlement 39/39 + wallet 38/38; ruff/format/mypy/money-lint clean on touched files. Pre-existing NON-mine issues flagged (NOT touched): 9 mypy errors in app/wallet/reconcile.py + app/auth/manager.py; AuditLog I001 + ~30 ruff-format-drift files; Phase 4 odds columns fail money-lint on main. Remaining Phase 5 = SC#3 (TenantConfig stake limits + sell-405) + SC#7 (portfolio + frontend) + frontend (confirm modal, admin UI) + the integration (rebase, migration 0005, wire Phase 4 adapters, E2E demo)."
 }
