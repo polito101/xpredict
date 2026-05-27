@@ -67,14 +67,29 @@ async def recharge_wallet(
             detail="Idempotency-Key header is required.",
         )
 
+    # Capture the admin id as a plain value NOW. The pre-read ``rollback()`` and
+    # ``recharge``'s own ``begin()``/commit churn the request session's
+    # transaction state, which expires ORM instances loaded earlier (the
+    # ``admin`` object came from the ``current_active_admin`` dependency on this
+    # same session). Touching ``admin.id`` after that would trigger a lazy reload
+    # — IO outside the async greenlet → ``MissingGreenlet``. Read it once, up front.
+    admin_id = admin.id
+
     # Detect a replay BEFORE the write so the response can flag it. The service
     # itself is the source of truth for dedup (23505 → return existing); this
     # read only shapes the ``idempotent_replay`` boolean.
+    #
+    # IMPORTANT: this SELECT autobegins an implicit transaction on the request
+    # session. ``WalletService.recharge`` opens its OWN ``session.begin()`` unit
+    # of work, which raises ``InvalidRequestError`` if a transaction is already
+    # open — so we ``rollback()`` the (read-only, data-free) autobegun tx to hand
+    # ``recharge`` a clean session. Same autobegin nuance the 03-02 service hit.
     pre_existing = (
         await session.execute(
             select(Transfer.id).where(Transfer.idempotency_key == idempotency_key)
         )
     ).scalar_one_or_none()
+    await session.rollback()
 
     try:
         # ``recharge`` owns its own ``session.begin()`` unit of work: the transfer
@@ -109,6 +124,11 @@ async def recharge_wallet(
         ) from exc
 
     idempotent_replay = pre_existing is not None
+    # Capture the transfer id as a plain value before the audit commit — the
+    # commit below would otherwise force a lazy reload of the (post-begin)
+    # ``transfer`` instance during response construction (same MissingGreenlet
+    # trap as ``admin.id`` above).
+    transfer_id = transfer.id
 
     # Audit every admin money action (T-03-17 / PITFALLS admin-actions). The
     # transfer is already committed by ``recharge``; this audit row is written on
@@ -117,7 +137,7 @@ async def recharge_wallet(
     # records the (idempotent) admin intent.
     await AuditService.record(
         session,
-        actor=f"user:{admin.id}",
+        actor=f"user:{admin_id}",
         event_type="wallet.recharge",
         payload={
             "target_user_id": str(user_id),
@@ -129,7 +149,7 @@ async def recharge_wallet(
     await session.commit()
 
     return RechargeResponse(
-        transfer_id=transfer.id,
+        transfer_id=transfer_id,
         amount=body.amount,
         currency=PLAY_USD,
         idempotent_replay=idempotent_replay,
