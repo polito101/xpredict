@@ -20,7 +20,8 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations** - Docker compose stack, FastAPI + Next.js hello-world, Postgres 16 + Redis 7, Alembic, money-column standards, `tenant_id` ghost column, audit-log trigger, Sentry, secrets hygiene, gitleaks in CI. **Executed + Verified 2026-05-26 (4/4 plans, ~83 min; 41/41 backend + 2/2 frontend tests green; 9/9 UAT complete — cold-start fix applied, code review 37 fixes merged).**
-- [x] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints. (completed 2026-05-27)
+- [x] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints.
+ (completed 2026-05-27)
 - [ ] **Phase 3: Wallet & Double-Entry Ledger** - `accounts` + `transfers` + `entries` schema (append-only, immutable, ACID-bound), `NUMERIC(18,4)` everywhere, idempotent transfers, `CHECK (balance >= 0)`, admin recharge primitive, Stripe stub interface, nightly reconciliation.
 - [ ] **Phase 4: Markets Domain & HouseAdapter** - `MarketSource` Protocol, Market/Outcome/OddsSnapshot models, HouseAdapter implementation, admin CRUD for house markets (create/edit-while-zero-bets/close), criteria locked at first bet.
 - [ ] **Phase 5: Bets, Settlement & First End-to-End Demo (House Markets Only)** - Place-bet flow (ACID-wrapped, idempotent), portfolio with P&L, sign-up bonus on email verify, admin two-step resolve with mandatory justification, idempotent SettlementService, reversal path. **First demoable happy path lands here.**
@@ -87,8 +88,14 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   5. No database path, REST endpoint, GraphQL resolver, or admin tool exists to transfer balance from one user to another; an automated negative test asserts every wallet-mutation API rejects a `dst_user_id` parameter, and the schema has no FK that would allow it.
   6. A disabled "Add funds" button is present in the player UI; `WalletService.recharge(payment_provider="stripe")` exists as a method signature that raises `NotImplementedError` (v2 wires it without refactor).
   7. The nightly Celery `reconcile_wallets` task runs against seed data, computes `SUM(entries)` per account, compares to `accounts.balance`, and the reconciliation log shows zero drift; if a synthetic drift is injected, the task logs CRITICAL and a Sentry alert fires.
-**Plans**: TBD
-**Research/spike flags**: **SPIKE recommended** — concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious; recommend a 1-2 hour spike via `/gsd-spike` before planning if Cuco hasn't implemented async double-entry before. PITFALLS.md §"Wallet / Ledger Correctness" is the primary reference.
+**Plans**: 6 plans
+  - [ ] 03-01-PLAN.md — Ledger schema + migration 0003 (accounts/transfers/entries, immutability, CHECK, seed) + Wave-0 scaffold [W1]
+  - [ ] 03-02-PLAN.md — WalletService engine (FOR UPDATE, atomic double-entry, idempotency, canonical lock order) + SC#2 concurrent gate [W2]
+  - [ ] 03-03-PLAN.md — Registration wallet auto-creation in one transaction (SC#1, UserManager.create override) [W3]
+  - [ ] 03-04-PLAN.md — Admin recharge endpoint + Idempotency-Key (SC#3) + no-user-to-user firewall (SC#5) [W3]
+  - [ ] 03-05-PLAN.md — Player reads (balance + paginated history, money-as-string SC#4) + Stripe stub + disabled Add funds button (SC#6) [W4]
+  - [ ] 03-06-PLAN.md — Nightly reconcile_wallets Celery task: SUM(entries) vs balance, drift -> CRITICAL + Sentry (SC#7) [W3]
+**Research/spike flags**: **SPIKE COMPLETE** — concurrent locking resolved by Spikes 001-004 (FOR UPDATE chosen; see `.planning/spikes/LOCKING-ATOMICITY-ANALYSIS.md`). Original note: **SPIKE recommended** — concurrent locking patterns in SQLAlchemy 2.0 async (`SELECT ... FOR UPDATE` inside `AsyncSession.begin()`, deadlock ordering, retry-on-serialization-failure) are non-obvious; recommend a 1-2 hour spike via `/gsd-spike` before planning if Cuco hasn't implemented async double-entry before. PITFALLS.md §"Wallet / Ledger Correctness" is the primary reference.
 **Critical pitfalls covered**: PITFALL #1 (wallet race conditions via `FOR UPDATE` + `CHECK (balance >= 0)`), PITFALL #4 (NUMERIC + Decimal end-to-end), PITFALL #10 (single-transaction discipline established; pattern that bet placement in Phase 5 will reuse).
 
 ### Phase 4: Markets Domain & HouseAdapter
