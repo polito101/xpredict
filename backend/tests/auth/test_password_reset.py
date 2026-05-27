@@ -4,13 +4,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 import pytest
-from fastapi_users.jwt import generate_jwt
-from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy import text
-
-from app.auth.manager import UserManager
-from app.auth.models import User
-from app.db.session import _get_session_maker
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
@@ -52,28 +46,43 @@ async def _register_and_verify(
         await conn.commit()
 
 
-async def _mint_reset_token(email: str) -> str:
-    """Generate a JWT in the shape fastapi-users expects for reset."""
-    sm = _get_session_maker()
-    async with sm() as session:
-        user_db = SQLAlchemyUserDatabase(session, User)
-        manager = UserManager(user_db)
-        user = await manager.get_by_email(email)
-        # fastapi-users encodes the current password_fgpt; we use the same path.
-        password_helper = manager.password_helper
-        token_data = {
-            "sub": str(user.id),
-            "password_fgpt": password_helper.hash(user.hashed_password),
-            "aud": "fastapi-users:reset",
-        }
-        return generate_jwt(
-            data=token_data,
-            secret=manager.reset_password_token_secret,
-            lifetime_seconds=3600,
-        )
+async def _request_reset_and_capture_token(
+    client: httpx.AsyncClient,
+    email: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> str:
+    """Trigger forgot-password and capture the reset token via monkeypatching.
+
+    Replaces the private-JWT-fabrication approach (which used fastapi-users'
+    internal ``generate_jwt`` and double-hashed the password fingerprint) with
+    a first-class path: call ``POST /auth/forgot-password``, intercept the
+    token inside ``EmailService.send_reset_password_email``, and return it.
+
+    This tests the real token minting path and remains stable across
+    fastapi-users patch versions.
+    """
+    import app.auth.email as email_module
+
+    captured: list[str] = []
+
+    async def _mock_send_reset(*, to: str, token: str) -> None:
+        captured.append(token)
+
+    monkeypatch.setattr(
+        email_module.EmailService,
+        "send_reset_password_email",
+        _mock_send_reset,
+    )
+
+    fp = await client.post("/auth/forgot-password", json={"email": email})
+    assert fp.status_code == 202, f"forgot-password returned {fp.status_code}: {fp.text}"
+    assert captured, "send_reset_password_email was not called — token not captured"
+    return captured[0]
 
 
-async def test_reset_invalidates_sessions(engine: "AsyncEngine") -> None:
+async def test_reset_invalidates_sessions(
+    engine: "AsyncEngine", monkeypatch: pytest.MonkeyPatch
+) -> None:
     """After reset, prior token_version is invalid + refresh_tokens revoked."""
     email = "reset-invalidates@example.com"
     password = "Valid-Pass-1234"
@@ -106,12 +115,8 @@ async def test_reset_invalidates_sessions(engine: "AsyncEngine") -> None:
             ).scalar()
             assert active_before == 1
 
-        # Request reset (triggers forgot-password flow + audit row).
-        fp = await client.post("/auth/forgot-password", json={"email": email})
-        assert fp.status_code == 202
-
-        # Mint a reset token (matches what would arrive via email).
-        reset_token = await _mint_reset_token(email)
+        # Request reset and capture the token via the real email hook.
+        reset_token = await _request_reset_and_capture_token(client, email, monkeypatch)
 
         rp = await client.post(
             "/auth/reset-password",
@@ -143,7 +148,9 @@ async def test_reset_invalidates_sessions(engine: "AsyncEngine") -> None:
     await _cleanup_user(engine, email)
 
 
-async def test_audit_trail_on_reset(engine: "AsyncEngine") -> None:
+async def test_audit_trail_on_reset(
+    engine: "AsyncEngine", monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Both auth.password_reset_requested + auth.password_reset_completed audit rows exist."""
     email = "reset-audit@example.com"
     password = "Valid-Pass-1234"
@@ -151,8 +158,8 @@ async def test_audit_trail_on_reset(engine: "AsyncEngine") -> None:
     await _cleanup_user(engine, email)
     async with await _client_for_app() as client:
         await _register_and_verify(client, engine, email, password)
-        await client.post("/auth/forgot-password", json={"email": email})
-        token = await _mint_reset_token(email)
+        # Request reset and capture the token via the real email hook.
+        token = await _request_reset_and_capture_token(client, email, monkeypatch)
         rp = await client.post(
             "/auth/reset-password",
             json={"token": token, "password": new_password},
