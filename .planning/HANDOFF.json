@@ -6,48 +6,53 @@
   "phase_dir": ".planning/phases/05-bets-settlement",
   "owner": "Agustin",
   "branch": "gsd/phase-05-bets-settlement",
-  "head": "efbacbd",
+  "head": "01ca94f",
   "status": "paused",
   "plan": null,
   "task": null,
   "total_tasks": null,
-  "note_on_plan": "Phase 5 has NO formal /gsd-plan-phase PLAN.md; it is being built as additive atomic TDD commits. The authoritative handoff is .planning/phases/05-bets-settlement/.continue-here.md — READ IT FIRST.",
+  "note_on_plan": "Phase 5 has NO formal /gsd-plan-phase PLAN.md; it is built as additive atomic TDD commits. The authoritative handoff is .planning/phases/05-bets-settlement/.continue-here.md — READ IT FIRST (its top SESSION LOG #2 captures the settlement engine completion).",
   "completed_tasks": [
     {"name": "SC#1 place_bet — atomic ACID bet placement vs MarketReadPort", "status": "done", "commit": "fe3b5d9"},
     {"name": "SC#4 sign-up bonus on email verify (grant_signup_bonus)", "status": "done", "commit": "5969072"},
     {"name": "MarketReadPort + MarketView/OutcomeView + Bet model", "status": "done", "commit": "da46970"},
     {"name": "Settlement core: pure payout & P&L math (payout.py)", "status": "done", "commit": "5d70cbf"},
     {"name": "Settlement core: pure settlement plan (plan.py)", "status": "done", "commit": "efbacbd"},
-    {"name": "SC#9 admin manual recharge", "status": "done", "commit": "delivered in Phase 3 (POST /admin/wallets/{id}/recharge)"}
+    {"name": "SC#9 admin manual recharge", "status": "done", "commit": "delivered in Phase 3 (POST /admin/wallets/{id}/recharge)"},
+    {"name": "Odds-at-placement capture: OutcomeView.price + Bet.odds_at_placement (Odds alias, Numeric(8,6)) + place_bet captures it — the Phase 4 odds seam", "status": "done", "commit": "d56c7b4"},
+    {"name": "SC#5 core + SC#6: transactional SettlementService.resolve_market (winners liability+house_promo->wallet, losers liability->house_revenue, liability nets to 0) + idempotency (PENDING guard + settle:{bet_id}:{leg} keys) + MarketResolvePort write seam", "status": "done", "commit": "95455aa"},
+    {"name": "SC#5 audit: mandatory justification + in-tx settlement.resolved audit_log row (AuditService.record, money-as-string)", "status": "done", "commit": "d503baa"},
+    {"name": "SC#8: reverse_settlement via compensating entries (inverse of every settle leg, bets SETTLED->PENDING, mark_unresolved reopen, settlement.reversed audit, idempotent + atomic)", "status": "done", "commit": "01ca94f"}
   ],
   "remaining_tasks": [
-    {"name": "Capture odds-at-placement on Bet (extend OutcomeView.price + Bet.price + place_bet)", "status": "not_started", "sc": "enables SC#5/#7"},
-    {"name": "Transactional SettlementService.resolve_market + MarketResolvePort + audit + reversal", "status": "not_started", "sc": "SC#5/#6/#8"},
-    {"name": "Bet API router POST /bets, 403 unverified/banned", "status": "not_started", "sc": "SC#2"},
-    {"name": "Confirm modal + per-market stake limits + sell->405", "status": "not_started", "sc": "SC#3"},
-    {"name": "Portfolio read API + resolution display (P&L)", "status": "not_started", "sc": "SC#7"},
-    {"name": "Migration 0005_phase5_bets (bets table + FKs to markets/outcomes) off 0004", "status": "blocked", "sc": "needs 0003->0004 renumber first"},
-    {"name": "First E2E demo: bet -> admin resolve -> wallet credited -> P&L", "status": "not_started", "sc": "Phase 5 milestone"}
+    {"name": "SC#2 — bet API router POST /bets, 403 unverified/banned", "status": "not_started", "note": "needs a real MarketReadPort adapter over Phase 4's app/markets (integration) + auth deps"},
+    {"name": "SC#3 — confirm modal + per-market min/max stake limits (TenantConfig, server+client) + sell->405", "status": "not_started"},
+    {"name": "SC#5 endpoint — admin two-step resolve HTTP endpoint wiring the DONE SettlementService.resolve_market", "status": "not_started", "note": "needs a MarketResolvePort adapter over app/markets + admin auth (current_active_admin)"},
+    {"name": "SC#7 — portfolio read API (compute_payout/profit_or_loss for unrealized+realized P&L) + resolution display (Next.js frontend)", "status": "not_started"},
+    {"name": "INTEGRATION — rebase onto Phase-4 main + migration 0005_phase5_bets (bets table incl. odds_at_placement + FKs) + swap port fakes for Phase 4 adapters + E2E demo", "status": "blocked", "note": "gated by Phase 3 merge + 0003->0004 renumber (Pol-coordinated)"}
   ],
   "blockers": [
-    {"description": "Alembic migration 0003 COLLISION: Phase 3 (wallet, unmerged, on this branch) and Phase 4 (markets, merged to main) both created 0003 off 0002. Renumber 0003_phase3_wallet_ledger -> 0004_phase3_wallet_ledger (down_revision 0003_phase4_markets) when Phase 3 lands on the Phase-4 main.", "type": "technical", "workaround": "Resolve at Phase 3 merge; Phase 5 bets migration then becomes 0005 off 0004"},
-    {"description": "Phase 3 (Wallet & Ledger) is NOT merged to main (app/wallet on main is only __init__.py). Phase 5 rides on top of unmerged Phase 3 and cannot complete/merge until Phase 3 lands.", "type": "external", "workaround": "Integration order: Phase 3 -> rebase Phase 5 -> finish Phase 5"},
-    {"description": "Must confirm whether Phase 4 Outcome.current_odds is a probability in (0,1] or decimal odds, before feeding it to compute_payout(stake, price).", "type": "technical", "workaround": "Inspect a created market row / HouseAdapter seed; if decimal odds use price = 1/current_odds"}
+    {"description": "Alembic 0003 COLLISION: Phase 3 (wallet, unmerged, on this branch) and Phase 4 (markets, merged to main) both created 0003 off 0002. Renumber 0003_phase3_wallet_ledger -> 0004 (down_revision 0003_phase4_markets) when Phase 3 lands on the Phase-4 main. INTEGRATION-only — the backend engine was built migration-free.", "type": "technical", "workaround": "Resolve at the Phase 3 merge; Phase 5 bets migration becomes 0005 off 0004"},
+    {"description": "Phase 3 (Wallet & Ledger) is NOT merged to main. Phase 5 rides on top of unmerged Phase 3 and cannot complete/merge until Phase 3 lands.", "type": "external", "workaround": "Integration order: Phase 3 -> rebase Phase 5 -> finish API/frontend"}
   ],
   "blockers_removed": [
-    "Phase 4 (Markets Domain & HouseAdapter) is now MERGED to origin/main via PR #6 (eba7a41). The old 'Phase 4 not started' blocker on the Phase 5 integration items (real market models, admin resolution endpoint, bets migration, E2E demo) is GONE. Pol is now on Phase 6; Agustin takes Phase 7 next."
+    "Phase 4 (Markets) MERGED to origin/main @ eba7a41 (PR #6). Pol is on Phase 6; Agustin takes Phase 7 next.",
+    "Odds seam RESOLVED: Phase 4 Outcome.current_odds is a probability in (0,1] (Numeric(8,6)) — feeds straight into compute_payout(stake, price), NO 1/odds conversion. Verified by reading origin/main.",
+    "Settlement ENGINE complete this session: resolve (SC#5) + idempotency (SC#6) + reversal (SC#8), transactional + audited + tested. The remaining Phase-5 work is API + frontend + integration."
   ],
   "human_actions_pending": [
-    {"action": "Coordinate with Pol on the Phase 3 merge + 0003->0004 migration renumber sequence", "context": "It touches the shared alembic chain; Phase 3 is the wallet phase and is still unmerged", "blocking": true},
-    {"action": "Open Phase 5 PR via GitHub MCP create_pull_request from a REPO-ROOTED session (only Pol merges)", "context": "Home-rooted sessions have no mcp__github__* (the documented GOTCHA)", "blocking": false}
+    {"action": "Decide whether to PUSH the 7 local commits on gsd/phase-05-bets-settlement (git push works from home; not pushed yet)", "context": "Branch is 7 ahead of origin. No PR yet — PRs need a repo-rooted session (GitHub MCP). Only Pol merges.", "blocking": false},
+    {"action": "Coordinate with Pol on the Phase 3 merge + 0003->0004 migration renumber sequence", "context": "Gates the INTEGRATION step (rebase + migration 0005 + Phase 4 adapters)", "blocking": false},
+    {"action": "Open the Phase 5 PR via GitHub MCP create_pull_request from a REPO-ROOTED session (only Pol merges)", "context": "Home-rooted sessions have no mcp__github__* (the documented GOTCHA)", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Payout model = 'odds locked at placement': winning payout = stake/price, loser pays 0, no house edge in v1", "rationale": ".planning/research/ARCHITECTURE.md; FEATURES.md defers house edge to v2", "phase": "05"},
-    {"decision": "Split settlement into pure math (payout.py, plan.py — unit-tested, no I/O, reused by Phase 7) + transactional shell (gated)", "rationale": "Pure core takes price as input => zero Phase 4 coupling; buildable + verifiable before integration", "phase": "05"},
-    {"decision": "Idempotent settlement via existing transfers.idempotency_key='settle:{bet_id}' (no new constraint/migration)", "rationale": "Preserves single-alembic-head invariant; same zero-double-payout guarantee as the entries (bet_id,event_type) UNIQUE option in ROADMAP SC#6", "phase": "05"},
-    {"decision": "Did NOT churn STATE.md / PHASES.md on this branch", "rationale": "Both differ from origin/main; editing invites rebase conflicts. This handoff is the source of truth until the Phase 3 merge + Phase 5 rebase reconcile them", "phase": "05"}
+    {"decision": "Bet.odds_at_placement uses a dedicated Odds alias (Numeric(8,6)) in app/db/types.py, NOT Money", "rationale": "Odds are a probability, not money; the alias keeps scripts/lint_money_columns.py green (money columns must be Numeric(18,4)) AND preserves Phase 4's 6-dp odds precision. Phase 4's raw Numeric(8,6) odds columns actually FAIL money-lint on main (3 errors) — pre-existing Phase 4 debt, not touched.", "phase": "05"},
+    {"decision": "Settlement flows: winner = liability->wallet (stake) + house_promo->wallet (winnings, skipped at price==1.0 to avoid CHECK(amount>0)); loser = liability->house_revenue. Liability nets to 0.", "rationale": ".continue-here.md design; no house edge in v1; entries CHECK(amount>0) forces skipping the zero-winnings leg.", "phase": "05"},
+    {"decision": "Audit (settlement.resolved / settlement.reversed) written INSIDE the service tx via AuditService.record", "rationale": "SC#5 requires the audit_log row inside resolve_market's ACID transaction; AuditService.record is designed for caller-tx participation. Event names use the dotted domain.action convention (D-40), not the SC's underscore shorthand.", "phase": "05"},
+    {"decision": "Reversal recomputes amounts with the same pure compute_payout/profit_or_loss; compensating entries are the inverse direction (never DELETE/UPDATE).", "rationale": "Guarantees reversal restores the exact pre-settlement balances; respects the append-only ledger (WAL-06).", "phase": "05"},
+    {"decision": "re-RESOLVE after reverse deferred", "rationale": "Would reuse settle:{bet_id}:{leg} keys -> 23505. Needs a per-bet settlement epoch in the key. v1 reverse restores state for audit/correction, not yet re-resolvable.", "phase": "05"}
   ],
   "uncommitted_files": [],
-  "next_action": "Read .planning/phases/05-bets-settlement/.continue-here.md fully. Then coordinate the Phase 3 merge + 0003->0004 migration renumber with Pol BEFORE writing Phase 5 integration code. Do not rebase blindly onto origin/main (0003 collision). Build the transactional SettlementService on the shipped pure core (payout.py/plan.py) after the chain is linearized.",
-  "context_notes": "Post-PC-restart resume session. Phase 5 mid-flight on gsd/phase-05-bets-settlement @ efbacbd, working tree clean, 37 ahead / 16 behind origin/main (eba7a41). This branch carries the ENTIRE unmerged Phase 3 wallet code (that's the 37 ahead). This session added only the PURE settlement core (2 commits, new files in app/settlement/ + tests/settlement/, zero edits to shipped code, migration-free). Strategy is additive/low-risk. The big change since last context: Phase 4 is MERGED — re-evaluate everything under that. The integration is now a 3-way reconciliation gated by the 0003 collision, not a simple unblock."
+  "next_action": "Read .continue-here.md (top SESSION LOG #2). Then either build the API layer (admin two-step resolve endpoint wiring the DONE SettlementService.resolve_market, or the bet router SC#2) — both need Phase 4 read/resolve adapters at integration — or start the INTEGRATION (coordinate Phase 3 merge + 0003->0004 renumber with Pol, rebase, migration 0005, swap port fakes for Phase 4 adapters, E2E demo). Optionally push the 7 commits.",
+  "context_notes": "Session #2 (2026-05-27): SETTLEMENT ENGINE COMPLETED. 4 additive TDD commits efbacbd->01ca94f (d56c7b4 odds capture, 95455aa resolve_market SC#5/#6, d503baa audit+justification SC#5, 01ca94f reverse SC#8). NO migration, NO rebase (those are integration-time). Backend green: bets 21/21 + settlement 34/34 + wallet 38/38; ruff/format/mypy/money-lint clean on touched files. Branch 7 ahead of origin, NOT pushed. Pre-existing NON-mine issues flagged (NOT touched): 9 mypy errors in app/wallet/reconcile.py + app/auth/manager.py; AuditLog I001 + ~30 ruff-format-drift files (tests/wallet/* etc.); Phase 4 odds columns fail money-lint on main. Remaining Phase 5 = API (SC#2/#5-endpoint) + stake limits/sell-405 (SC#3) + portfolio/frontend (SC#7) + the integration (rebase onto Phase-4 main, migration 0005, Phase 4 adapters, E2E demo)."
 }
