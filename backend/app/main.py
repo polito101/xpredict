@@ -37,6 +37,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.auth.rate_limit import limiter
 from app.auth.router import build_auth_routers
+from app.bets.router import bets_router
 from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
@@ -138,6 +139,7 @@ app.include_router(health.router)
 app.include_router(build_auth_routers())
 app.include_router(wallet_admin_router)
 app.include_router(wallet_router)
+app.include_router(bets_router)
 
 
 @app.api_route("/_sentry-test", methods=["GET", "HEAD"])
