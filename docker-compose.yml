@@ -20,6 +20,8 @@ x-backend-env: &backend-env
   REDIS_URL: redis://redis:6379/0
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_TRACES_SAMPLE_RATE: "0.1"
+  SECRET_KEY: ${SECRET_KEY}
+  ADMIN_JWT_PUBLIC_SECRET: ${ADMIN_JWT_PUBLIC_SECRET}
 
 x-backend-volumes: &backend-volumes
   - ./backend:/app
@@ -174,6 +176,8 @@ services:
     environment:
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
       NEXT_PUBLIC_API_URL: http://backend:8000
+      BACKEND_URL: http://backend:8000
+      ADMIN_JWT_PUBLIC_SECRET: ${ADMIN_JWT_PUBLIC_SECRET}
     volumes:
       - ./frontend:/app
       # Anonymous volumes shadow node_modules and .next so the host's
