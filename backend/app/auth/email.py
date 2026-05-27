@@ -69,8 +69,12 @@ class EmailService:
         """Dispatch via Mailpit (dev) or Resend (staging/prod)."""
         if self.settings.is_dev:
             await self._send_via_mailpit(to=to, subject=subject, html=html)
-        else:
+        elif self.settings.RESEND_API_KEY:
             await self._send_via_resend(to=to, subject=subject, html=html)
+        else:
+            raise RuntimeError(
+                "RESEND_API_KEY is required in non-dev environments but was not set."
+            )
 
     async def _send_via_mailpit(self, *, to: str, subject: str, html: str) -> None:
         msg = EmailMessage()
