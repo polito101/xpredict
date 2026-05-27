@@ -20,7 +20,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations** - Docker compose stack, FastAPI + Next.js hello-world, Postgres 16 + Redis 7, Alembic, money-column standards, `tenant_id` ghost column, audit-log trigger, Sentry, secrets hygiene, gitleaks in CI. **Executed + Verified 2026-05-26 (4/4 plans, ~83 min; 41/41 backend + 2/2 frontend tests green; 9/9 UAT complete — cold-start fix applied, code review 37 fixes merged).**
-- [ ] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints.
+- [x] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints. (completed 2026-05-27)
 - [ ] **Phase 3: Wallet & Double-Entry Ledger** - `accounts` + `transfers` + `entries` schema (append-only, immutable, ACID-bound), `NUMERIC(18,4)` everywhere, idempotent transfers, `CHECK (balance >= 0)`, admin recharge primitive, Stripe stub interface, nightly reconciliation.
 - [ ] **Phase 4: Markets Domain & HouseAdapter** - `MarketSource` Protocol, Market/Outcome/OddsSnapshot models, HouseAdapter implementation, admin CRUD for house markets (create/edit-while-zero-bets/close), criteria locked at first bet.
 - [ ] **Phase 5: Bets, Settlement & First End-to-End Demo (House Markets Only)** - Place-bet flow (ACID-wrapped, idempotent), portfolio with P&L, sign-up bonus on email verify, admin two-step resolve with mandatory justification, idempotent SettlementService, reversal path. **First demoable happy path lands here.**
@@ -70,7 +70,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [x] 02-02-PLAN.md — Player auth surface: EmailService + custom DatabaseStrategy + UserManager + slowapi rate limiting + FastAPIUsers cookie backend + 8 integration tests (AUTH-01..06, 08, 09)
 - [x] 02-03-PLAN.md — Admin auth surface: BearerTransport + cross-surface isolation tests + bin/create_admin.py idempotent seeding (AUTH-07, AUTH-08, AUTH-09)
 - [x] 02-04-PLAN.md — Frontend player pages: shadcn/ui + zod + react-hook-form + 5 auth pages (/login, /register, /forgot-password, /reset-password, /verify-email) + 5 Server Actions (AUTH-01..04, AUTH-06)
-- [ ] 02-05-PLAN.md — Frontend admin: Edge middleware with jose HS256 verify + /admin/login + admin layout + placeholder /admin landing + adminLoginAction (AUTH-07, AUTH-09)
+- [x] 02-05-PLAN.md — Frontend admin: Edge middleware with jose HS256 verify + /admin/login + admin layout + placeholder /admin landing + adminLoginAction (AUTH-07, AUTH-09)
 **Research/spike flags**: None — fastapi-users v15 has well-documented dual-backend pattern (researcher correction: CONTEXT D-01 said v14; v15.0.5 is API-compatible for our usage and is the current pinned version per RESEARCH §Standard Stack).
 **Critical pitfalls covered**: PITFALL #8 (refresh-token rotation + revocation; Argon2id; rate-limit; email enumeration prevention; HTTP-only Secure SameSite cookies).
 
@@ -237,7 +237,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Complete    | 2026-05-26 |
-| 2. Auth & Identity | 4/5 | In Progress|  |
+| 2. Auth & Identity | 5/5 | Complete   | 2026-05-27 |
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
