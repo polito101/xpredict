@@ -113,6 +113,13 @@ class DatabaseStrategy(Strategy[User, UUID]):
             # AUTH-06 token_version gate.
             row_token_version = row.token_version
             row_user_id = row.user_id
+            # Explicitly discard the ORM instance.  Once the session context
+            # exits, ``row`` is in a detached state; any access to a lazy-
+            # loaded relationship (e.g. ``row.user``) would raise
+            # DetachedInstanceError.  Deleting the local reference makes that
+            # mistake a NameError rather than a silent failure or confusing
+            # SQLAlchemy error if this function is modified in the future.
+            del row
 
         # Re-resolve user via user_manager (uses its own session via user_db).
         try:
