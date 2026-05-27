@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 02 shipped — PR #5"
-last_updated: "2026-05-27T11:37:53.443Z"
+status: "Phase 04 planning complete — executing"
+last_updated: "2026-05-27T14:00:00.000Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 11
   completed_phases: 1
-  total_plans: 9
+  total_plans: 11
   completed_plans: 9
   percent: 9
 ---
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 3 — wallet & double entry ledger
+**Current focus:** Phase 4 — Markets Domain & HouseAdapter
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
-Status: Phase 02 shipped — PR #5
+Phase: 4
+Plan: 01 (of 2 plans ready)
+Status: Phase 04 planning complete — executing
 Last activity: 2026-05-27
 
-Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase 2: Auth & Identity next)
+Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase 4: Markets Domain executing)
 
 ## Performance Metrics
 
@@ -46,7 +46,7 @@ Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase
 | 1. Scaffold & Foundations | 4/4 | ~83min | ~21min |
 | 2. Auth & Identity | 0/TBD | — | — |
 | 3. Wallet & Ledger | 0/TBD | — | — |
-| 4. Markets Domain & HouseAdapter | 0/TBD | — | — |
+| 4. Markets Domain & HouseAdapter | 0/2 | — | — |
 | 5. Bets & Settlement (house only) | 0/TBD | — | — |
 | 6. Polymarket Sync | 0/TBD | — | — |
 | 7. Polymarket Auto-Resolution | 0/TBD | — | — |
@@ -115,6 +115,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-26T19:43:46.539Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-auth-identity/02-CONTEXT.md
+Last session: 2026-05-27T14:00:00.000Z
+Stopped at: Phase 4 planning complete, executing Plan 01
+Resume file: .planning/phases/04-markets-domain-houseadapter/04-01-PLAN.md

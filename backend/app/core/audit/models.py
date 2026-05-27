@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID as PyUUID, uuid4
+from uuid import UUID as PyUUID
+from uuid import uuid4
 
 from sqlalchemy import DateTime, Text, func
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID

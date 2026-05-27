@@ -1,0 +1,197 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+
+import httpx
+import pytest
+from pwdlib import PasswordHash
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.asyncio(loop_scope="session"),
+]
+
+_ADMIN_EMAIL = "market-public-router-admin@test.com"
+_ADMIN_PASSWORD = "Admin-Test-Pass-1!"
+
+
+async def _client() -> httpx.AsyncClient:
+    from app.main import app
+
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    return httpx.AsyncClient(transport=transport, base_url="http://test")
+
+
+async def _seed_admin(engine: AsyncEngine) -> None:
+    hashed = PasswordHash.recommended().hash(_ADMIN_PASSWORD)
+    async with engine.connect() as conn:
+        await conn.execute(text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL})
+        await conn.execute(
+            text(
+                "INSERT INTO users "
+                "(email, hashed_password, is_active, is_superuser, "
+                " is_verified, display_name, token_version) "
+                "VALUES (:em, :pw, TRUE, TRUE, TRUE, 'Admin', 0)"
+            ),
+            {"em": _ADMIN_EMAIL, "pw": hashed},
+        )
+        await conn.commit()
+
+
+async def _cleanup_admin(engine: AsyncEngine) -> None:
+    async with engine.connect() as conn:
+        await conn.execute(text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL})
+        await conn.commit()
+
+
+async def _create_market(
+    client: httpx.AsyncClient, token: str, **overrides: object,
+) -> dict:
+    base = {
+        "question": "Public test market?",
+        "resolution_criteria": "TBD",
+        "deadline": (datetime.now(UTC) + timedelta(days=1)).isoformat(),
+        "initial_odds_yes": "0.5",
+        "category": "test",
+    }
+    base.update(overrides)
+    resp = await client.post(
+        "/api/v1/admin/markets",
+        json=base,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201
+    return resp.json()
+
+
+async def test_public_list_returns_open_markets(engine: AsyncEngine) -> None:
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            await _create_market(c, token)
+
+            resp = await c.get("/api/v1/markets")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "items" in body
+        assert body["total"] >= 1
+        for item in body["items"]:
+            assert item["status"] == "OPEN"
+    finally:
+        await _cleanup_admin(engine)
+
+
+async def test_public_list_excludes_closed_markets(engine: AsyncEngine) -> None:
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            market = await _create_market(c, token)
+            await c.post(
+                f"/api/v1/admin/markets/{market['id']}/close",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+            resp = await c.get("/api/v1/markets")
+        body = resp.json()
+        ids = {item["id"] for item in body["items"]}
+        assert market["id"] not in ids
+    finally:
+        await _cleanup_admin(engine)
+
+
+async def test_public_get_by_slug(engine: AsyncEngine) -> None:
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            market = await _create_market(c, token)
+
+            resp = await c.get(f"/api/v1/markets/{market['slug']}")
+        assert resp.status_code == 200
+        assert resp.json()["id"] == market["id"]
+        assert len(resp.json()["outcomes"]) == 2
+    finally:
+        await _cleanup_admin(engine)
+
+
+async def test_bet_check_open_market(engine: AsyncEngine) -> None:
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            market = await _create_market(c, token)
+
+            resp = await c.get(f"/api/v1/markets/{market['slug']}/bet-check")
+        assert resp.status_code == 200
+        assert resp.json()["eligible"] is True
+    finally:
+        await _cleanup_admin(engine)
+
+
+async def test_bet_check_expired_market_returns_400(engine: AsyncEngine) -> None:
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            market = await _create_market(c, token)
+
+        expired_deadline = datetime.now(UTC) - timedelta(hours=1)
+        async with engine.connect() as conn:
+            await conn.execute(
+                text("UPDATE markets SET deadline = :dl WHERE id = CAST(:mid AS uuid)"),
+                {"dl": expired_deadline, "mid": market["id"]},
+            )
+            await conn.commit()
+
+        async with await _client() as c:
+            resp = await c.get(f"/api/v1/markets/{market['slug']}/bet-check")
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["code"] == "MARKET_EXPIRED"
+    finally:
+        await _cleanup_admin(engine)
+
+
+async def test_bet_check_closed_market_returns_400(engine: AsyncEngine) -> None:
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            market = await _create_market(c, token)
+            await c.post(
+                f"/api/v1/admin/markets/{market['id']}/close",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+            resp = await c.get(f"/api/v1/markets/{market['slug']}/bet-check")
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["code"] == "MARKET_NOT_OPEN"
+    finally:
+        await _cleanup_admin(engine)
