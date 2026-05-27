@@ -86,8 +86,15 @@ async def main() -> int:
             is_superuser=True,
         )
         session.add(admin)
+        # Capture admin.id BEFORE commit so we don't rely on the ORM
+        # re-loading the attribute after the session closes.  With
+        # expire_on_commit=True (the default), accessing admin.id after
+        # commit would trigger a SELECT on a closed session (MissingGreenlet).
+        # admin.id was set explicitly via uuid4(), so it is always available
+        # before the flush — this is purely defensive.
+        admin_id = admin.id
         await session.commit()
-        print(f"Created admin {email} (id={admin.id})")
+        print(f"Created admin {email} (id={admin_id})")
         return 0
 
 
