@@ -9,8 +9,8 @@
 | 1 | Scaffold & Foundations | Pol | ✅ Done | `gsd/phase-01-scaffold-foundations` | — |
 | 2 | Auth & Identity | Pol | 👀 In review | `gsd/phase-02-auth-identity` | [#5](https://github.com/polito101/xpredict/pull/5) |
 | 3 | Wallet & Double-Entry Ledger | Agustin | 🔄 In progress | `gsd/phase-03-wallet-double-entry-ledger` | — |
-| 4 | Markets Domain & HouseAdapter | — | ⬜ Not started | — | — |
-| 5 | Bets, Settlement & First E2E Demo | — | ⬜ Not started | — | — |
+| 4 | Markets Domain & HouseAdapter | Pol | ⬜ Not started | — | — |
+| 5 | Bets, Settlement & First E2E Demo | Agustin | 🔄 In progress | `gsd/phase-05-bets-settlement` | — |
 | 6 | Polymarket Sync | — | ⬜ Not started | — | — |
 | 7 | Polymarket Auto-Resolution | — | ⬜ Not started | — | — |
 | 8 | Admin CRM | — | ⬜ Not started | — | — |
@@ -52,3 +52,18 @@
 **Two PRE-EXISTING defects flagged (NOT Phase 3 regressions, intentionally NOT fixed — out of scope, recommend a separate cleanup task):**
 - **DEF-03-01** — `backend/tests/core/test_audit_immutability.py` (Phase 1) poisons the session-scoped transaction without savepoint isolation, so running the *entire* backend integration suite in one process cascade-fails the wallet tests. Per-file / per-directory / non-integration runs are all green.
 - **DEF-FE-01** — `frontend/src/__tests__/middleware.test.ts` (Phase 2, commit `8a9c186`) imports `../middleware`, which does not exist in the source tree → 1 failing suite (0 tests).
+
+### Phase 4 & 5 — parallel ownership & integration handshake (2026-05-27)
+
+**Ownership split:**
+- **Phase 4 (Markets Domain & HouseAdapter) — owner: Pol.** Pol owns the full GSD flow for Phase 4: branch, migrations, alembic chain management, PR, and merge. No one else opens Phase 4 work.
+- **Phase 5 (Bets, Settlement & First E2E Demo) — owner: Agustin.** Advancing in PARALLEL with Phase 4 on branch `gsd/phase-05-bets-settlement` (based off the Phase 3 branch, since Phase 3 isn't merged to `main` yet).
+
+**Why Phase 5 can run before Phase 4 merges (dependency split):**
+- 🟢 *Parallel-safe now (no Phase 4 dep, no migration):* sign-up bonus (SC#4). The Phase 3 ledger is generic — `accounts.kind`/`transfers.kind` are `Text` (not enums) and `owner_type` already supports `market`, so new transfer kinds and per-market liability accounts are new rows/strings, NOT schema changes.
+- 🟡 *Buildable against a thin `MarketReadPort`/`MarketResolvePort` Protocol + stub:* bet-placement ACID logic, `SettlementService` core, API schemas, frontend.
+- 🔴 *Blocked until Phase 4 merges (the single integration point):* the Phase 5 migration `0005` (the `bets` table + FKs to `markets`/`outcomes`) — written ONLY after `0004` exists, chained off `0004`, to preserve the single-alembic-head invariant. Then swap the port stubs for Phase 4's real models + wire the admin resolution endpoint + the E2E demo.
+
+**Conflict minimization:** Phase 5 lives in NEW modules (`app/bets/`, `app/settlement/`); it does NOT touch `app/markets/`, `app/integrations/market_source.py`, or `backend/alembic/versions/` during the parallel phase. Shared touches are append-only (`app/wallet/constants.py` string kinds, `app/auth/manager.py` `on_after_verify` bonus hook, `app/core/config.py`).
+
+**Integration handshake (REQUIRED):** When **Phase 4 is merged** (row 4 flips to `✅ Done`; Slack `#general` posts the GitHub merge), that is Agustin's trigger to: (1) rebase `gsd/phase-05-bets-settlement` onto the updated `main` (Phase 1+2+3+4), (2) write migration `0005` off `0004`, (3) swap the market port stubs for Phase 4's real models, (4) finish the E2E demo. **Pol: please ping Agustin on merge so integration starts on your final base.**
