@@ -41,6 +41,7 @@ from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
 from app.routers import health
+from app.wallet.admin_router import wallet_admin_router
 
 # Read settings at module load — explicit Settings() per D-09; tests can patch this.
 settings = Settings()
@@ -134,6 +135,7 @@ async def _rate_limit_exceeded_handler(  # type: ignore[no-untyped-def]
 # ---------------------------------------------------------------------------
 app.include_router(health.router)
 app.include_router(build_auth_routers())
+app.include_router(wallet_admin_router)
 
 
 @app.api_route("/_sentry-test", methods=["GET", "HEAD"])
