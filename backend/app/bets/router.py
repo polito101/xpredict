@@ -20,6 +20,7 @@ endpoint responds 503. Tests override ``get_market_source`` with a stub.
 """
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import NoResultFound
@@ -37,6 +38,7 @@ from app.bets.schemas import (
     SettledPositionItem,
 )
 from app.bets.service import BetService
+from app.core.config import get_settings
 from app.db.session import get_async_session
 from app.wallet.exceptions import InsufficientBalance
 
@@ -83,6 +85,15 @@ async def place_bet(
     (``BetService.place_bet``); domain errors map to 4xx (never a raw 500), and money/odds
     serialize as JSON strings (SC#4).
     """
+    # Server-side stake limits (SC#3) — checked before any DB work. Tenant-level here;
+    # per-market overrides are Phase 10 (TenantConfig). The client enforces the same range.
+    settings = get_settings()
+    if not (settings.BET_MIN_STAKE <= body.stake <= settings.BET_MAX_STAKE):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Stake must be between {settings.BET_MIN_STAKE} and {settings.BET_MAX_STAKE}.",
+        )
+
     if market_source is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -136,6 +147,22 @@ async def read_portfolio(
     return PortfolioResponse(
         open=[OpenPositionItem.model_validate(o) for o in pf.open],
         settled=[SettledPositionItem.model_validate(s) for s in pf.settled],
+    )
+
+
+@bets_router.post("/{bet_id}/sell")
+async def sell_position(
+    bet_id: UUID,
+    player: Annotated[User, Depends(current_active_player)],
+) -> None:
+    """Selling a position is NOT supported in v1 (SC#3) — always 405.
+
+    A bet is settled at market resolution; there is no secondary market / cash-out. The
+    endpoint exists so the contract is explicit (405 Method Not Allowed) rather than a 404.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+        detail="Selling a position is not supported; a bet is settled at market resolution.",
     )
 
 

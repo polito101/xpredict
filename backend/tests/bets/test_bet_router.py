@@ -278,3 +278,37 @@ async def test_get_portfolio_returns_open_and_settled_with_pnl(api: httpx.AsyncC
     assert Decimal(won["realized_pnl"]) == Decimal("40.0000")
     assert Decimal(lost["payout"]) == Decimal("0.0000")
     assert Decimal(lost["realized_pnl"]) == Decimal("-60.0000")
+
+
+# --------------------------------------------------------------------------- #
+# Stake limits + sell->405 (SC#3, server-side).
+# --------------------------------------------------------------------------- #
+async def test_post_bets_422_when_stake_below_min(api: httpx.AsyncClient) -> None:
+    """A stake below the configured minimum is rejected server-side (422), before any DB work."""
+    _auth_as(_User(uuid4()))  # limit check runs first — no market/wallet needed
+    r = await api.post(
+        "/bets",
+        json={"market_id": str(uuid4()), "outcome_id": str(uuid4()), "stake": "0.5"},
+    )
+    assert r.status_code == 422
+
+
+async def test_post_bets_422_when_stake_above_max(api: httpx.AsyncClient) -> None:
+    _auth_as(_User(uuid4()))
+    r = await api.post(
+        "/bets",
+        json={"market_id": str(uuid4()), "outcome_id": str(uuid4()), "stake": "999999"},
+    )
+    assert r.status_code == 422
+
+
+async def test_sell_position_returns_405(api: httpx.AsyncClient) -> None:
+    """Selling a position is not supported in v1 — the API returns 405 (SC#3)."""
+    _auth_as(_User(uuid4()))
+    r = await api.post(f"/bets/{uuid4()}/sell")
+    assert r.status_code == 405
+
+
+async def test_sell_position_requires_auth(api: httpx.AsyncClient) -> None:
+    r = await api.post(f"/bets/{uuid4()}/sell")
+    assert r.status_code == 401

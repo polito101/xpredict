@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     # One-time sign-up bonus credited to a player's wallet on email verification
     # (SC#4). PLAY_USD, Decimal end-to-end (PITFALLS #4). Operator-tunable via env.
     SIGNUP_BONUS_AMOUNT: Decimal = Decimal("1000.0000")
+    # Per-bet stake limits (SC#3), server-enforced on POST /bets. PLAY_USD, Decimal.
+    # These are TENANT-level defaults; per-market overrides + an operator CRUD are Phase 10
+    # (TenantConfig). Operator-tunable via env (BET_MIN_STAKE / BET_MAX_STAKE).
+    BET_MIN_STAKE: Decimal = Decimal("1.0000")
+    BET_MAX_STAKE: Decimal = Decimal("100000.0000")
 
     @property
     def is_dev(self) -> bool:
