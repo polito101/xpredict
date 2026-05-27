@@ -58,6 +58,14 @@ _DEFAULT_TEST_ENV: dict[str, str] = {
     # test that imports app modules can instantiate Settings without
     # bespoke monkeypatch.
     "SECRET_KEY": "test-secret-key-32-chars-or-more-placeholder",
+    # Phase 2 — slowapi rate-limit storage. Pointing it at memory:// keeps
+    # tests free of an external Redis dependency. Production uses Redis
+    # DB /1 (see app.auth.rate_limit._build_storage_uri).
+    "SLOWAPI_STORAGE_URI": "memory://",
+    # Phase 2 — extra defaults so app.main can be imported in any test path.
+    "FRONTEND_BASE_URL": "http://localhost:3000",
+    "SMTP_HOST": "mailpit",
+    "SMTP_PORT": "1025",
 }
 
 for _k, _v in _DEFAULT_TEST_ENV.items():

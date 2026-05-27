@@ -1,16 +1,23 @@
-"""FastAPI app factory — Phase 1 scaffold.
+"""FastAPI app factory — Phase 1 scaffold + Phase 2 auth (AUTH-04, AUTH-08).
 
 Lifespan:
   - configure_logging(settings) — structlog console/JSON renderer (D-24)
   - init_sentry(service="api", integrations=[FastApiIntegration, SqlalchemyIntegration]) — D-28
 
-Middleware:
-  - RequestIdMiddleware (pure ASGI; not BaseHTTPMiddleware per Pattern 6 anti-pattern)
-    binds request_id, path, method, client_ip into structlog contextvars (D-26)
+Middleware (order matters — outermost first):
+  - RequestIdMiddleware (pure ASGI; D-26) — binds structlog contextvars FIRST
+    so any later middleware / handler sees a request_id in logs.
+  - SlowAPIMiddleware (Phase 2, D-14) — bridges slowapi's @limiter.limit
+    decorators into the ASGI flow. Mounted AFTER RequestIdMiddleware so the
+    rate-limit log line has request_id context.
+  - CORSMiddleware (Phase 2, Pitfall 7) — single explicit origin so the
+    cookie-credentials flow works in dev + prod.
 
 Routes:
   - /healthz, /readyz (D-30) via app.routers.health
   - /_sentry-test — synthetic Sentry trigger (D-29); Phase 11 may gate or remove
+  - /auth/* — player auth surface (Phase 2 — register, login, logout, verify,
+    forgot-password, reset-password, request-verify-token, users/me)
 """
 
 from __future__ import annotations
@@ -21,10 +28,15 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from app.auth.rate_limit import limiter
+from app.auth.router import build_auth_routers
 from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
@@ -77,8 +89,51 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=lifespan, title="XPredict API")
+
+# ---------------------------------------------------------------------------
+# Middleware ordering — outermost first.
+# ---------------------------------------------------------------------------
+# Starlette runs the LAST registered middleware FIRST (outer-most). Order
+# below is intentional:
+#   1) CORSMiddleware (last registered → runs OUTERMOST) so preflight OPTIONS
+#      and cookie-credentials flags are applied before any auth logic.
+#   2) SlowAPIMiddleware — bridges @limiter.limit decorators to ASGI.
+#   3) RequestIdMiddleware (registered FIRST → runs INNERMOST) so structlog
+#      contextvars are bound right next to the route handler.
 app.add_middleware(RequestIdMiddleware)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_BASE_URL],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------------------------
+# Rate-limit error handler — slowapi convention.
+# ---------------------------------------------------------------------------
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_exceeded_handler(  # type: ignore[no-untyped-def]
+    request, exc,
+):
+    """Generic 429 — never leak whether the email existed (T-02-08, T-02-10)."""
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please try again later."},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
 app.include_router(health.router)
+app.include_router(build_auth_routers())
 
 
 @app.api_route("/_sentry-test", methods=["GET", "HEAD"])
