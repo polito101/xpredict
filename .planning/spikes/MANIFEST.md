@@ -11,10 +11,13 @@ XPredict — validate the two highest-risk technical unknowns before building Ph
 - All money amounts must be `Decimal` / `NUMERIC(18,4)` — never float
 - Lock ordering by account ID is mandatory for cross-account transfers (96% deadlock rate without it)
 - App-level balance check + FOR UPDATE together — neither alone is sufficient
+- Gamma API fields `outcomes`/`outcomePrices`/`clobTokenIds` are stringified JSON — `json.loads()` required
+- Use string numeric fields (`volume`), never float variants (`volumeNum`) for Decimal precision
+- `umaResolutionStatus` is absent (not null) when no UMA process — always check for `None`
 
 ## Spikes
 
 | # | Name | Type | Validates | Verdict | Tags |
 |---|------|------|-----------|---------|------|
 | 001 | async-wallet-concurrency | standard | Given 50 concurrent transfers, when `SELECT ... FOR UPDATE` + `CHECK (balance >= 0)`, then zero drift and no deadlocks | **VALIDATED** | sqlalchemy, asyncpg, postgres, concurrency, wallet |
-| 002 | polymarket-gamma-parser | standard | Given real Gamma API responses, when parsed with Pydantic v2, then stringified JSON, mixed numerics, and umaResolutionStatus state machine produce correct status | PENDING | polymarket, gamma-api, pydantic, parsing |
+| 002 | polymarket-gamma-parser | standard | Given real Gamma API responses, when parsed with Pydantic v2, then stringified JSON, mixed numerics, and umaResolutionStatus state machine produce correct status | **VALIDATED** | polymarket, gamma-api, pydantic, parsing |

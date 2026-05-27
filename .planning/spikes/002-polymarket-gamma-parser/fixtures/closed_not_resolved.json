@@ -1,0 +1,22 @@
+{
+  "id": "9999999",
+  "question": "Synthetic: Closed but NOT resolved (dangerous state)",
+  "conditionId": "0xsynthetic",
+  "slug": "closed-not-resolved-synthetic",
+  "resolutionSource": "",
+  "endDate": "2026-05-20T00:00:00Z",
+  "liquidity": "0",
+  "description": "Synthetic fixture for the critical PITFALLS.md test case: closed=true but umaResolutionStatus=proposed",
+  "outcomes": ["Yes", "No"],
+  "outcomePrices": ["0.95", "0.05"],
+  "volume": "1000000.00",
+  "active": false,
+  "closed": true,
+  "closedTime": "2026-05-20 12:00:00+00",
+  "acceptingOrders": false,
+  "umaResolutionStatus": "proposed",
+  "umaResolutionStatuses": ["proposed"],
+  "volume24hr": 50000.0,
+  "clobTokenIds": ["333333", "444444"],
+  "negRisk": false
+}

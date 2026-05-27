@@ -1,0 +1,29 @@
+{
+  "id": "2308197",
+  "question": "Will the Iran ceasefire continue through May 24?",
+  "conditionId": "0xd7540d64e03b1894ececcbb54c02b88d9c5c0e854ba66ec4e1ece20477994ac5",
+  "slug": "will-the-iran-ceasefire-continue-through-may-24",
+  "resolutionSource": "",
+  "liquidity": "1627174.27631",
+  "description": "This market will resolve to Yes if the US-Iranian ceasefire remains in effect.",
+  "outcomes": ["Yes", "No"],
+  "outcomePrices": ["0.9935", "0.0065"],
+  "volume": "14800010.804673098",
+  "active": true,
+  "closed": false,
+  "acceptingOrders": true,
+  "resolvedBy": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+  "volume24hr": 3599159.0826340015,
+  "clobTokenIds": [
+    "66902292002298886203346771040056530419935679784084512135573484656394546021214",
+    "46033958507493169857904838102936589464101605045185538155155508351893505173874"
+  ],
+  "umaBond": "500",
+  "umaResolutionStatus": "disputed",
+  "umaResolutionStatuses": ["proposed", "disputed", "proposed", "disputed"],
+  "negRisk": false,
+  "spread": 0.001,
+  "bestBid": 0.993,
+  "bestAsk": 0.994,
+  "lastTradePrice": 0.994
+}
