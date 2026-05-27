@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+import pytest
 import pytest_asyncio
 
 if TYPE_CHECKING:
@@ -12,6 +14,18 @@ if TYPE_CHECKING:
 
     from app.auth.models import User
     from app.markets.models import Market
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_storage():
+    from app.auth.rate_limit import limiter
+
+    try:
+        limiter._limiter.reset()
+    except Exception:
+        with contextlib.suppress(Exception):
+            limiter._storage.reset()
+    yield
 
 
 @pytest_asyncio.fixture(loop_scope="session")
