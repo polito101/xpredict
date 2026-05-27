@@ -581,7 +581,7 @@ def downgrade() -> None:
 | A2 | `Numeric(8,6)` is sufficient precision for odds (6 decimal places, max value 99.999999) | Architecture Patterns | If Polymarket sends odds with >6 decimal precision, truncation would occur; mitigated by Polymarket using 2-decimal prices (0.XX) in practice |
 | A3 | `lazy="raise"` on SQLAlchemy relationships works correctly in 2.0.50 async context | Code Examples | If "raise" strategy isn't supported, lazy loads would silently fail or error differently; verified behavior exists in SQLAlchemy 2.0 docs |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Binary-only enforcement at DB level vs application level**
    - What we know: CONTEXT says "deferrable CHECK constraint or trigger" for binary-only (2 outcomes per market). Application-level is simpler and testable.
