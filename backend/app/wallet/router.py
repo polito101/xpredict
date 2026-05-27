@@ -20,16 +20,25 @@ The reads delegate to ``WalletService.get_balance`` / ``get_transactions`` (the
 read-only seam established in 03-02 + extended here). If a player somehow has no
 wallet (registration guarantees one, SC#1), the handlers return a defensive
 balance ``"0"`` / an empty page rather than a 500.
+
+# Note on ``from __future__ import annotations`` (intentionally absent):
+# FastAPI's ``inspect.signature`` dependency resolver on Python 3.13 breaks when
+# ``Annotated[T, Depends(...)]`` annotations become forward-ref strings — the
+# injected ``player`` / ``session`` params get mis-resolved as query params (422
+# "Field required"). ``User`` / ``AsyncSession`` must therefore be RUNTIME
+# imports, not ``TYPE_CHECKING``-only. Same constraint as ``admin_router.py``
+# (Plan 02-02 D-C / 03-04).
 """
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Annotated
+from decimal import Decimal
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.exc import NoResultFound
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import current_active_player
+from app.auth.models import User
 from app.db.session import get_async_session
 from app.wallet.constants import PLAY_USD
 from app.wallet.schemas import (
@@ -38,13 +47,6 @@ from app.wallet.schemas import (
     TransactionPage,
 )
 from app.wallet.service import WalletService
-
-if TYPE_CHECKING:
-    from decimal import Decimal
-
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from app.auth.models import User
 
 wallet_router = APIRouter(prefix="/wallet/me", tags=["wallet"])
 
@@ -66,9 +68,7 @@ async def read_balance(
     except NoResultFound:
         # Defensive: registration co-creates the wallet (SC#1), so this should
         # not happen; surface a zero balance rather than a 500.
-        from decimal import Decimal as _Decimal
-
-        balance = _Decimal("0")
+        balance = Decimal("0")
     return BalanceResponse(balance=balance, currency=PLAY_USD)
 
 
