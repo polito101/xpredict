@@ -34,8 +34,20 @@ from sqlalchemy import case, func, select
 
 from app.celery_app import celery_app
 from app.db.session import _get_session_maker
-from app.wallet.constants import DIRECTION_CREDIT
+from app.wallet.constants import DIRECTION_CREDIT, HOUSE_PROMO_ACCOUNT_ID
 from app.wallet.models import Account, Entry
+
+# Accounts whose balance is an intentional, non-ledger-backed seed and so MUST
+# be excluded from the drift check (otherwise the detector cries wolf nightly).
+#
+# ``house_promo`` (migration 0003) is seeded with a 1,000,000,000.0000 opening
+# balance and NO offsetting entries — it is the recharge SOURCE, funded so admin
+# recharges never hit the ``balance >= 0`` floor (03-01 decision). Its balance is
+# therefore *deliberately* != SUM(entries); reconciling it would emit a CRITICAL
+# + Sentry alert every single night and bury real drift under false positives
+# (alert fatigue defeats PLT-09). Every OTHER account — user wallets AND
+# house_revenue — is fully ledger-backed and IS reconciled.
+_RECONCILE_EXCLUDED_ACCOUNT_IDS: frozenset = frozenset({HOUSE_PROMO_ACCOUNT_ID})
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -51,7 +63,9 @@ async def _reconcile_async(session: AsyncSession | None = None) -> dict[str, int
     For each account, ``ledger_sum`` is the signed sum over its ``entries``
     (credit positive, debit negative); ``drift = balance - ledger_sum``. Accounts
     with a non-zero drift are logged at CRITICAL and reported to Sentry; a fully
-    clean ledger logs a single INFO line.
+    clean ledger logs a single INFO line. The seeded ``house_promo`` singleton is
+    excluded (``_RECONCILE_EXCLUDED_ACCOUNT_IDS``) — its opening balance is a
+    deliberate non-ledger-backed seed.
 
     ``session`` is optional so tests can inject the testcontainer-backed
     session (whose seeded rows live in an uncommitted, rolled-back transaction
@@ -86,6 +100,7 @@ async def _reconcile_with_session(session: AsyncSession) -> dict[str, int]:
     stmt = (
         select(Account.id, Account.balance, ledger_sum.label("ledger_sum"))
         .outerjoin(Entry, Entry.account_id == Account.id)
+        .where(Account.id.notin_(_RECONCILE_EXCLUDED_ACCOUNT_IDS))
         .group_by(Account.id)
     )
     rows: Sequence[Any] = (await session.execute(stmt)).all()
