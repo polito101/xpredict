@@ -21,6 +21,11 @@ class _FakeResolver:
     ) -> None:  # pragma: no cover - exercised in the integration suite
         return None
 
+    async def mark_unresolved(
+        self, session, *, market_id: UUID
+    ) -> None:  # pragma: no cover - exercised in the integration suite
+        return None
+
 
 def test_fake_satisfies_market_resolve_port() -> None:
     """A type implementing ``mark_resolved`` structurally conforms to the runtime port."""

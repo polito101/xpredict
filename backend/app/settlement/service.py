@@ -35,18 +35,28 @@ from uuid import UUID
 
 from sqlalchemy import select
 
-from app.bets.constants import BET_PENDING, KIND_MARKET_LIABILITY
+from app.bets.constants import (
+    BET_PENDING,
+    BET_SETTLED_LOST,
+    BET_SETTLED_WON,
+    KIND_MARKET_LIABILITY,
+)
 from app.bets.models import Bet
 from app.core.audit.service import AuditService
 from app.settlement.constants import (
     SETTLE_LEG_LOSS,
     SETTLE_LEG_STAKE,
     SETTLE_LEG_WIN,
+    TRANSFER_REVERSE_LOSS,
+    TRANSFER_REVERSE_STAKE_RETURN,
+    TRANSFER_REVERSE_WINNINGS,
     TRANSFER_SETTLE_LOSS,
     TRANSFER_SETTLE_STAKE_RETURN,
     TRANSFER_SETTLE_WINNINGS,
+    reverse_idempotency_key,
     settle_idempotency_key,
 )
+from app.settlement.payout import compute_payout, profit_or_loss
 from app.settlement.plan import BetToSettle, SettlementPlan, build_settlement_plan
 from app.wallet.constants import (
     HOUSE_PROMO_ACCOUNT_ID,
@@ -230,6 +240,141 @@ class SettlementService:
             )
 
             return plan
+
+    @classmethod
+    async def reverse_settlement(
+        cls,
+        session: AsyncSession,
+        *,
+        market_id: UUID,
+        market_resolver: MarketResolvePort,
+        justification: str,
+        actor_user_id: UUID | None = None,
+    ) -> int:
+        """Reverse a market's settlement via compensating ledger entries (SC#8).
+
+        Posts the INVERSE of every settlement transfer (NEVER ``DELETE``/``UPDATE`` — the
+        ledger is append-only, WAL-06), flips each ``SETTLED`` bet back to ``PENDING``,
+        reopens the market, and writes one ``settlement.reversed`` audit row — all in ONE
+        ACID transaction. Returns the number of bets reversed.
+
+        Idempotent: a second reversal finds no ``SETTLED`` bets and is a no-op (no
+        double-refund). ``justification`` is the mandatory reversal reason (SC#8);
+        ``actor_user_id`` is the admin (``None`` => system).
+
+        A winner's payout is clawed back from their wallet, so a reversal can fail with the
+        ``CHECK (balance >= 0)`` floor if the winner already spent the winnings — the whole
+        transaction then rolls back, leaving the settlement intact.
+        """
+        async with session.begin():
+            # 1. Load the SETTLED bets (the status filter makes a re-reverse a no-op).
+            bets = list(
+                (
+                    await session.execute(
+                        select(Bet).where(
+                            Bet.market_id == market_id,
+                            Bet.status.in_((BET_SETTLED_WON, BET_SETTLED_LOST)),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            reversed_count = len(bets)
+
+            if bets:
+                liability_id = await cls._resolve_market_liability_id(session, market_id=market_id)
+
+                winner_wallets: dict[UUID, UUID] = {}
+                for bet in bets:
+                    if bet.status == BET_SETTLED_WON and bet.user_id not in winner_wallets:
+                        winner_wallets[bet.user_id] = await WalletService._resolve_user_wallet_id(
+                            session, user_id=bet.user_id
+                        )
+
+                # 2. Derive the compensating transfers (inverse of each settle leg) and walk
+                #    every bet back to PENDING. The amounts are RECOMPUTED with the same pure
+                #    functions resolve used, so they match what was posted exactly.
+                specs: list[_TransferSpec] = []
+                for bet in bets:
+                    if bet.status == BET_SETTLED_WON:
+                        wallet_id = winner_wallets[bet.user_id]
+                        payout = compute_payout(bet.stake, bet.odds_at_placement)
+                        winnings = profit_or_loss(bet.stake, payout)  # payout - stake
+                        # Inverse of the stake return: user_wallet -> market_liability.
+                        specs.append(
+                            (
+                                TRANSFER_REVERSE_STAKE_RETURN,
+                                SETTLE_LEG_STAKE,
+                                bet.id,
+                                wallet_id,
+                                liability_id,
+                                bet.stake,
+                            )
+                        )
+                        if winnings > 0:
+                            # Inverse of the winnings: user_wallet -> house_promo.
+                            specs.append(
+                                (
+                                    TRANSFER_REVERSE_WINNINGS,
+                                    SETTLE_LEG_WIN,
+                                    bet.id,
+                                    wallet_id,
+                                    HOUSE_PROMO_ACCOUNT_ID,
+                                    winnings,
+                                )
+                            )
+                    else:  # BET_SETTLED_LOST
+                        # Inverse of the loss sweep: house_revenue -> market_liability.
+                        specs.append(
+                            (
+                                TRANSFER_REVERSE_LOSS,
+                                SETTLE_LEG_LOSS,
+                                bet.id,
+                                HOUSE_REVENUE_ACCOUNT_ID,
+                                liability_id,
+                                bet.stake,
+                            )
+                        )
+                    bet.status = BET_PENDING
+
+                # 3. Lock every touched account FOR UPDATE in canonical UUID order.
+                touched = {s[3] for s in specs} | {s[4] for s in specs}
+                for account_id in sorted(touched, key=str):
+                    await session.execute(
+                        select(Account.id).where(Account.id == account_id).with_for_update()
+                    )
+
+                # 4. Post the compensating double-entry moves (locks held).
+                for kind, leg, bet_id, debit_id, credit_id, amount in specs:
+                    await WalletService._post_transfer(
+                        session,
+                        kind=kind,
+                        idempotency_key=reverse_idempotency_key(bet_id, leg),
+                        actor_user_id=actor_user_id,
+                        debit_account_id=debit_id,
+                        credit_account_id=credit_id,
+                        amount=amount,
+                        metadata={"bet_id": str(bet_id), "market_id": str(market_id)},
+                    )
+
+                # 5. Reopen the market (same tx) so it can be re-resolved.
+                await market_resolver.mark_unresolved(session, market_id=market_id)
+
+            # 6. One immutable audit row (SC#8), atomic with the compensating entries.
+            await AuditService.record(
+                session,
+                actor=f"user:{actor_user_id}" if actor_user_id is not None else "system",
+                event_type="settlement.reversed",
+                payload={
+                    "market_id": str(market_id),
+                    "resolver": str(actor_user_id) if actor_user_id is not None else "system",
+                    "justification": justification,
+                    "bets_reversed": reversed_count,
+                },
+            )
+
+            return reversed_count
 
     @staticmethod
     async def _resolve_market_liability_id(session: AsyncSession, *, market_id: UUID) -> UUID:

@@ -34,3 +34,12 @@ class MarketResolvePort(Protocol):
         commit — the caller owns the unit of work.
         """
         ...
+
+    async def mark_unresolved(self, session: AsyncSession, *, market_id: UUID) -> None:
+        """Revert ``market_id``'s resolution (the inverse of :meth:`mark_resolved`).
+
+        Called INSIDE a reversal transaction (SC#8) so the market returns to a re-resolvable
+        state (e.g. RESOLVED -> CLOSED, clearing ``resolved_at`` / ``settled_at``) atomically
+        with the compensating ledger entries. Same session, no commit.
+        """
+        ...

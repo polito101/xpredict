@@ -23,6 +23,20 @@ TRANSFER_SETTLE_LOSS = "settle_loss"
 """Loser leg: ``market_liability -> house_revenue`` — the lost stake becomes house revenue."""
 
 # --------------------------------------------------------------------------- #
+# Reversal (SC#8) — compensating transfer kinds, the INVERSE of each settle leg.
+# A reversal NEVER deletes/updates the original entries (WAL-06 append-only); it
+# posts new, opposite-direction transfers that restore the pre-settlement state.
+# --------------------------------------------------------------------------- #
+TRANSFER_REVERSE_STAKE_RETURN = "reverse_stake_return"
+"""Inverse of a winner's stake return: ``user_wallet -> market_liability``."""
+
+TRANSFER_REVERSE_WINNINGS = "reverse_winnings"
+"""Inverse of a winner's winnings: ``user_wallet -> house_promo``."""
+
+TRANSFER_REVERSE_LOSS = "reverse_loss"
+"""Inverse of a loser's sweep: ``house_revenue -> market_liability``."""
+
+# --------------------------------------------------------------------------- #
 # Idempotency leg suffixes (one transfer per leg per bet).
 # --------------------------------------------------------------------------- #
 SETTLE_LEG_STAKE = "stake"
@@ -39,3 +53,19 @@ def settle_idempotency_key(bet_id: UUID, leg: str) -> str:
     the primary idempotency guard is the ``status = PENDING`` filter in the service).
     """
     return f"settle:{bet_id}:{leg}"
+
+
+def reverse_idempotency_key(bet_id: UUID, leg: str) -> str:
+    """Deterministic per-bet, per-leg reversal key — ``reverse:{bet_id}:{leg}``.
+
+    Same role as :func:`settle_idempotency_key` for the reversal pass: a concurrent
+    double-reverse collides on ``23505`` and rolls back. Distinct namespace from settle
+    keys, and a reversal flips bets back to ``PENDING`` so a re-reverse is a status-guarded
+    no-op — the keys are never reused within a single settlement round.
+
+    NOTE (follow-up): re-RESOLVING a market AFTER a reversal would reuse the original
+    ``settle:{bet_id}:{leg}`` keys and collide. Re-resolution after reversal therefore needs
+    a per-bet settlement epoch in the key (deferred); v1 reversal restores the pre-settlement
+    state for audit/correction, it does not yet re-resolve.
+    """
+    return f"reverse:{bet_id}:{leg}"

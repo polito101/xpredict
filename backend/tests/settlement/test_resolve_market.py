@@ -89,22 +89,30 @@ class StubMarketSource:
 
 
 class FakeMarketResolver:
-    """In-memory ``MarketResolvePort`` — records resolutions (no markets table on this branch)."""
+    """In-memory ``MarketResolvePort`` — records resolutions + reopenings (no markets
+    table on this branch)."""
 
     def __init__(self) -> None:
         self.resolved: list[tuple[UUID, UUID]] = []
+        self.reopened: list[UUID] = []
 
     async def mark_resolved(self, session, *, market_id: UUID, winning_outcome_id: UUID) -> None:
         self.resolved.append((market_id, winning_outcome_id))
 
+    async def mark_unresolved(self, session, *, market_id: UUID) -> None:
+        self.reopened.append(market_id)
+
 
 class RaisingMarketResolver:
     """A ``MarketResolvePort`` that fails — injects a mid-transaction error for the
-    atomicity test. Called LAST in ``resolve_market``, so by the time it raises the
-    ledger postings + bet-status flips have already happened in the tx; the rollback
-    must undo ALL of them (SC#5)."""
+    atomicity tests. The failing port method is called LAST in resolve/reverse, so by the
+    time it raises the ledger postings + bet-status flips have already happened in the tx;
+    the rollback must undo ALL of them (SC#5/#8)."""
 
     async def mark_resolved(self, session, *, market_id: UUID, winning_outcome_id: UUID) -> None:
+        raise RuntimeError("injected resolver failure")
+
+    async def mark_unresolved(self, session, *, market_id: UUID) -> None:
         raise RuntimeError("injected resolver failure")
 
 
@@ -462,3 +470,135 @@ async def test_resolve_market_writes_settlement_audit() -> None:
     assert payload["justification"] == "YES per the official source"
     # Money is a STRING in the audit payload, never a JSON float (SC#4 discipline).
     assert payload["total_payout"] == "80.0000"
+
+
+# --------------------------------------------------------------------------- #
+# Reversal (SC#8) — compensating entries restore the exact pre-settlement state.
+# --------------------------------------------------------------------------- #
+async def test_reverse_settlement_restores_pre_settlement_state() -> None:
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))
+    yes, no = m.outcomes
+    alice, alice_w = await _seed_wallet(Decimal("100.0000"))
+    bob, bob_w = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, m, yes.id, Decimal("40.0000"), src)  # winner
+    await _place(bob, m, no.id, Decimal("60.0000"), src)  # loser
+    liability = await _liability_id(m.id)
+
+    # Snapshot the post-placement state — reversal must return to EXACTLY this.
+    promo_pre = await _balance(HOUSE_PROMO_ACCOUNT_ID)
+    revenue_pre = await _balance(HOUSE_REVENUE_ACCOUNT_ID)
+    assert await _balance(alice_w) == Decimal("60.0000")
+    assert await _balance(bob_w) == Decimal("40.0000")
+    assert await _balance(liability) == Decimal("100.0000")
+
+    resolver = FakeMarketResolver()
+    sm = _get_session_maker()
+    async with sm() as s:
+        await _resolve(s, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver)
+    assert await _balance(alice_w) == Decimal("140.0000")  # settled
+
+    # Reverse the settlement.
+    async with sm() as s:
+        count = await SettlementService.reverse_settlement(
+            s,
+            market_id=m.id,
+            market_resolver=resolver,
+            justification="resolved against the wrong source",
+            actor_user_id=uuid4(),
+        )
+
+    assert count == 2
+    # Every balance is restored to the pre-settlement snapshot.
+    assert await _balance(alice_w) == Decimal("60.0000")
+    assert await _balance(bob_w) == Decimal("40.0000")
+    assert await _balance(liability) == Decimal("100.0000")
+    assert await _balance(HOUSE_PROMO_ACCOUNT_ID) == promo_pre
+    assert await _balance(HOUSE_REVENUE_ACCOUNT_ID) == revenue_pre
+    # Bets walk back SETTLED -> PENDING; the market is reopened.
+    assert (await _bets_for_user(alice))[0].status == BET_PENDING
+    assert (await _bets_for_user(bob))[0].status == BET_PENDING
+    assert resolver.reopened == [m.id]
+
+
+async def test_reverse_settlement_writes_audit() -> None:
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))
+    yes, no = m.outcomes
+    alice, _ = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, m, yes.id, Decimal("40.0000"), src)
+    admin_id = uuid4()
+
+    resolver = FakeMarketResolver()
+    sm = _get_session_maker()
+    async with sm() as s:
+        await _resolve(s, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver)
+    async with sm() as s:
+        await SettlementService.reverse_settlement(
+            s,
+            market_id=m.id,
+            market_resolver=resolver,
+            justification="data feed was wrong",
+            actor_user_id=admin_id,
+        )
+
+    rows = await _audit_for_market("settlement.reversed", m.id)
+    assert len(rows) == 1
+    audit = rows[0]
+    assert audit.actor == f"user:{admin_id}"
+    assert audit.payload["justification"] == "data feed was wrong"
+    assert audit.payload["bets_reversed"] == 1
+
+
+async def test_reverse_settlement_is_idempotent() -> None:
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))
+    yes, no = m.outcomes
+    alice, alice_w = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, m, yes.id, Decimal("40.0000"), src)
+
+    resolver = FakeMarketResolver()
+    sm = _get_session_maker()
+    async with sm() as s:
+        await _resolve(s, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver)
+    async with sm() as s:
+        await SettlementService.reverse_settlement(
+            s, market_id=m.id, market_resolver=resolver, justification="first reversal"
+        )
+    restored = await _balance(alice_w)
+
+    # Reverse AGAIN — no SETTLED bets remain, so it is a no-op (no double-refund).
+    async with sm() as s:
+        count2 = await SettlementService.reverse_settlement(
+            s, market_id=m.id, market_resolver=resolver, justification="second reversal"
+        )
+    assert count2 == 0
+    assert await _balance(alice_w) == restored
+
+
+async def test_reverse_settlement_is_atomic_on_failure() -> None:
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))
+    yes, no = m.outcomes
+    alice, alice_w = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, m, yes.id, Decimal("40.0000"), src)
+
+    resolver = FakeMarketResolver()
+    sm = _get_session_maker()
+    async with sm() as s:
+        await _resolve(s, market_id=m.id, winning_outcome_id=yes.id, market_resolver=resolver)
+    settled_balance = await _balance(alice_w)  # 140
+
+    # The reversal fails at the market-reopen step AFTER the compensating postings; the
+    # whole tx must roll back, leaving the settled state intact.
+    with pytest.raises(RuntimeError):
+        async with sm() as s:
+            await SettlementService.reverse_settlement(
+                s,
+                market_id=m.id,
+                market_resolver=RaisingMarketResolver(),
+                justification="will fail",
+            )
+
+    assert await _balance(alice_w) == settled_balance  # unchanged (still settled)
+    assert (await _bets_for_user(alice))[0].status == BET_SETTLED_WON
