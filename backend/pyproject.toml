@@ -33,6 +33,15 @@ dependencies = [
   "sentry-sdk[fastapi,celery,sqlalchemy]>=2.18,<3.0",
   # Rate limiting (installed but NOT mounted in Phase 1)
   "slowapi>=0.1.9,<0.2",
+  # Phase 2 — Auth & Identity. fastapi-users[sqlalchemy] is pinned to v15.0.5+;
+  # CONTEXT D-01 says "v14" but RESEARCH researcher correction (lines 12-18 /
+  # OQ #1 RESOLVED) bumps to v15 (current PyPI; Pydantic v2 compatible; v14
+  # is in maintenance only). Surface as a deviation in 02-01-SUMMARY for Pol.
+  "fastapi-users[sqlalchemy]>=15.0.5,<16.0.0",
+  # Resend (staging/prod email). [async] extra exposes Emails.send_async.
+  "resend[async]>=2.30.0,<3.0",
+  # aiosmtplib for dev → Mailpit plain SMTP on port 1025 (Pitfall 7 / A7).
+  "aiosmtplib>=4.0,<5.0",
 ]
 
 [dependency-groups]

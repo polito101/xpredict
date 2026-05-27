@@ -53,6 +53,11 @@ _DEFAULT_TEST_ENV: dict[str, str] = {
     "REDIS_URL": "redis://localhost:6379/0",
     "SENTRY_DSN": "",
     "LOG_LEVEL": "INFO",
+    # Phase 2 — Settings.SECRET_KEY has no default and is required for
+    # ``Settings()`` to validate. Seed a 32+ char placeholder here so any
+    # test that imports app modules can instantiate Settings without
+    # bespoke monkeypatch.
+    "SECRET_KEY": "test-secret-key-32-chars-or-more-placeholder",
 }
 
 for _k, _v in _DEFAULT_TEST_ENV.items():

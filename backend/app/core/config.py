@@ -15,7 +15,7 @@ from functools import lru_cache
 from typing import Literal
 from uuid import UUID
 
-from pydantic import PostgresDsn, RedisDsn
+from pydantic import Field, PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,6 +41,36 @@ class Settings(BaseSettings):
     SENTRY_TRACES_SAMPLE_RATE: float = 0.1
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     TENANT_ID_DEFAULT: UUID = UUID("00000000-0000-0000-0000-000000000001")
+
+    # -------------------------------------------------------------------------
+    # Phase 2 — Auth & Identity (AUTH-01..09, D-09, RESEARCH §Runtime State)
+    # -------------------------------------------------------------------------
+    #
+    # SECRET_KEY is the symmetric HS256 signing key (A8). Verification + reset
+    # token secrets in UserManager read from this same value. Minimum 32 chars
+    # so HS256 has at least 256 bits of entropy. No default — must be set.
+    SECRET_KEY: str = Field(min_length=32)
+    # JWT algorithm — Literal["HS256"] only in v1 (A8); RS256 is a Phase 11
+    # hardening item (asymmetric key separation).
+    JWT_ALGORITHM: Literal["HS256"] = "HS256"
+    # Token lifetimes (seconds). 15 min access / 30 day refresh per RESEARCH
+    # Standard Stack defaults.
+    ACCESS_TOKEN_LIFETIME_SECONDS: int = 900
+    REFRESH_TOKEN_LIFETIME_SECONDS: int = 2_592_000  # 30 days
+    # Resend (staging/prod email). Optional in dev — Mailpit handles SMTP.
+    RESEND_API_KEY: str | None = None
+    RESEND_FROM_ADDRESS: str = "noreply@xpredict.local"
+    # Mailpit (dev SMTP, no auth, no TLS) — D-05 + Pitfall 7 (A7).
+    SMTP_HOST: str = "mailpit"
+    SMTP_PORT: int = 1025
+    # First-admin seeding (D-11). Both must be set for bin/create-admin.py.
+    FIRST_ADMIN_EMAIL: str | None = None
+    FIRST_ADMIN_PASSWORD: str | None = None
+    # Frontend URL for email links (verify, reset). D-12.
+    FRONTEND_BASE_URL: str = "http://localhost:3000"
+    # Mirrors SECRET_KEY but exposed to Next.js middleware for HS256 verify.
+    # Symmetric (A8); RS256 would split this into a public-key file in Phase 11.
+    ADMIN_JWT_PUBLIC_SECRET: str | None = None
 
     @property
     def is_dev(self) -> bool:

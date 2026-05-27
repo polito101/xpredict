@@ -21,8 +21,9 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Register every ORM model against Base.metadata BEFORE reading
-# `target_metadata`. The `
+# `target_metadata`. The
 # imports are pure side-effect registrations.
+from app.auth.models import RefreshToken, User  # noqa: F401  (Plan 02-01)
 from app.core.audit.models import AuditLog  # noqa: F401
 from app.core.config import Settings
 from app.core.feature_flags.models import FeatureFlag  # noqa: F401
