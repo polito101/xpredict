@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-27",
+  "phase": "05",
+  "phase_name": "Bets, Settlement & First End-to-End Demo (House Markets Only)",
+  "phase_dir": ".planning/phases/05-bets-settlement",
+  "owner": "Agustin",
+  "branch": "gsd/phase-05-bets-settlement",
+  "head": "efbacbd",
+  "status": "paused",
+  "plan": null,
+  "task": null,
+  "total_tasks": null,
+  "note_on_plan": "Phase 5 has NO formal /gsd-plan-phase PLAN.md; it is being built as additive atomic TDD commits. The authoritative handoff is .planning/phases/05-bets-settlement/.continue-here.md — READ IT FIRST.",
+  "completed_tasks": [
+    {"name": "SC#1 place_bet — atomic ACID bet placement vs MarketReadPort", "status": "done", "commit": "fe3b5d9"},
+    {"name": "SC#4 sign-up bonus on email verify (grant_signup_bonus)", "status": "done", "commit": "5969072"},
+    {"name": "MarketReadPort + MarketView/OutcomeView + Bet model", "status": "done", "commit": "da46970"},
+    {"name": "Settlement core: pure payout & P&L math (payout.py)", "status": "done", "commit": "5d70cbf"},
+    {"name": "Settlement core: pure settlement plan (plan.py)", "status": "done", "commit": "efbacbd"},
+    {"name": "SC#9 admin manual recharge", "status": "done", "commit": "delivered in Phase 3 (POST /admin/wallets/{id}/recharge)"}
+  ],
+  "remaining_tasks": [
+    {"name": "Capture odds-at-placement on Bet (extend OutcomeView.price + Bet.price + place_bet)", "status": "not_started", "sc": "enables SC#5/#7"},
+    {"name": "Transactional SettlementService.resolve_market + MarketResolvePort + audit + reversal", "status": "not_started", "sc": "SC#5/#6/#8"},
+    {"name": "Bet API router POST /bets, 403 unverified/banned", "status": "not_started", "sc": "SC#2"},
+    {"name": "Confirm modal + per-market stake limits + sell->405", "status": "not_started", "sc": "SC#3"},
+    {"name": "Portfolio read API + resolution display (P&L)", "status": "not_started", "sc": "SC#7"},
+    {"name": "Migration 0005_phase5_bets (bets table + FKs to markets/outcomes) off 0004", "status": "blocked", "sc": "needs 0003->0004 renumber first"},
+    {"name": "First E2E demo: bet -> admin resolve -> wallet credited -> P&L", "status": "not_started", "sc": "Phase 5 milestone"}
+  ],
+  "blockers": [
+    {"description": "Alembic migration 0003 COLLISION: Phase 3 (wallet, unmerged, on this branch) and Phase 4 (markets, merged to main) both created 0003 off 0002. Renumber 0003_phase3_wallet_ledger -> 0004_phase3_wallet_ledger (down_revision 0003_phase4_markets) when Phase 3 lands on the Phase-4 main.", "type": "technical", "workaround": "Resolve at Phase 3 merge; Phase 5 bets migration then becomes 0005 off 0004"},
+    {"description": "Phase 3 (Wallet & Ledger) is NOT merged to main (app/wallet on main is only __init__.py). Phase 5 rides on top of unmerged Phase 3 and cannot complete/merge until Phase 3 lands.", "type": "external", "workaround": "Integration order: Phase 3 -> rebase Phase 5 -> finish Phase 5"},
+    {"description": "Must confirm whether Phase 4 Outcome.current_odds is a probability in (0,1] or decimal odds, before feeding it to compute_payout(stake, price).", "type": "technical", "workaround": "Inspect a created market row / HouseAdapter seed; if decimal odds use price = 1/current_odds"}
+  ],
+  "blockers_removed": [
+    "Phase 4 (Markets Domain & HouseAdapter) is now MERGED to origin/main via PR #6 (eba7a41). The old 'Phase 4 not started' blocker on the Phase 5 integration items (real market models, admin resolution endpoint, bets migration, E2E demo) is GONE. Pol is now on Phase 6; Agustin takes Phase 7 next."
+  ],
+  "human_actions_pending": [
+    {"action": "Coordinate with Pol on the Phase 3 merge + 0003->0004 migration renumber sequence", "context": "It touches the shared alembic chain; Phase 3 is the wallet phase and is still unmerged", "blocking": true},
+    {"action": "Open Phase 5 PR via GitHub MCP create_pull_request from a REPO-ROOTED session (only Pol merges)", "context": "Home-rooted sessions have no mcp__github__* (the documented GOTCHA)", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Payout model = 'odds locked at placement': winning payout = stake/price, loser pays 0, no house edge in v1", "rationale": ".planning/research/ARCHITECTURE.md; FEATURES.md defers house edge to v2", "phase": "05"},
+    {"decision": "Split settlement into pure math (payout.py, plan.py — unit-tested, no I/O, reused by Phase 7) + transactional shell (gated)", "rationale": "Pure core takes price as input => zero Phase 4 coupling; buildable + verifiable before integration", "phase": "05"},
+    {"decision": "Idempotent settlement via existing transfers.idempotency_key='settle:{bet_id}' (no new constraint/migration)", "rationale": "Preserves single-alembic-head invariant; same zero-double-payout guarantee as the entries (bet_id,event_type) UNIQUE option in ROADMAP SC#6", "phase": "05"},
+    {"decision": "Did NOT churn STATE.md / PHASES.md on this branch", "rationale": "Both differ from origin/main; editing invites rebase conflicts. This handoff is the source of truth until the Phase 3 merge + Phase 5 rebase reconcile them", "phase": "05"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Read .planning/phases/05-bets-settlement/.continue-here.md fully. Then coordinate the Phase 3 merge + 0003->0004 migration renumber with Pol BEFORE writing Phase 5 integration code. Do not rebase blindly onto origin/main (0003 collision). Build the transactional SettlementService on the shipped pure core (payout.py/plan.py) after the chain is linearized.",
+  "context_notes": "Post-PC-restart resume session. Phase 5 mid-flight on gsd/phase-05-bets-settlement @ efbacbd, working tree clean, 37 ahead / 16 behind origin/main (eba7a41). This branch carries the ENTIRE unmerged Phase 3 wallet code (that's the 37 ahead). This session added only the PURE settlement core (2 commits, new files in app/settlement/ + tests/settlement/, zero edits to shipped code, migration-free). Strategy is additive/low-risk. The big change since last context: Phase 4 is MERGED — re-evaluate everything under that. The integration is now a 3-way reconciliation gated by the 0003 collision, not a simple unblock."
+}
