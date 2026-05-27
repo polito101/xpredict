@@ -67,7 +67,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Plans**: 5 plans
 **Plan list**:
 - [x] 02-01-PLAN.md — Schema foundation: pyproject deps (fastapi-users v15.0.5 + resend + aiosmtplib) + Settings env-var expansion + User/RefreshToken ORM + Alembic migration 0002 (AUTH-01, AUTH-09)
-- [ ] 02-02-PLAN.md — Player auth surface: EmailService + custom DatabaseStrategy + UserManager + slowapi rate limiting + FastAPIUsers cookie backend + 8 integration tests (AUTH-01..06, 08, 09)
+- [x] 02-02-PLAN.md — Player auth surface: EmailService + custom DatabaseStrategy + UserManager + slowapi rate limiting + FastAPIUsers cookie backend + 8 integration tests (AUTH-01..06, 08, 09)
 - [ ] 02-03-PLAN.md — Admin auth surface: BearerTransport + cross-surface isolation tests + bin/create_admin.py idempotent seeding (AUTH-07, AUTH-08, AUTH-09)
 - [ ] 02-04-PLAN.md — Frontend player pages: shadcn/ui + zod + react-hook-form + 5 auth pages (/login, /register, /forgot-password, /reset-password, /verify-email) + 5 Server Actions (AUTH-01..04, AUTH-06)
 - [ ] 02-05-PLAN.md — Frontend admin: Edge middleware with jose HS256 verify + /admin/login + admin layout + placeholder /admin landing + adminLoginAction (AUTH-07, AUTH-09)
@@ -237,7 +237,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Complete    | 2026-05-26 |
-| 2. Auth & Identity | 1/5 | In Progress|  |
+| 2. Auth & Identity | 2/5 | In Progress|  |
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
