@@ -68,13 +68,19 @@ def _hash_test_password() -> str:
 
 @pytest_asyncio.fixture(loop_scope="session")
 async def verified_user(async_session: AsyncSession) -> AsyncGenerator[User, None]:
-    """A verified, active player user (no superuser flag)."""
+    """A verified, active player user (no superuser flag).
+
+    Email uses the ``fixture-`` prefix to avoid collisions with emails used in
+    direct-engine tests (e.g. test_refresh_rotation.py uses ``verified@example.com``
+    without going through the shared async_session transaction, so the two rows
+    would otherwise conflict on the unique email constraint).
+    """
     from sqlalchemy import delete
 
     from app.auth.models import User
 
     user = User(
-        email="verified@example.com",
+        email="fixture-verified@example.com",
         hashed_password=_hash_test_password(),
         is_active=True,
         is_superuser=False,
@@ -95,13 +101,17 @@ async def verified_user(async_session: AsyncSession) -> AsyncGenerator[User, Non
 
 @pytest_asyncio.fixture(loop_scope="session")
 async def unverified_user(async_session: AsyncSession) -> AsyncGenerator[User, None]:
-    """An active but UNverified player user — for is_verified-gate tests."""
+    """An active but UNverified player user — for is_verified-gate tests.
+
+    Email uses the ``fixture-`` prefix to avoid collisions with direct-engine
+    test emails (see ``verified_user`` docstring for rationale).
+    """
     from sqlalchemy import delete
 
     from app.auth.models import User
 
     user = User(
-        email="unverified@example.com",
+        email="fixture-unverified@example.com",
         hashed_password=_hash_test_password(),
         is_active=True,
         is_superuser=False,
@@ -119,13 +129,17 @@ async def unverified_user(async_session: AsyncSession) -> AsyncGenerator[User, N
 
 @pytest_asyncio.fixture(loop_scope="session")
 async def admin_user(async_session: AsyncSession) -> AsyncGenerator[User, None]:
-    """A superuser, verified, active user — for AUTH-07 tests (Plan 02-03)."""
+    """A superuser, verified, active user — for AUTH-07 tests (Plan 02-03).
+
+    Email uses the ``fixture-`` prefix to avoid collisions with direct-engine
+    test emails (see ``verified_user`` docstring for rationale).
+    """
     from sqlalchemy import delete
 
     from app.auth.models import User
 
     user = User(
-        email="admin@example.com",
+        email="fixture-admin@example.com",
         hashed_password=_hash_test_password(),
         is_active=True,
         is_superuser=True,
