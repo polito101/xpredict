@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: "Phase 04 planning complete — executing"
-last_updated: "2026-05-27T14:00:00.000Z"
+status: verifying
+last_updated: "2026-05-27T16:40:26.125Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 11
-  completed_phases: 1
-  total_plans: 11
-  completed_plans: 9
-  percent: 9
+  completed_phases: 3
+  total_plans: 15
+  completed_plans: 15
+  percent: 27
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 4 — Markets Domain & HouseAdapter
+**Current focus:** Phase 03 — wallet-double-entry-ledger
 
 ## Current Position
 
-Phase: 4
-Plan: 01 (of 2 plans ready)
-Status: Phase 04 planning complete — executing
+Phase: 03 (wallet-double-entry-ledger) — EXECUTING
+Plan: 6 of 6
+Status: Phase complete — ready for verification
 Last activity: 2026-05-27
 
-Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase 4: Markets Domain executing)
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -46,7 +46,7 @@ Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase
 | 1. Scaffold & Foundations | 4/4 | ~83min | ~21min |
 | 2. Auth & Identity | 0/TBD | — | — |
 | 3. Wallet & Ledger | 0/TBD | — | — |
-| 4. Markets Domain & HouseAdapter | 0/2 | — | — |
+| 4. Markets Domain & HouseAdapter | 0/TBD | — | — |
 | 5. Bets & Settlement (house only) | 0/TBD | — | — |
 | 6. Polymarket Sync | 0/TBD | — | — |
 | 7. Polymarket Auto-Resolution | 0/TBD | — | — |
@@ -63,6 +63,12 @@ Progress: [█░░░░░░░░░░] 9% (1/11 phases complete — Phase
 - Trend: Phase 1 execution complete — all 4 plans shipped within the day; PLT-04 negative-test acceptance machine-verified (`tests/test_gitleaks_blocks_secret.py` 2/2 green); pre-commit + 3 GitHub Actions workflows + bin/dev/Makefile/README all shipped. Manual-verify items (SC#1 docker compose runtime + SC#5 Sentry round-trip) move to the `/gsd-verify-work 1` audit step; Pol's 5-15 min checklist (in 01-04-SUMMARY.md + 01-03-SUMMARY.md) closes them before `/gsd-ship`.
 
 *Updated after each plan completion*
+| Phase 03 P01 | 12min | 3 tasks | 10 files |
+| Phase 03 P02 | ~8min | 2 tasks | 4 files |
+| Phase 03-wallet-double-entry-ledger P06 | ~26min | 2 tasks | 3 files |
+| Phase 03-wallet-double-entry-ledger P03 | ~5min | 2 tasks | 2 files |
+| Phase 03-wallet-double-entry-ledger P04 | ~13min | 3 tasks tasks | 5 files files |
+| Phase 03-wallet-double-entry-ledger P05 | ~10min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -90,6 +96,15 @@ Recent decisions affecting current work:
 - **2026-05-26 (Plan 01-04): `.gitleaks.toml` allowlist extended to cover `.planning/*`.** Beyond the D-33 baseline (`tests/.*fixtures.* + docs/*.md + README*.md + .gitleaks.toml`), Pol's GSD planning artifacts contain example secret strings (e.g., `SESSION_SIGNING_KEY=…` mentions in 01-CONTEXT.md D-33). The `.planning/*` allowlist path keeps the linter from flagging its own context documents. In-spec extension of D-46.
 - **2026-05-26 (Plan 01-04): Three-tier secret-scanning architecture committed.** Pre-commit `gitleaks protect --staged` (developer machine, sub-second) → backend-ci.yml `gitleaks/gitleaks-action@v2` (every PR diff) → security.yml `fetch-depth: 0` weekly cron (full-history sweep). Different latency/coverage tradeoffs per tier per Pitfall 9; pre-commit is the recommendation (can be bypassed `--no-verify`), CI is the gate (cannot bypass on `main`).
 - **2026-05-26 (Plan 01-04): Phase 1 acceptance gate auto-approved per --auto mode.** 3.5/5 ROADMAP Success Criteria machine-verified; 1.5/5 deferred as documented manual-verify items (environmental, not implementation gaps). User response `"approved"` recorded; closeout commit captured the auto-approval rationale. Manual-verify items (SC#1 docker-compose runtime + SC#5 Sentry event round-trip) move to the `/gsd-verify-work 1` audit step.
+- **2026-05-27 (Plan 03-01): Wallet ledger schema shipped.** accounts/transfers/entries (UUID PKs, NUMERIC(18,4) money via `Mapped[Money]`, version column, tenant_id ghost) created by migration `0003_phase3_wallet_ledger` (single head off `0002_phase2_auth`). Immutability ported from the Phase 1 audit_log pattern, generalized to a shared `raise_ledger_immutable()` deny-trigger + `REVOKE UPDATE, DELETE` applied to `transfers` + `entries` ONLY (accounts.balance is a mutable denormalized cache). `CHECK (balance >= 0)` (WAL-08) + `idempotency_key UNIQUE` enforced and DB-verified. 8 Wave-0 integration tests green against testcontainers Postgres (tenant_id default, CHECK→23514, append-only UPDATE/DELETE blocked, idempotency→23505, seeded singletons). Requirements WAL-06 + WAL-08 complete.
+- **2026-05-27 (Plan 03-01): house_promo / house_revenue UUIDs fixed in `app/wallet/constants.py`** (`…00a1` / `…00a2`) and seeded by migration 0003 (ON CONFLICT DO NOTHING). house_promo funded with `1000000000.0000` so admin recharges (which debit it) never underflow the balance floor in v1. The recharge service (03-04) and settlement (Phase 5) reference these singletons directly — no runtime lookup-by-kind.
+- **2026-05-27 (Plan 03-01): Integration-test savepoint discipline.** Statements expected to raise a `DBAPIError` (CHECK/trigger/UNIQUE violations) must be wrapped in `async_session.begin_nested()` so the abort is savepoint-scoped and does not poison the shared session-scoped transaction. Without this, the next test fails with `InFailedSQLTransactionError`. NOTE: the pre-existing `tests/core/test_audit_immutability.py` has this latent flaw (fails on its 4th test under `-x`) — out of scope for this plan, logged for a follow-up retrofit.
+- [Phase 03]: Plan 03-02: WalletService shipped as the single race-safe ledger writer (WAL-07) -- FOR UPDATE inside one session.begin(), atomic paired-entry double-entry, 23505->return-existing idempotency, canonical UUID lock order; ported from the validated spike harness. SC#2 signature gate (50 concurrent overdraft -> drift 0, balance exact, 25/25 succeed/reject) green on production code. Added public WalletService.transfer (balance-checked debit->credit primitive recharge specializes + Phase 5 bets reuse); fixed recharge autobegin (resolve wallet INSIDE session.begin()); create_wallet is add+flush only (caller-owned tx, SC#1). — Faithful harness port keeps every concurrency/atomicity invariant in one place; the transfer primitive was required to drive the overdraft gate on production code since recharge debits the billion-funded house_promo and never rejects.
+- [Phase 03]: 03-06: reconcile_wallets nightly Celery task (RedBeat 03:00 UTC) sums SUM(credit)-SUM(debit) per account vs accounts.balance; clean->INFO, drift->CRITICAL + Sentry (SC#7/PLT-09); sync task wraps asyncio.run
+- [Phase 03]: 03-06: seeded house_promo singleton excluded from reconciliation (1e9 opening balance is a deliberate non-ledger-backed seed); reconciling it would emit a nightly false CRITICAL/Sentry alert (alert fatigue)
+- [Phase ?]: Plan 03-03: UserManager.create override (RESEARCH Option A) co-inserts the user_wallet on the adapter's own session between the user INSERT and a SINGLE commit -- user + wallet land atomically (SC#1/WAL-01). The stock fastapi-users SQLAlchemyUserDatabase.create() commits BEFORE on_after_register fires (verified in installed v15.0.5 source), so the hook can never host same-transaction work (Pitfall 1); the override is the fix. WalletService.create_wallet stays add+flush-only (caller-owned tx). Fault injection proves a wallet-creation failure rolls the user back too (no orphan).
+- [Phase ?]: [Phase 03]: 03-04: POST /admin/wallets/{user_id}/recharge -- first money-moving endpoint. Admin-Bearer-gated (current_active_admin), Idempotency-Key required (400 if absent), debits house_promo + credits path user only via WalletService.recharge, money-as-string response (MoneyStr=Annotated[Decimal,PlainSerializer]), wallet.recharge audited. SC#5/WAL-09 firewall: RechargeRequest extra=forbid (no destination field -> dst_user_id is 422) + route inventory + Entry.account_id FK targets accounts only. Audit is action-THEN-audit (recharge self-commits its session.begin(); handler audits + commits after) mirroring the auth surface, NOT same-tx-as-transfer -- avoids rewriting validated 03-02 concurrency code. Two Rule-1 fixes: pre-read autobegan tx -> rollback() before recharge.begin(); session churn expired admin/transfer ORM instances -> capture .id as plain values before commit (MissingGreenlet). WAL-09 complete.
+- [Phase ?]: [Phase 03]: 03-05: player wallet read surface — GET /wallet/me/balance (WAL-03) + GET /wallet/me/transactions (WAL-04), cookie-gated by current_active_player + strictly self-scoped (NO user_id param -> cross-user read structurally impossible, T-03-18); money as JSON string via MoneyStr (SC#4, asserted on the raw wire); get_transactions is read-only offset pagination over the caller's own entries. SC#6/PLT-05 Stripe stub: recharge(payment_provider='stripe') raises NotImplementedError (in the quick non-integration run) + DISABLED 'Add funds' button on the new Next.js /wallet page. Rule-1 fix: wallet/router.py OMITS 'from __future__ import annotations' (FastAPI 3.13 mis-resolved Annotated[Depends] as query params -> 422) — same constraint admin_router.py documents. Phase 3 COMPLETE (6/6).
 
 ### Pending Todos
 
@@ -115,6 +130,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-27T14:00:00.000Z
-Stopped at: Phase 4 planning complete, executing Plan 01
-Resume file: .planning/phases/04-markets-domain-houseadapter/04-01-PLAN.md
+Last session: 2026-05-27T16:40:08.653Z
+Stopped at: Completed 03-05-PLAN.md (player wallet reads + Stripe stub — WAL-03/WAL-04/SC#4/SC#6; Phase 3 complete 6/6)
+Resume file: None
