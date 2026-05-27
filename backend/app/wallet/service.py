@@ -58,6 +58,7 @@ from app.wallet.constants import (
     PLAY_USD,
     TRANSFER_RECHARGE,
 )
+from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account, Entry, Transfer
 
 if TYPE_CHECKING:
@@ -217,10 +218,14 @@ class WalletService:
             raise ValueError("recharge amount must be > 0")
 
         src_id = HOUSE_PROMO_ACCOUNT_ID
-        dst_id = await cls._resolve_user_wallet_id(session, user_id=user_id)
 
         try:
             async with session.begin():
+                # Resolve the target wallet INSIDE the unit of work — issuing it
+                # before ``session.begin()`` would autobegin an implicit tx and
+                # make ``begin()`` raise "a transaction is already begun".
+                dst_id = await cls._resolve_user_wallet_id(session, user_id=user_id)
+
                 # Canonical UUID lock order (Spike 004): sort the two account ids
                 # by their string form and FOR UPDATE in that order so no two
                 # transfer types can form a lock-ordering cycle (Pitfall 3).
@@ -255,6 +260,78 @@ class WalletService:
                 ).scalar_one()
                 return existing
             raise
+
+    # ------------------------------------------------------------------ #
+    # Transfer — the race-safe, balance-checked debit->credit primitive.
+    # ------------------------------------------------------------------ #
+    @classmethod
+    async def transfer(
+        cls,
+        session: AsyncSession,
+        *,
+        kind: str,
+        debit_account_id: UUID,
+        credit_account_id: UUID,
+        amount: Decimal,
+        actor_user_id: UUID | None = None,
+        idempotency_key: str | None = None,
+        reason: str | None = None,
+    ) -> Transfer:
+        """Move ``amount`` from ``debit_account_id`` to ``credit_account_id``.
+
+        The general race-safe primitive that ``recharge`` is a specialization of
+        and that Phase 5 bet-placement reuses. Owns its own ``session.begin()``
+        unit of work and is a faithful port of ``harness._spend_once`` (the
+        ``for_update`` strategy) + ``harness.locked_transfer`` (canonical order):
+
+        - Acquires BOTH ``FOR UPDATE`` locks in canonical UUID order
+          (``sorted(ids, key=str)``) BEFORE the balance read — Spike 004, so no
+          two transfer types can deadlock (40P01).
+        - Re-reads the locked debit balance and raises :class:`InsufficientBalance`
+          if it cannot cover ``amount`` — the domain-level guard in FRONT of the
+          DB ``CHECK (balance >= 0)`` (WAL-08, defense-in-depth). FOR UPDATE is the
+          PRIMARY concurrency control; the CHECK is the net (RESEARCH Anti-Patterns).
+        - Posts the double-entry move atomically; any failure rolls everything back.
+
+        ``amount`` must be a positive ``Decimal`` (``ValueError`` otherwise).
+        """
+        if amount <= 0:
+            raise ValueError("transfer amount must be > 0")
+
+        async with session.begin():
+            # Canonical UUID lock order (Spike 004 / Pitfall 3) BEFORE any mutate.
+            first_id, second_id = sorted((debit_account_id, credit_account_id), key=str)
+            await session.execute(
+                select(Account.id).where(Account.id == first_id).with_for_update()
+            )
+            await session.execute(
+                select(Account.id).where(Account.id == second_id).with_for_update()
+            )
+
+            # Now that the debit row is locked, read its balance and reject an
+            # overdraw with a domain error (not a raw 23514). The lock guarantees
+            # no concurrent debit can race between this read and the write.
+            debit_balance = (
+                await session.execute(
+                    select(Account.balance).where(Account.id == debit_account_id)
+                )
+            ).scalar_one()
+            if debit_balance < amount:
+                raise InsufficientBalance(
+                    f"account {debit_account_id} balance {debit_balance} "
+                    f"< requested {amount}"
+                )
+
+            return await cls._post_transfer(
+                session,
+                kind=kind,
+                idempotency_key=idempotency_key,
+                actor_user_id=actor_user_id,
+                debit_account_id=debit_account_id,
+                credit_account_id=credit_account_id,
+                amount=amount,
+                metadata={"reason": reason} if reason is not None else None,
+            )
 
     # ------------------------------------------------------------------ #
     # Read helpers (minimal — full read shaping is Plan 03-05).
