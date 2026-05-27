@@ -103,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-26 after Phase 01 (Scaffold & Foundations)*
+*Last updated: 2026-05-27 after Phase 02 (Auth & Identity) — player + admin auth surfaces complete, 107 tests green*
