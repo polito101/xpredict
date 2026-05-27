@@ -69,7 +69,7 @@ async function forwardSessionCookie(
   setCookieHeader: string | null,
 ): Promise<void> {
   if (!setCookieHeader) return;
-  const match = setCookieHeader.match(/xpredict_session=([^;]+)/);
+  const match = setCookieHeader.match(/(?:^|;\s*)xpredict_session=([^;]+)/);
   if (!match) return;
   const value = match[1];
   // Best-effort attribute parsing (Max-Age) — fall back to safe defaults.
