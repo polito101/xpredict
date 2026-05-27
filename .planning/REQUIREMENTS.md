@@ -33,7 +33,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Wallet & Double-Entry Ledger (WAL)
 
-- [ ] **WAL-01**: Each player has one wallet account (currency `PLAY_USD`) created automatically on registration
+- [x] **WAL-01**: Each player has one wallet account (currency `PLAY_USD`) created automatically on registration
 - [ ] **WAL-02**: Player receives configurable sign-up bonus credited automatically after email verification (default 1000 PLAY_USD; operator-configurable via TenantConfig)
 - [ ] **WAL-03**: Player can view current wallet balance on any page (cached in session header)
 - [ ] **WAL-04**: Player can view full transaction history (deposits, bets, settlements, adjustments) with timestamps and reasons
@@ -188,7 +188,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | AUTH-07 | Phase 2 | Complete |
 | AUTH-08 | Phase 2 | Complete |
 | AUTH-09 | Phase 2 | Complete |
-| WAL-01 | Phase 3 | Pending |
+| WAL-01 | Phase 3 | Complete |
 | WAL-02 | Phase 5 | Pending |
 | WAL-03 | Phase 3 | Pending |
 | WAL-04 | Phase 3 | Pending |

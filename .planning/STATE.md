@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-27T15:46:03.313Z"
+last_updated: "2026-05-27T15:57:29.922Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
   percent: 18
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 03 (wallet-double-entry-ledger) — EXECUTING
-Plan: 4 of 6
-Status: Ready to execute
+Plan: 5 of 6
+Status: 03-03 complete (SC#1/WAL-01) — 03-01/03-02/03-03/03-06 shipped; 03-04 (recharge endpoint) + 03-05 (wallet reads) remain
 Last activity: 2026-05-27
 
-Progress: [████████░░] 80%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [████████░░] 80%
 | Phase 03 P01 | 12min | 3 tasks | 10 files |
 | Phase 03 P02 | ~8min | 2 tasks | 4 files |
 | Phase 03-wallet-double-entry-ledger P06 | ~26min | 2 tasks | 3 files |
+| Phase 03-wallet-double-entry-ledger P03 | ~5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,7 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-02: WalletService shipped as the single race-safe ledger writer (WAL-07) -- FOR UPDATE inside one session.begin(), atomic paired-entry double-entry, 23505->return-existing idempotency, canonical UUID lock order; ported from the validated spike harness. SC#2 signature gate (50 concurrent overdraft -> drift 0, balance exact, 25/25 succeed/reject) green on production code. Added public WalletService.transfer (balance-checked debit->credit primitive recharge specializes + Phase 5 bets reuse); fixed recharge autobegin (resolve wallet INSIDE session.begin()); create_wallet is add+flush only (caller-owned tx, SC#1). — Faithful harness port keeps every concurrency/atomicity invariant in one place; the transfer primitive was required to drive the overdraft gate on production code since recharge debits the billion-funded house_promo and never rejects.
 - [Phase 03]: 03-06: reconcile_wallets nightly Celery task (RedBeat 03:00 UTC) sums SUM(credit)-SUM(debit) per account vs accounts.balance; clean->INFO, drift->CRITICAL + Sentry (SC#7/PLT-09); sync task wraps asyncio.run
 - [Phase 03]: 03-06: seeded house_promo singleton excluded from reconciliation (1e9 opening balance is a deliberate non-ledger-backed seed); reconciling it would emit a nightly false CRITICAL/Sentry alert (alert fatigue)
+- [Phase ?]: Plan 03-03: UserManager.create override (RESEARCH Option A) co-inserts the user_wallet on the adapter's own session between the user INSERT and a SINGLE commit -- user + wallet land atomically (SC#1/WAL-01). The stock fastapi-users SQLAlchemyUserDatabase.create() commits BEFORE on_after_register fires (verified in installed v15.0.5 source), so the hook can never host same-transaction work (Pitfall 1); the override is the fix. WalletService.create_wallet stays add+flush-only (caller-owned tx). Fault injection proves a wallet-creation failure rolls the user back too (no orphan).
 
 ### Pending Todos
 
@@ -124,6 +126,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-27T15:46:03.306Z
-Stopped at: Completed 03-06-PLAN.md (reconciliation safety net)
+Last session: 2026-05-27T15:57:23.550Z
+Stopped at: Completed 03-03-PLAN.md (registration wallet auto-creation, SC#1/WAL-01)
 Resume file: None
