@@ -28,6 +28,7 @@ from app.core.audit.models import AuditLog  # noqa: F401
 from app.core.config import Settings
 from app.core.feature_flags.models import FeatureFlag  # noqa: F401
 from app.db.base import Base
+from app.wallet.models import Account, Entry, Transfer  # noqa: F401  (Plan 03-01)
 
 config = context.config
 if config.config_file_name is not None:
