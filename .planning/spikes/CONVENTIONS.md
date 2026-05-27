@@ -23,9 +23,13 @@ Patterns and stack choices established across spike sessions. New spikes follow 
 - **Pessimistic locking:** `SELECT ... FOR UPDATE` inside `AsyncSession.begin()` for all wallet state mutations
 - **Lock ordering:** Always sort account IDs before acquiring FOR UPDATE locks on multiple rows
 - **State machine validation:** Market status derived from `closed` + `umaResolutionStatus` combination, never from a single field
+- **Settlement accounting:** Winners draw from pot (market_liability). Losers' stakes already in pot — no separate debit. Remaining pot → house_revenue. `settled_at IS NULL` = idempotency gate.
+- **SETTLING status guard:** Market status must transition OPEN → SETTLING atomically before querying bets (prevents late-bet pot imbalance)
+- **WebSocket broadcast:** Redis pub/sub (`prices:{market_id}` channel) + FastAPI native WebSocket + ConnectionManager per market. Zero new deps needed.
 
 ## Tools & Libraries
-- `sqlalchemy>=2.0.43` + `asyncpg>=0.30` — proven for concurrent wallet operations
+- `sqlalchemy>=2.0.43` + `asyncpg>=0.30` — proven for concurrent wallet operations + settlement transactions
 - `pydantic>=2.10` — proven for Gamma API parsing with `extra='allow'` + custom validators
 - `httpx>=0.28` — proven for Gamma API requests
 - `json` (stdlib) — for parsing stringified JSON from Gamma API
+- `redis.asyncio` (from `redis>=5.0`) — proven for WebSocket pub/sub broadcast (sub-ms latency)
