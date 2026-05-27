@@ -536,7 +536,7 @@ async def test_no_user_to_user_path(client, admin_token):
 | A4 | `gen_random_uuid()` is available without an explicit `CREATE EXTENSION pgcrypto` (Postgres 13+ built-in). | Schema | NONE — verified: Phase 1 (`0001`) and Phase 2 (`0002`) migrations already use `gen_random_uuid()` server defaults successfully against `postgres:16-alpine`. |
 | A5 | Reconciliation at 03:00 UTC nightly via `crontab(hour=3, minute=0)`. | Pattern 6 | NONE — explicitly Claude's Discretion in CONTEXT. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Wallet backfill for existing users**
    - What we know: SC#1 mandates wallet creation *on registration*. Phase 2 already created some users in dev/test.
