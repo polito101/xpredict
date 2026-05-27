@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-27T14:51:26.764Z"
+last_updated: "2026-05-27T15:09:18.261Z"
 last_activity: 2026-05-27
 progress:
   total_phases: 11
   completed_phases: 2
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 11
   percent: 18
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 03 (wallet-double-entry-ledger) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-05-27
 
-Progress: [███████░░░] 67%
+Progress: [███████░░░] 73%
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [███████░░░] 67%
 
 *Updated after each plan completion*
 | Phase 03 P01 | 12min | 3 tasks | 10 files |
+| Phase 03 P02 | ~8min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,7 @@ Recent decisions affecting current work:
 - **2026-05-27 (Plan 03-01): Wallet ledger schema shipped.** accounts/transfers/entries (UUID PKs, NUMERIC(18,4) money via `Mapped[Money]`, version column, tenant_id ghost) created by migration `0003_phase3_wallet_ledger` (single head off `0002_phase2_auth`). Immutability ported from the Phase 1 audit_log pattern, generalized to a shared `raise_ledger_immutable()` deny-trigger + `REVOKE UPDATE, DELETE` applied to `transfers` + `entries` ONLY (accounts.balance is a mutable denormalized cache). `CHECK (balance >= 0)` (WAL-08) + `idempotency_key UNIQUE` enforced and DB-verified. 8 Wave-0 integration tests green against testcontainers Postgres (tenant_id default, CHECK→23514, append-only UPDATE/DELETE blocked, idempotency→23505, seeded singletons). Requirements WAL-06 + WAL-08 complete.
 - **2026-05-27 (Plan 03-01): house_promo / house_revenue UUIDs fixed in `app/wallet/constants.py`** (`…00a1` / `…00a2`) and seeded by migration 0003 (ON CONFLICT DO NOTHING). house_promo funded with `1000000000.0000` so admin recharges (which debit it) never underflow the balance floor in v1. The recharge service (03-04) and settlement (Phase 5) reference these singletons directly — no runtime lookup-by-kind.
 - **2026-05-27 (Plan 03-01): Integration-test savepoint discipline.** Statements expected to raise a `DBAPIError` (CHECK/trigger/UNIQUE violations) must be wrapped in `async_session.begin_nested()` so the abort is savepoint-scoped and does not poison the shared session-scoped transaction. Without this, the next test fails with `InFailedSQLTransactionError`. NOTE: the pre-existing `tests/core/test_audit_immutability.py` has this latent flaw (fails on its 4th test under `-x`) — out of scope for this plan, logged for a follow-up retrofit.
+- [Phase 03]: Plan 03-02: WalletService shipped as the single race-safe ledger writer (WAL-07) -- FOR UPDATE inside one session.begin(), atomic paired-entry double-entry, 23505->return-existing idempotency, canonical UUID lock order; ported from the validated spike harness. SC#2 signature gate (50 concurrent overdraft -> drift 0, balance exact, 25/25 succeed/reject) green on production code. Added public WalletService.transfer (balance-checked debit->credit primitive recharge specializes + Phase 5 bets reuse); fixed recharge autobegin (resolve wallet INSIDE session.begin()); create_wallet is add+flush only (caller-owned tx, SC#1). — Faithful harness port keeps every concurrency/atomicity invariant in one place; the transfer primitive was required to drive the overdraft gate on production code since recharge debits the billion-funded house_promo and never rejects.
 
 ### Pending Todos
 
@@ -119,6 +121,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-27T14:50:47.461Z
-Stopped at: Phase 2 context gathered
+Last session: 2026-05-27T15:09:18.253Z
+Stopped at: Completed 03-02-PLAN.md (WalletService + SC#2 gate)
 Resume file: None
