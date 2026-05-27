@@ -42,6 +42,24 @@ class TestMarketCreateSchema:
                 initial_odds_yes=Decimal("1.1"),
             )
 
+    def test_rejects_odds_exactly_zero(self):
+        with pytest.raises(ValueError):
+            MarketCreate(
+                question="test",
+                resolution_criteria="test",
+                deadline=datetime.now(UTC) + timedelta(days=1),
+                initial_odds_yes=Decimal("0"),
+            )
+
+    def test_rejects_odds_exactly_one(self):
+        with pytest.raises(ValueError):
+            MarketCreate(
+                question="test",
+                resolution_criteria="test",
+                deadline=datetime.now(UTC) + timedelta(days=1),
+                initial_odds_yes=Decimal("1"),
+            )
+
     def test_accepts_valid_create(self):
         body = MarketCreate(
             question="Will it rain?",
@@ -113,6 +131,16 @@ class TestMarketServiceUpdate:
             async_session, market_with_bets, body, admin_user,
         )
         assert updated is not None
+
+    async def test_update_rejects_non_open_market(self, async_session, admin_user, sample_market):
+        sample_market.status = MarketStatus.CLOSED.value
+        await async_session.flush()
+        body = MarketUpdate(odds_yes=Decimal("0.6"))
+        with pytest.raises(HTTPException) as exc_info:
+            await MarketService.update_market(
+                async_session, sample_market, body, admin_user,
+            )
+        assert exc_info.value.status_code == 409
 
 
 @_async

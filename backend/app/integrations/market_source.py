@@ -42,7 +42,10 @@ def register_source(source: MarketSourceEnum, adapter: MarketSource) -> None:
 
 
 def get_adapter(source: MarketSourceEnum) -> MarketSource:
-    return REGISTRY[source]
+    try:
+        return REGISTRY[source]
+    except KeyError:
+        raise ValueError(f"No adapter registered for source {source.value}") from None
 
 
 class HouseAdapter:

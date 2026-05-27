@@ -32,7 +32,7 @@ class MarketCreate(BaseModel):
     question: str = Field(min_length=1, max_length=500)
     resolution_criteria: str = Field(min_length=1, max_length=2000)
     deadline: datetime
-    initial_odds_yes: Decimal = Field(default=Decimal("0.5"), ge=0, le=1)
+    initial_odds_yes: Decimal = Field(default=Decimal("0.5"), gt=0, lt=1)
     category: str | None = Field(default=None, max_length=100)
 
     @field_validator("deadline")
@@ -48,7 +48,7 @@ class MarketCreate(BaseModel):
 class MarketUpdate(BaseModel):
     resolution_criteria: str | None = Field(default=None, max_length=2000)
     deadline: datetime | None = None
-    odds_yes: Decimal | None = Field(default=None, ge=0, le=1)
+    odds_yes: Decimal | None = Field(default=None, gt=0, lt=1)
     category: str | None = None
 
     @field_validator("deadline")

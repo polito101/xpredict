@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,18 +23,27 @@ class MarketService:
         body: MarketCreate,
         ip: str | None = None,
     ) -> Market:
-        slug = generate_slug(body.question)
-        market = Market(
-            question=body.question,
-            slug=slug,
-            resolution_criteria=body.resolution_criteria,
-            deadline=body.deadline,
-            category=body.category,
-            source=MarketSourceEnum.HOUSE.value,
-            status=MarketStatus.OPEN.value,
-        )
-        session.add(market)
-        await session.flush()
+        for _attempt in range(3):
+            slug = generate_slug(body.question)
+            market = Market(
+                question=body.question,
+                slug=slug,
+                resolution_criteria=body.resolution_criteria,
+                deadline=body.deadline,
+                category=body.category,
+                source=MarketSourceEnum.HOUSE.value,
+                status=MarketStatus.OPEN.value,
+            )
+            session.add(market)
+            try:
+                nested = await session.begin_nested()
+                await session.flush()
+                break
+            except IntegrityError:
+                await nested.rollback()
+                session.expunge(market)
+        else:
+            raise HTTPException(status_code=409, detail="Slug collision — try again")
 
         odds_no = Decimal("1") - body.initial_odds_yes
         yes_outcome = Outcome(
@@ -85,6 +95,14 @@ class MarketService:
         admin_user: User,
         ip: str | None = None,
     ) -> Market:
+        if market.status != MarketStatus.OPEN.value:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "INVALID_STATUS",
+                    "reason": f"Cannot update market with status {market.status}",
+                },
+            )
         if market.bet_count > 0 and body.resolution_criteria is not None:
             raise HTTPException(
                 status_code=423,
@@ -102,7 +120,7 @@ class MarketService:
         if body.deadline is not None:
             market.deadline = body.deadline
             changed_fields.append("deadline")
-        if body.category is not None:
+        if "category" in body.model_fields_set:
             market.category = body.category
             changed_fields.append("category")
         if body.odds_yes is not None:
@@ -123,16 +141,17 @@ class MarketService:
                 )
             changed_fields.append("odds")
 
-        await AuditService.record(
-            session,
-            actor=f"user:{admin_user.id}",
-            event_type="market.updated",
-            payload={
-                "market_id": str(market.id),
-                "changed_fields": changed_fields,
-            },
-            ip=ip,
-        )
+        if changed_fields:
+            await AuditService.record(
+                session,
+                actor=f"user:{admin_user.id}",
+                event_type="market.updated",
+                payload={
+                    "market_id": str(market.id),
+                    "changed_fields": changed_fields,
+                },
+                ip=ip,
+            )
         await session.flush()
         return market
 

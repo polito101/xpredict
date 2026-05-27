@@ -148,6 +148,33 @@ async def test_bet_check_open_market(engine: AsyncEngine) -> None:
         await _cleanup_admin(engine)
 
 
+async def test_bet_check_expired_market_returns_400(engine: AsyncEngine) -> None:
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            market = await _create_market(c, token)
+
+        expired_deadline = datetime.now(UTC) - timedelta(hours=1)
+        async with engine.connect() as conn:
+            await conn.execute(
+                text("UPDATE markets SET deadline = :dl WHERE id = CAST(:mid AS uuid)"),
+                {"dl": expired_deadline, "mid": market["id"]},
+            )
+            await conn.commit()
+
+        async with await _client() as c:
+            resp = await c.get(f"/api/v1/markets/{market['slug']}/bet-check")
+        assert resp.status_code == 400
+        assert resp.json()["detail"]["code"] == "MARKET_EXPIRED"
+    finally:
+        await _cleanup_admin(engine)
+
+
 async def test_bet_check_closed_market_returns_400(engine: AsyncEngine) -> None:
     await _seed_admin(engine)
     try:

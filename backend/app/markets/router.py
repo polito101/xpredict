@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -153,7 +154,7 @@ async def get_market_public(
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> MarketRead:
     market = await MarketService.get_market_by_slug(session, slug)
-    if not market:
+    if not market or market.status not in (MarketStatus.OPEN.value, MarketStatus.CLOSED.value):
         raise HTTPException(status_code=404, detail="Market not found")
     return MarketRead.model_validate(market)
 
@@ -170,5 +171,10 @@ async def bet_check(
         raise HTTPException(
             status_code=400,
             detail={"code": "MARKET_NOT_OPEN", "reason": "This market is not accepting bets"},
+        )
+    if market.deadline and market.deadline <= datetime.now(UTC):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "MARKET_EXPIRED", "reason": "This market's deadline has passed"},
         )
     return {"eligible": True}
