@@ -42,3 +42,43 @@ class BetResponse(BaseModel):
     stake: DecimalStr
     odds_at_placement: DecimalStr
     status: str
+
+
+# --------------------------------------------------------------------------- #
+# Portfolio read surface (SC#7 / BET-07) — open + settled positions with P&L.
+# Built from app/bets/portfolio dataclasses (from_attributes); decimals as strings.
+# --------------------------------------------------------------------------- #
+class OpenPositionItem(BaseModel):
+    """A pending bet — payout/P&L are POTENTIAL (if the outcome wins, at locked odds)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    bet_id: UUID
+    market_id: UUID
+    outcome_id: UUID
+    stake: DecimalStr
+    odds_at_placement: DecimalStr
+    potential_payout: DecimalStr
+    potential_pnl: DecimalStr
+
+
+class SettledPositionItem(BaseModel):
+    """A resolved bet — payout/P&L are REALIZED (exactly what settlement posted)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    bet_id: UUID
+    market_id: UUID
+    outcome_id: UUID
+    stake: DecimalStr
+    odds_at_placement: DecimalStr
+    won: bool
+    payout: DecimalStr
+    realized_pnl: DecimalStr
+
+
+class PortfolioResponse(BaseModel):
+    """The player's portfolio — open positions + settled positions (SC#7)."""
+
+    open: list[OpenPositionItem]
+    settled: list[SettledPositionItem]

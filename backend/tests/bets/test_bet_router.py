@@ -125,6 +125,27 @@ async def _seed_wallet(balance: Decimal) -> UUID:
     return user_id
 
 
+async def _seed_bet(user_id: UUID, *, stake: Decimal, odds: Decimal, status: str) -> None:
+    """Raw-INSERT a bet in a given status (committed) — for the portfolio read tests."""
+    sm = _get_session_maker()
+    async with sm() as s, s.begin():
+        await s.execute(
+            text(
+                "INSERT INTO bets (id, user_id, market_id, outcome_id, stake, "
+                "odds_at_placement, status) VALUES (:id, :u, :m, :o, :st, :od, :status)"
+            ),
+            {
+                "id": uuid4(),
+                "u": user_id,
+                "m": uuid4(),
+                "o": uuid4(),
+                "st": stake,
+                "od": odds,
+                "status": status,
+            },
+        )
+
+
 def _auth_as(user: _User) -> None:
     app.dependency_overrides[current_active_player] = lambda: user
 
@@ -222,3 +243,38 @@ async def test_post_bets_422_when_stake_nonpositive(api: httpx.AsyncClient) -> N
     _wire_market(src)
     r = await api.post("/bets", json=_payload(m, stake="0"))
     assert r.status_code == 422  # Pydantic Field(gt=0) rejects before the service
+
+
+# --------------------------------------------------------------------------- #
+# Portfolio read (SC#7) — GET /bets/me/portfolio.
+# --------------------------------------------------------------------------- #
+async def test_get_portfolio_requires_auth(api: httpx.AsyncClient) -> None:
+    r = await api.get("/bets/me/portfolio")
+    assert r.status_code == 401
+
+
+async def test_get_portfolio_returns_open_and_settled_with_pnl(api: httpx.AsyncClient) -> None:
+    user_id = uuid4()
+    await _seed_bet(user_id, stake=Decimal("40.0000"), odds=Decimal("0.5"), status="PENDING")
+    await _seed_bet(user_id, stake=Decimal("40.0000"), odds=Decimal("0.5"), status="SETTLED_WON")
+    await _seed_bet(user_id, stake=Decimal("60.0000"), odds=Decimal("0.5"), status="SETTLED_LOST")
+    _auth_as(_User(user_id))
+
+    r = await api.get("/bets/me/portfolio")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["open"]) == 1
+    assert len(body["settled"]) == 2
+    # Open: potential payout at locked odds, money as a JSON string.
+    op = body["open"][0]
+    assert isinstance(op["potential_payout"], str)
+    assert Decimal(op["potential_payout"]) == Decimal("80.0000")  # 40 / 0.5
+    assert Decimal(op["potential_pnl"]) == Decimal("40.0000")
+    # Settled: realized P&L (winner positive, loser = -stake).
+    won = next(p for p in body["settled"] if p["won"])
+    lost = next(p for p in body["settled"] if not p["won"])
+    assert Decimal(won["payout"]) == Decimal("80.0000")
+    assert Decimal(won["realized_pnl"]) == Decimal("40.0000")
+    assert Decimal(lost["payout"]) == Decimal("0.0000")
+    assert Decimal(lost["realized_pnl"]) == Decimal("-60.0000")

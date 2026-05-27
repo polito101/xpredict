@@ -37,6 +37,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from app.bets.constants import BET_PENDING, KIND_MARKET_LIABILITY, TRANSFER_BET_PLACED
 from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound
 from app.bets.models import Bet
+from app.bets.portfolio import Portfolio, PositionInput, build_portfolio
 from app.wallet.constants import OWNER_MARKET, PLAY_USD
 from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account
@@ -139,6 +140,39 @@ class BetService:
                 },
             )
             return bet
+
+    @classmethod
+    async def get_portfolio(cls, session: AsyncSession, *, user_id: UUID) -> Portfolio:
+        """Return ``user_id``'s portfolio — open + settled positions with P&L (SC#7, read-only).
+
+        Reads the player's bets (newest first) and runs the pure
+        :func:`~app.bets.portfolio.build_portfolio`: OPEN positions carry the potential
+        payout at the LOCKED odds, SETTLED positions carry the realized P&L. No
+        INSERT/UPDATE/commit. Live unrealized P&L at CURRENT odds is enriched at integration
+        once the market read port is wired (the locked-odds view here needs no Phase 4 data).
+        """
+        bets = list(
+            (
+                await session.execute(
+                    select(Bet).where(Bet.user_id == user_id).order_by(Bet.created_at.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        return build_portfolio(
+            [
+                PositionInput(
+                    bet_id=b.id,
+                    market_id=b.market_id,
+                    outcome_id=b.outcome_id,
+                    stake=b.stake,
+                    odds_at_placement=b.odds_at_placement,
+                    status=b.status,
+                )
+                for b in bets
+            ]
+        )
 
     @staticmethod
     async def _ensure_market_liability_account(session: AsyncSession, *, market_id: UUID) -> UUID:

@@ -29,7 +29,13 @@ from app.auth.deps import current_active_player
 from app.auth.models import User
 from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound
 from app.bets.market_port import MarketReadPort
-from app.bets.schemas import BetResponse, PlaceBetRequest
+from app.bets.schemas import (
+    BetResponse,
+    OpenPositionItem,
+    PlaceBetRequest,
+    PortfolioResponse,
+    SettledPositionItem,
+)
 from app.bets.service import BetService
 from app.db.session import get_async_session
 from app.wallet.exceptions import InsufficientBalance
@@ -112,6 +118,24 @@ async def place_bet(
         stake=bet.stake,
         odds_at_placement=bet.odds_at_placement,
         status=bet.status,
+    )
+
+
+@bets_router.get("/me/portfolio", response_model=PortfolioResponse)
+async def read_portfolio(
+    player: Annotated[User, Depends(current_active_player)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> PortfolioResponse:
+    """Return the authenticated player's portfolio — open + settled positions (SC#7).
+
+    Self-scoped by ``player.id`` (no ``user_id`` parameter). Open positions show the
+    potential payout at the LOCKED odds; settled positions show the realized P&L. Money +
+    odds serialize as JSON strings (SC#4). Read-only.
+    """
+    pf = await BetService.get_portfolio(session, user_id=player.id)
+    return PortfolioResponse(
+        open=[OpenPositionItem.model_validate(o) for o in pf.open],
+        settled=[SettledPositionItem.model_validate(s) for s in pf.settled],
     )
 
 
