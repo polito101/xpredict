@@ -1,0 +1,58 @@
+# Force LF line endings on all text files committed to the repo.
+#
+# Why: shell heredocs inside docker-compose `command:` blocks, Dockerfile
+# RUN steps, and shell scripts break under CRLF (Pitfall 8). Windows hosts
+# checkout with CRLF by default; this file overrides that for source files.
+#
+# `* text=auto eol=lf` covers most cases; explicit `*.ext text eol=lf`
+# entries below are belt-and-suspenders for files where the auto-detection
+# could go wrong.
+
+* text=auto eol=lf
+
+# Configuration / infrastructure
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+docker-compose.*.yml text eol=lf
+.dockerignore text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.env.example text eol=lf
+
+# Shell
+*.sh text eol=lf
+
+# Backend (Python)
+*.py text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.mako text eol=lf
+
+# Frontend (TypeScript / Next.js)
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+
+# Docs
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary files (no LF normalization)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text eol=lf
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary

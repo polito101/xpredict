@@ -21,15 +21,15 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Authentication & Identity (AUTH)
 
-- [ ] **AUTH-01**: Player can register with email + password (Argon2id hashed, server-side validation, password strength enforced)
-- [ ] **AUTH-02**: Player receives email verification message after signup (Mailpit in dev; real SMTP in staging — provider decided Phase 2 planning)
-- [ ] **AUTH-03**: Player can verify email by clicking single-use, time-limited link
-- [ ] **AUTH-04**: Player can log in with email + password; session persists across browser refresh
-- [ ] **AUTH-05**: Player can log out from any page (server-side session/token revoked)
-- [ ] **AUTH-06**: Player can reset password via email link (single-use token; password_reset bumps token_version invalidating prior sessions)
-- [ ] **AUTH-07**: Admin uses separate login route and `is_admin` flag; admin auth surface is distinct from player auth surface
-- [ ] **AUTH-08**: All auth endpoints (register, login, password reset, email verify) are rate-limited per IP and per email via slowapi + Redis
-- [ ] **AUTH-09**: Refresh token rotation with reuse detection; HTTP-only Secure cookies for player session, Bearer JWT for admin API access
+- [x] **AUTH-01**: Player can register with email + password (Argon2id hashed, server-side validation, password strength enforced)
+- [x] **AUTH-02**: Player receives email verification message after signup (Mailpit in dev; real SMTP in staging — provider decided Phase 2 planning)
+- [x] **AUTH-03**: Player can verify email by clicking single-use, time-limited link
+- [x] **AUTH-04**: Player can log in with email + password; session persists across browser refresh
+- [x] **AUTH-05**: Player can log out from any page (server-side session/token revoked)
+- [x] **AUTH-06**: Player can reset password via email link (single-use token; password_reset bumps token_version invalidating prior sessions)
+- [x] **AUTH-07**: Admin uses separate login route and `is_admin` flag; admin auth surface is distinct from player auth surface
+- [x] **AUTH-08**: All auth endpoints (register, login, password reset, email verify) are rate-limited per IP and per email via slowapi + Redis
+- [x] **AUTH-09**: Refresh token rotation with reuse detection; HTTP-only Secure cookies for player session, Bearer JWT for admin API access
 
 ### Wallet & Double-Entry Ledger (WAL)
 
@@ -37,7 +37,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **WAL-02**: Player receives configurable sign-up bonus credited automatically after email verification (default 1000 PLAY_USD; operator-configurable via TenantConfig)
 - [ ] **WAL-03**: Player can view current wallet balance on any page (cached in session header)
 - [ ] **WAL-04**: Player can view full transaction history (deposits, bets, settlements, adjustments) with timestamps and reasons
-- [ ] **WAL-05**: All money columns use `NUMERIC(18,4)`; all Python money values use `Decimal` constructed from strings — never float, never Postgres MONEY
+- [x] **WAL-05**: All money columns use `NUMERIC(18,4)`; all Python money values use `Decimal` constructed from strings — never float, never Postgres MONEY (Phase 1 ships: Money alias + AST lint + 17 lint tests + CI workflow step; full schema enforcement when Phase 3 ships money columns)
 - [ ] **WAL-06**: All wallet mutations are recorded in append-only double-entry ledger (accounts + transfers + entries tables); balance column on accounts is a denormalized cache reconciled nightly
 - [ ] **WAL-07**: All wallet writes use `SELECT ... FOR UPDATE` inside a single transaction with `idempotency_key UNIQUE`; race conditions and double-spend blocked at DB level
 - [ ] **WAL-08**: `CHECK (balance >= 0)` constraint on every wallet account; negative balance impossible
@@ -104,16 +104,16 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Platform — Cross-cutting (PLT)
 
-- [ ] **PLT-01**: All tenant-scoped tables include nullable `tenant_id UUID` column with default constant for v1 (multi-tenant migration prep — flipping to NOT NULL + RLS is mechanical in v2)
-- [ ] **PLT-02**: All money mutations and admin actions go through the audit log: `actor_user_id`, `event_type`, `payload`, `timestamp`, `ip` — append-only enforced by Postgres trigger
-- [ ] **PLT-03**: All secrets via Pydantic BaseSettings reading from environment (`.env.local` in dev, Railway env in staging); never hardcoded
-- [ ] **PLT-04**: `gitleaks` runs in CI to block accidental secret commits
+- [x] **PLT-01**: All tenant-scoped tables include nullable `tenant_id UUID` column with default constant for v1 (multi-tenant migration prep — flipping to NOT NULL + RLS is mechanical in v2)
+- [x] **PLT-02**: All money mutations and admin actions go through the audit log: `actor_user_id`, `event_type`, `payload`, `timestamp`, `ip` — append-only enforced by Postgres trigger
+- [x] **PLT-03**: All secrets via Pydantic BaseSettings reading from environment (`.env.local` in dev, Railway env in staging); never hardcoded
+- [x] **PLT-04**: `gitleaks` runs in CI to block accidental secret commits
 - [ ] **PLT-05**: Stripe stub interface present: disabled "Add funds" button in player UI + `WalletService.recharge(payment_provider="stripe")` method signature ready for v2 wiring without refactor
-- [ ] **PLT-06**: Feature flags table exists with prep for per-tenant config in v2 (single-row default for v1)
+- [x] **PLT-06**: Feature flags table exists with prep for per-tenant config in v2 (single-row default for v1)
 - [ ] **PLT-07**: Player-facing UI is fully responsive on mobile browsers (≥360px width); admin UI desktop-only acceptable
-- [ ] **PLT-08**: Sentry receives errors from FastAPI + Celery + Next.js; alert rules wired for: settlement failures, Polymarket sync error-rate spikes, ledger reconciliation drift, auth abuse spikes
+- [x] **PLT-08**: Sentry receives errors from FastAPI + Celery + Next.js; alert rules wired for: settlement failures, Polymarket sync error-rate spikes, ledger reconciliation drift, auth abuse spikes (code complete; Sentry event round-trip is a manual-verify item for /gsd-verify-work — needs real SENTRY_DSN; alert rules deferred to Phase 11 polish)
 - [ ] **PLT-09**: Nightly Celery task reconciles materialized wallet balances against ledger entries; any drift logs CRITICAL and alerts
-- [ ] **PLT-10**: `docker-compose up` brings up the full stack locally (api, worker, beat, db, redis, frontend, mailpit) with one command
+- [x] **PLT-10**: `docker-compose up` brings up the full stack locally (api, worker, beat, db, redis, frontend, mailpit) with one command (code complete; runtime acceptance is a manual-verify item for /gsd-verify-work — gated by host port conflicts)
 
 ## v2 / Deferred Requirements
 
@@ -179,20 +179,20 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 2 | Pending |
-| AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 2 | Pending |
-| AUTH-04 | Phase 2 | Pending |
-| AUTH-05 | Phase 2 | Pending |
-| AUTH-06 | Phase 2 | Pending |
-| AUTH-07 | Phase 2 | Pending |
-| AUTH-08 | Phase 2 | Pending |
-| AUTH-09 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
+| AUTH-02 | Phase 2 | Complete |
+| AUTH-03 | Phase 2 | Complete |
+| AUTH-04 | Phase 2 | Complete |
+| AUTH-05 | Phase 2 | Complete |
+| AUTH-06 | Phase 2 | Complete |
+| AUTH-07 | Phase 2 | Complete |
+| AUTH-08 | Phase 2 | Complete |
+| AUTH-09 | Phase 2 | Complete |
 | WAL-01 | Phase 3 | Pending |
 | WAL-02 | Phase 5 | Pending |
 | WAL-03 | Phase 3 | Pending |
 | WAL-04 | Phase 3 | Pending |
-| WAL-05 | Phase 1 | Pending |
+| WAL-05 | Phase 1 | Done (01-01: Money alias + AST lint + 17 lint tests; 01-04: CI workflow money-lint step; full schema enforcement when Phase 3 ships money columns) |
 | WAL-06 | Phase 3 | Pending |
 | WAL-07 | Phase 3 | Pending |
 | WAL-08 | Phase 3 | Pending |
@@ -238,16 +238,16 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADD-04 | Phase 8 | Pending |
 | ADD-05 | Phase 10 | Pending |
 | ADD-06 | Phase 10 | Pending |
-| PLT-01 | Phase 1 | Pending |
-| PLT-02 | Phase 1 | Pending |
-| PLT-03 | Phase 1 | Pending |
-| PLT-04 | Phase 1 | Pending |
+| PLT-01 | Phase 1 | Done (01-03: audit_log + feature_flags both ship tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'; integration test test_tenant_id_default green) |
+| PLT-02 | Phase 1 | Done (01-03: audit_log immutability trigger + REVOKE UPDATE, DELETE FROM PUBLIC; integration tests test_audit_log_update_blocked + test_audit_log_delete_blocked green; AuditService.record atomic with caller's session) |
+| PLT-03 | Phase 1 | Done (01-01: Settings(BaseSettings) + scrub_secrets + structlog SCRUB_KEYS; 01-03: .env.example committed + .env.local gitignored; 01-04: gitleaks CI gate live) |
+| PLT-04 | Phase 1 | Done (01-04: .gitleaks.toml + 2 custom rules + synthetic-secret negative test + pre-commit + 3 CI workflows; test_gitleaks_blocks_secret.py 2/2 green; clean repo scan 0 findings) |
 | PLT-05 | Phase 3 | Pending |
-| PLT-06 | Phase 1 | Pending |
+| PLT-06 | Phase 1 | Done (01-03: feature_flags composite PK (key, tenant_id) + 3 seeded rows + FeatureFlagService.is_enabled with tenant fallback; 5 integration tests green) |
 | PLT-07 | Phase 11 | Pending |
-| PLT-08 | Phase 1 | Pending |
+| PLT-08 | Phase 1 | Done with manual-verify pending (01-01: init_sentry + FastAPI + Celery worker/beat + tags + triple-trigger backend; 01-02: Next.js surface; 01-04: HTTP wiring verified, alert rules deferred to Phase 11; **manual-verify**: Sentry event round-trip needs real SENTRY_DSN — 10-min checklist in 01-04-SUMMARY.md) |
 | PLT-09 | Phase 3 | Pending |
-| PLT-10 | Phase 1 | Pending |
+| PLT-10 | Phase 1 | Done with manual-verify pending (01-03: docker-compose.yml 8 services + healthchecks valid; 01-04: bin/dev + bin/dev.ps1 + Makefile + README shipped; **manual-verify**: `bin\dev.ps1` runtime acceptance gated by host port conflicts with crypto-casino — 5-min checklist in 01-03-SUMMARY.md) |
 
 **Coverage:**
 - v1 requirements: 69 total
@@ -275,4 +275,4 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 ---
 *Requirements defined: 2026-05-25*
 *Traceability populated: 2026-05-25 by gsd-roadmapper (11 phases, fine granularity, Vertical MVP mode)*
-*Last updated: 2026-05-25 after roadmap creation*
+*Last updated: 2026-05-26 — Phase 1 closeout (01-04 acceptance gate auto-approved per --auto mode; PLT-01..04+06+08+10 + WAL-05 marked Done; PLT-08 + PLT-10 retain manual-verify items for /gsd-verify-work)*

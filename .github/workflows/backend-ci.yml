@@ -1,0 +1,65 @@
+name: backend-ci
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".gitleaks.toml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+      - ".gitleaks.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          pip install --upgrade pip
+          pip install uv
+
+      - name: uv sync (frozen)
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        working-directory: backend
+        run: uv run ruff check app/ scripts/ tests/ alembic/
+
+      - name: Ruff format check
+        working-directory: backend
+        run: uv run ruff format --check app/ scripts/ tests/ alembic/
+
+      - name: Mypy (strict on app/)
+        working-directory: backend
+        run: uv run mypy app/
+
+      - name: Money-column lint (WAL-05)
+        working-directory: backend
+        run: uv run python scripts/lint_money_columns.py
+
+      - name: Pytest (testcontainers + fakeredis)
+        working-directory: backend
+        run: uv run pytest tests/ -x --tb=short
+
+      - name: Gitleaks (scan diff)
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml

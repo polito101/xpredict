@@ -19,8 +19,8 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations** - Docker compose stack, FastAPI + Next.js hello-world, Postgres 16 + Redis 7, Alembic, money-column standards, `tenant_id` ghost column, audit-log trigger, Sentry, secrets hygiene, gitleaks in CI.
-- [ ] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints.
+- [x] **Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations** - Docker compose stack, FastAPI + Next.js hello-world, Postgres 16 + Redis 7, Alembic, money-column standards, `tenant_id` ghost column, audit-log trigger, Sentry, secrets hygiene, gitleaks in CI. **Executed + Verified 2026-05-26 (4/4 plans, ~83 min; 41/41 backend + 2/2 frontend tests green; 9/9 UAT complete — cold-start fix applied, code review 37 fixes merged).**
+- [x] **Phase 2: Auth & Identity** - Player + admin authentication (Argon2id via fastapi-users v14, dual cookie/JWT backends), email verification, password reset, refresh-token rotation, rate-limiting on all auth endpoints. (completed 2026-05-27)
 - [ ] **Phase 3: Wallet & Double-Entry Ledger** - `accounts` + `transfers` + `entries` schema (append-only, immutable, ACID-bound), `NUMERIC(18,4)` everywhere, idempotent transfers, `CHECK (balance >= 0)`, admin recharge primitive, Stripe stub interface, nightly reconciliation.
 - [ ] **Phase 4: Markets Domain & HouseAdapter** - `MarketSource` Protocol, Market/Outcome/OddsSnapshot models, HouseAdapter implementation, admin CRUD for house markets (create/edit-while-zero-bets/close), criteria locked at first bet.
 - [ ] **Phase 5: Bets, Settlement & First End-to-End Demo (House Markets Only)** - Place-bet flow (ACID-wrapped, idempotent), portfolio with P&L, sign-up bonus on email verify, admin two-step resolve with mandatory justification, idempotent SettlementService, reversal path. **First demoable happy path lands here.**
@@ -35,7 +35,6 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 ### Phase 1: Project Scaffold, Infra & Cross-Cutting Foundations
 **Goal**: Provide a one-command local stack and lock in the non-negotiable foundations (money types, tenant seam, audit immutability, secrets hygiene, observability) so every later phase inherits them for free.
-**Mode:** mvp
 **Depends on**: Nothing (first phase)
 **Requirements**: PLT-01, PLT-02, PLT-03, PLT-04, PLT-06, PLT-08, PLT-10, WAL-05
 **Success Criteria** (what must be TRUE):
@@ -44,7 +43,12 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   3. The `audit_log` table is created with a Postgres trigger that blocks `UPDATE` and `DELETE`; an integration test demonstrates both operations raise.
   4. Money-column coding standard is documented and enforced: a CI lint fails any new SQLAlchemy `Mapped` annotation for a money field that is not `Decimal` + `Numeric(18,4)`; no `FLOAT`/`REAL`/`MONEY` types appear in the schema.
   5. `gitleaks` runs in CI and blocks a test commit that contains a fake secret; Sentry receives a synthetic error from FastAPI, Celery worker, and Next.js (three separate test triggers) and the events appear in the configured Sentry project.
-**Plans**: TBD
+**Plans**: 4 plans
+**Plan list**:
+- [x] 01-01-PLAN.md — Backend Python scaffold: pyproject.toml + Settings + Money alias + structlog + Sentry helpers + FastAPI/Celery factories + money-column AST lint + Wave-0 unit tests (PLT-03, PLT-08, WAL-05) — **shipped 2026-05-26, 26 min, 30 tests passing**
+- [x] 01-02-PLAN.md — Frontend Next.js 15 + Tailwind 4 + TypeScript scaffold with Sentry on server + client surfaces + /api/healthz + /api/sentry-test + Vitest (PLT-08, PLT-10) — **shipped 2026-05-26, 12 min, 2 Vitest tests green**
+- [x] 01-03-PLAN.md — docker-compose.yml (8 services) + Alembic baseline 0001 (audit_log + feature_flags with ghost column + immutability trigger + seeded flags) + integration tests against testcontainers Postgres + docker-compose smoke (PLT-01, PLT-02, PLT-06, PLT-10) — **shipped 2026-05-26, 13 min, 9 integration tests green (39/39 total); Task 3 runtime acceptance manual-verify gated by host port conflicts**
+- [x] 01-04-PLAN.md — gitleaks + pre-commit + GitHub Actions (backend-ci, frontend-ci, security) + bin/dev + README + Phase 1 acceptance gate (PLT-04, PLT-08, PLT-10) — **shipped 2026-05-26, ~32 min, 6 atomic commits; 41/41 backend + 2/2 frontend tests green; acceptance gate auto-approved per --auto mode (3.5/5 ROADMAP SC ✓ machine-verified; 1.5/5 manual-verify deferred to /gsd-verify-work)**
 **Research/spike flags**: None — well-documented patterns.
 **Critical pitfalls covered**: PITFALL #3 (regulatory — secrets/ToS posture begins here), PITFALL #4 (Decimal/NUMERIC locked at schema), PITFALL #7 (connection-pool / SET LOCAL discipline established).
 
@@ -60,8 +64,14 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   4. A player can request a password reset; the reset link is single-use and time-limited; completing reset bumps `token_version` and invalidates all prior sessions across devices (verifiable: a request with a pre-reset access token returns 401).
   5. An admin authenticates via a distinct `/admin/login` route, receives a Bearer JWT (not a cookie), and the `is_admin` flag is enforced on every admin endpoint; a non-admin Bearer is 403 on `/admin/*`.
   6. The `/auth/login`, `/auth/register`, `/auth/forgot-password`, and `/auth/verify-email` endpoints are rate-limited per-IP and per-email via slowapi + Redis; the 6th login attempt within the configured window returns 429 with no information leak about whether the email exists.
-**Plans**: TBD
-**Research/spike flags**: None — fastapi-users v14 has well-documented dual-backend pattern.
+**Plans**: 5 plans
+**Plan list**:
+- [x] 02-01-PLAN.md — Schema foundation: pyproject deps (fastapi-users v15.0.5 + resend + aiosmtplib) + Settings env-var expansion + User/RefreshToken ORM + Alembic migration 0002 (AUTH-01, AUTH-09)
+- [x] 02-02-PLAN.md — Player auth surface: EmailService + custom DatabaseStrategy + UserManager + slowapi rate limiting + FastAPIUsers cookie backend + 8 integration tests (AUTH-01..06, 08, 09)
+- [x] 02-03-PLAN.md — Admin auth surface: BearerTransport + cross-surface isolation tests + bin/create_admin.py idempotent seeding (AUTH-07, AUTH-08, AUTH-09)
+- [x] 02-04-PLAN.md — Frontend player pages: shadcn/ui + zod + react-hook-form + 5 auth pages (/login, /register, /forgot-password, /reset-password, /verify-email) + 5 Server Actions (AUTH-01..04, AUTH-06)
+- [x] 02-05-PLAN.md — Frontend admin: Edge middleware with jose HS256 verify + /admin/login + admin layout + placeholder /admin landing + adminLoginAction (AUTH-07, AUTH-09)
+**Research/spike flags**: None — fastapi-users v15 has well-documented dual-backend pattern (researcher correction: CONTEXT D-01 said v14; v15.0.5 is API-compatible for our usage and is the current pinned version per RESEARCH §Standard Stack).
 **Critical pitfalls covered**: PITFALL #8 (refresh-token rotation + revocation; Argon2id; rate-limit; email enumeration prevention; HTTP-only Secure SameSite cookies).
 
 ### Phase 3: Wallet & Double-Entry Ledger
@@ -226,8 +236,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 0/TBD | Not started | - |
-| 2. Auth & Identity | 0/TBD | Not started | - |
+| 1. Project Scaffold, Infra & Cross-Cutting Foundations | 4/4 | Complete    | 2026-05-26 |
+| 2. Auth & Identity | 5/5 | Complete    | 2026-05-27 |
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/TBD | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |

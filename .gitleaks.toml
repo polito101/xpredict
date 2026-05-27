@@ -1,0 +1,44 @@
+title = "XPredict gitleaks config"
+
+# Extend gitleaks' built-in ruleset (Sentry DSN, Postgres URLs with embedded passwords,
+# AWS keys, generic API keys, etc.) and add 2 XPredict-specific rules per D-33.
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Custom rules (D-33) — Phase 2 introduces SESSION_SIGNING_KEY + ADMIN_TOKEN.
+# Phase 1 ships the gitleaks rules ahead of time so the moment those secrets
+# exist in any config, they're caught.
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "xpredict-session-signing-key"
+description = "XPredict session signing key (Phase 2)"
+regex = '''SESSION_SIGNING_KEY\s*=\s*['"]?[A-Za-z0-9+/=]{32,}'''
+tags = ["secret", "key"]
+
+[[rules]]
+id = "xpredict-admin-token"
+description = "XPredict admin token (Phase 2)"
+regex = '''ADMIN_TOKEN\s*=\s*['"]?[A-Za-z0-9_-]{16,}'''
+tags = ["secret", "key"]
+
+# ---------------------------------------------------------------------------
+# Allowlist (D-33 / Pitfall 6)
+# ---------------------------------------------------------------------------
+# Test fixtures contain KNOWN-FAKE secrets used to verify the linter actually
+# fires (PLT-04 negative test). The allowlist permits committing them; the
+# fixture directory ships with `.gitleaksignore-note.md` documenting "never
+# put real secrets here". Docs + README files are allowlisted so we can write
+# example env-var snippets in documentation without tripping the linter.
+# The .gitleaks.toml itself is allowlisted because its rules contain
+# regex strings that match the secret patterns they're designed to detect.
+[allowlist]
+description = "Test fixtures and docs"
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''README.*\.md$''',
+  '''docs/.*\.md$''',
+  '''tests/.*fixtures.*''',
+  '''\.planning/.*''',
+]
