@@ -138,12 +138,14 @@ async def _rate_limit_exceeded_handler(  # type: ignore[no-untyped-def]
 # ---------------------------------------------------------------------------
 from app.admin.export_router import admin_export_router  # noqa: E402
 from app.admin.router import admin_crm_router  # noqa: E402
+from app.core.audit.router import audit_admin_router  # noqa: E402
 from app.markets.router import admin_market_router, public_market_router  # noqa: E402
 
 app.include_router(health.router)
 app.include_router(build_auth_routers())
 app.include_router(admin_crm_router)
 app.include_router(admin_export_router)
+app.include_router(audit_admin_router)
 app.include_router(admin_market_router)
 app.include_router(public_market_router)
 app.include_router(wallet_admin_router)

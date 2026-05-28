@@ -151,6 +151,39 @@ async def seed_bet(
     return bet_id
 
 
+async def seed_audit(
+    *,
+    event_type: str,
+    actor: str = "user:00000000-0000-0000-0000-000000000000",
+    payload: dict[str, object] | None = None,
+    ip: str | None = None,
+) -> UUID:
+    """Insert one audit row via ``AuditService.record()`` (committed); return its id.
+
+    Uses the app's own session-maker (the ``engine`` fixture points it at the
+    testcontainer and clears its cache), so this drives the REAL single audit
+    writer (D-20/D-21) rather than a raw INSERT. ``audit_log`` is append-only
+    (no cleanup is possible — WAL/PLT-02), so tests scope their assertions to a
+    UNIQUE ``event_type`` / ``actor`` marker per test (the same fresh-marker
+    discipline ``cleanup_user`` documents for users).
+    """
+    from app.core.audit.service import AuditService
+    from app.db.session import _get_session_maker
+
+    session_maker = _get_session_maker()
+    async with session_maker() as session:
+        row = await AuditService.record(
+            session,
+            actor=actor,
+            event_type=event_type,
+            payload=payload or {},
+            ip=ip,
+        )
+        row_id = row.id
+        await session.commit()
+    return row_id
+
+
 async def cleanup_user(engine: AsyncEngine, email: str) -> None:
     """DELETE a user + its bets (committed). Safe if absent.
 
