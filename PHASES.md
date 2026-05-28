@@ -12,7 +12,7 @@
 | 4 | Markets Domain & HouseAdapter | Pol | 👀 In review | `gsd/phase-04-markets-domain-houseadapter` | [#6](https://github.com/polito101/xpredict/pull/6) |
 | 5 | Bets, Settlement & First E2E Demo | Agustin | ✅ Done | `integration/phase-05-full` | [#8](https://github.com/polito101/xpredict/pull/8) |
 | 6 | Polymarket Sync | Pol | ✅ Done | `gsd/phase-06-polymarket-sync-catalog-replication` | [#7](https://github.com/polito101/xpredict/pull/7) |
-| 7 | Polymarket Auto-Resolution | — | ⬜ Not started | — | — |
+| 7 | Polymarket Auto-Resolution | Agustin | 👀 In review | `gsd/phase-07-polymarket-auto-resolution` | [#10](https://github.com/polito101/xpredict/pull/10) |
 | 8 | Admin CRM | Pol | 🔄 In progress | `gsd/phase-08-admin-crm-user-management-audit-log-viewer` | — |
 | 9 | User App UX Polish & Real-Time | — | ⬜ Not started | — | — |
 | 10 | Admin KPI Dashboard & Branding | — | ⬜ Not started | — | — |
