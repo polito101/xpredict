@@ -95,7 +95,10 @@ class PolymarketAdapter:
                         parsed.end_date_raw.replace("Z", "+00:00"),
                     )
 
-            slug = generate_slug(parsed.question)
+            # Use a deterministic slug from the Gamma API slug to avoid
+            # random-suffix collisions on every sync cycle (WR-01).
+            # Prefix with "pm-" to namespace away from house market slugs.
+            slug = f"pm-{parsed.slug}"[:100] if parsed.slug else generate_slug(parsed.question)
             description = (
                 parsed.description
                 or "Resolution via Polymarket UMA oracle"
@@ -127,6 +130,7 @@ class PolymarketAdapter:
                         "status": stmt.excluded.status,
                         "volume": stmt.excluded.volume,
                         "volume_24hr": stmt.excluded.volume_24hr,
+                        "polymarket_slug": stmt.excluded.polymarket_slug,
                         "updated_at": datetime.now(UTC),
                     },
                 )
