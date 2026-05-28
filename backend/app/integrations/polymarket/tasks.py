@@ -146,6 +146,8 @@ async def _run_snapshot_odds(
     except Exception as exc:
         log.error("snapshot_failed", error=str(exc))
         sentry_sdk.capture_exception(exc)
+        with contextlib.suppress(Exception):
+            await session.rollback()
     finally:
         if session_override is None:
             await session.close()
