@@ -76,11 +76,11 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Admin — User CRM (ADU)
 
-- [ ] **ADU-01**: Admin can view paginated list of all users with search (email, display name) and filters (status, signup date, last activity)
-- [ ] **ADU-02**: Admin can open user detail page showing profile, wallet balance, full transaction history, all bets, ban status
+- [x] **ADU-01**: Admin can view paginated list of all users with search (email, display name) and filters (status, signup date, last activity)
+- [x] **ADU-02**: Admin can open user detail page showing profile, wallet balance, full transaction history, all bets, ban status
 - [ ] **ADU-03**: Admin can manually recharge a user's wallet with stake amount and mandatory reason text; recharge is audit-logged
-- [ ] **ADU-04**: Admin can ban a user (state machine: active → banned); banned user cannot log in or bet; balance is frozen (visible, immutable), never zeroed
-- [ ] **ADU-05**: Admin can unban a user; previously frozen balance is restored as-is
+- [x] **ADU-04**: Admin can ban a user (state machine: active → banned); banned user cannot log in or bet; balance is frozen (visible, immutable), never zeroed
+- [x] **ADU-05**: Admin can unban a user; previously frozen balance is restored as-is
 - [ ] **ADU-06**: Admin can export users / transactions / bets to CSV from admin UI (not exposed to players)
 
 ### Admin — Markets (ADM)
@@ -219,11 +219,11 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | STL-05 | Phase 5 | Pending |
 | STL-06 | Phase 5 | Pending |
 | STL-07 | Phase 5 | Pending |
-| ADU-01 | Phase 8 | Pending |
-| ADU-02 | Phase 8 | Pending |
+| ADU-01 | Phase 8 | Complete |
+| ADU-02 | Phase 8 | Complete |
 | ADU-03 | Phase 5 | Pending |
-| ADU-04 | Phase 8 | Pending |
-| ADU-05 | Phase 8 | Pending |
+| ADU-04 | Phase 8 | Complete |
+| ADU-05 | Phase 8 | Complete |
 | ADU-06 | Phase 8 | Pending |
 | ADM-01 | Phase 4 | Pending |
 | ADM-02 | Phase 4 | Pending |

@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-28T17:29:19.991Z"
-last_activity: 2026-05-28 -- Phase 8 planning complete
+last_updated: "2026-05-28T19:14:02.390Z"
+last_activity: 2026-05-28
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 23
-  completed_plans: 20
+  completed_plans: 21
   percent: 45
 ---
 
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 06 — polymarket-sync-catalog-replication
+**Current focus:** Phase 08 — admin-crm-user-management-audit-log-viewer
 
 ## Current Position
 
-Phase: 06 (polymarket-sync-catalog-replication) — COMPLETE
-Plan: 3 of 3
+Phase: 08 (admin-crm-user-management-audit-log-viewer) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-05-28 -- Phase 8 planning complete
+Last activity: 2026-05-28
 
-Progress: [██████████] 100%
+Progress: [█████████░] 91%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [██████████] 100%
 | Phase 03-wallet-double-entry-ledger P03 | ~5min | 2 tasks | 2 files |
 | Phase 03-wallet-double-entry-ledger P04 | ~13min | 3 tasks tasks | 5 files files |
 | Phase 03-wallet-double-entry-ledger P05 | ~10min | 3 tasks | 8 files |
+| Phase 08 P01 | 27min | 2 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,9 @@ Recent decisions affecting current work:
 - [Phase ?]: Plan 03-03: UserManager.create override (RESEARCH Option A) co-inserts the user_wallet on the adapter's own session between the user INSERT and a SINGLE commit -- user + wallet land atomically (SC#1/WAL-01). The stock fastapi-users SQLAlchemyUserDatabase.create() commits BEFORE on_after_register fires (verified in installed v15.0.5 source), so the hook can never host same-transaction work (Pitfall 1); the override is the fix. WalletService.create_wallet stays add+flush-only (caller-owned tx). Fault injection proves a wallet-creation failure rolls the user back too (no orphan).
 - [Phase ?]: [Phase 03]: 03-04: POST /admin/wallets/{user_id}/recharge -- first money-moving endpoint. Admin-Bearer-gated (current_active_admin), Idempotency-Key required (400 if absent), debits house_promo + credits path user only via WalletService.recharge, money-as-string response (MoneyStr=Annotated[Decimal,PlainSerializer]), wallet.recharge audited. SC#5/WAL-09 firewall: RechargeRequest extra=forbid (no destination field -> dst_user_id is 422) + route inventory + Entry.account_id FK targets accounts only. Audit is action-THEN-audit (recharge self-commits its session.begin(); handler audits + commits after) mirroring the auth surface, NOT same-tx-as-transfer -- avoids rewriting validated 03-02 concurrency code. Two Rule-1 fixes: pre-read autobegan tx -> rollback() before recharge.begin(); session churn expired admin/transfer ORM instances -> capture .id as plain values before commit (MissingGreenlet). WAL-09 complete.
 - [Phase ?]: [Phase 03]: 03-05: player wallet read surface — GET /wallet/me/balance (WAL-03) + GET /wallet/me/transactions (WAL-04), cookie-gated by current_active_player + strictly self-scoped (NO user_id param -> cross-user read structurally impossible, T-03-18); money as JSON string via MoneyStr (SC#4, asserted on the raw wire); get_transactions is read-only offset pagination over the caller's own entries. SC#6/PLT-05 Stripe stub: recharge(payment_provider='stripe') raises NotImplementedError (in the quick non-integration run) + DISABLED 'Add funds' button on the new Next.js /wallet page. Rule-1 fix: wallet/router.py OMITS 'from __future__ import annotations' (FastAPI 3.13 mis-resolved Annotated[Depends] as query params -> 422) — same constraint admin_router.py documents. Phase 3 COMPLETE (6/6).
+- [Phase ?]: Phase 8: added users.created_at (migration 0007) for admin CRM signup sort/filter (ADU-01/D-05)
+- [Phase ?]: Phase 8: login ban check via UserManager.assert_not_banned in login proxy (no on_after_login hook); 403 for valid-but-banned
+- [Phase ?]: Phase 8: audit events admin.user_banned/admin.user_unbanned per CONTEXT D-04/D-13 (D-13 viewer dropdown)
 
 ### Pending Todos
 
@@ -130,6 +134,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-28T16:55:51.751Z
-Stopped at: Phase 8 UI-SPEC approved
-Resume file: .planning/phases/08-admin-crm-user-management-audit-log-viewer/08-UI-SPEC.md
+Last session: 2026-05-28T19:14:02.380Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None

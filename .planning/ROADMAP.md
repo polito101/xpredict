@@ -224,7 +224,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Plans**: 3 plans
 **Plan list**:
-- [ ] 08-01-PLAN.md — Backend API core: user list, detail, ban/unban with 3 enforcement points + integration tests (ADU-01, ADU-02, ADU-04, ADU-05)
+- [x] 08-01-PLAN.md — Backend API core: user list, detail, ban/unban with 3 enforcement points + integration tests (ADU-01, ADU-02, ADU-04, ADU-05)
 - [ ] 08-02-PLAN.md — CSV export with injection protection + audit log read endpoint + tests (ADU-06, ADD-04)
 - [ ] 08-03-PLAN.md — Frontend admin pages: user list, user detail with tabs, audit log viewer, TanStack Table + shadcn (ADU-01, ADU-02, ADU-04, ADU-05, ADU-06, ADD-04)
 **Research/spike flags**: None — TanStack Table v8 + shadcn primitives are well-documented for admin tables.
@@ -308,7 +308,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
 | 6. Polymarket Sync (Catalog Replication) | 3/3 | Complete   | 2026-05-28 |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
-| 8. Admin CRM (User Management & Audit Log Viewer) | 0/TBD | Not started | - |
+| 8. Admin CRM (User Management & Audit Log Viewer) | 1/3 | In Progress|  |
 | 9. User App UX Polish (Market Detail & Real-Time) | 0/TBD | Not started | - |
 | 10. Admin KPI Dashboard & Configurable Branding | 0/TBD | Not started | - |
 | 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
