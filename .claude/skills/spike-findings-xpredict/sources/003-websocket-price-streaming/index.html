@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 003: WebSocket Price Streaming</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --text-dim: #71717a;
+    --green: #22c55e;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --yellow: #eab308;
+    --orange: #f97316;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; background: var(--bg); color: var(--text); padding: 20px; }
+
+  .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .status-live { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .status-reconnecting { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); animation: pulse 1s ease-in-out infinite; }
+  .status-disconnected { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .status-stale { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .controls { display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+  .controls input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    width: 200px;
+  }
+  .controls button {
+    background: var(--blue);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .controls button:hover { filter: brightness(1.1); }
+  .controls button.danger { background: var(--red); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .card h2 { font-size: 13px; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+  .price-display { display: flex; gap: 20px; align-items: center; margin-bottom: 12px; }
+  .price-box {
+    flex: 1;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  .price-box.yes { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); }
+  .price-box.no { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); }
+  .price-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+  .price-value { font-size: 32px; font-weight: 700; }
+  .price-box.yes .price-value { color: var(--green); }
+  .price-box.no .price-value { color: var(--red); }
+  .price-change { font-size: 12px; margin-top: 4px; }
+  .price-up { color: var(--green); }
+  .price-down { color: var(--red); }
+
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .metric { text-align: center; }
+  .metric-value { font-size: 24px; font-weight: 700; color: var(--blue); }
+  .metric-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .chart-container { height: 200px; position: relative; overflow: hidden; }
+  canvas { width: 100%; height: 100%; }
+
+  .event-log {
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  .event-log .entry { padding: 2px 8px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+  .event-log .ts { color: var(--text-dim); min-width: 80px; }
+  .event-log .cat { min-width: 80px; font-weight: 600; }
+  .event-log .cat-price { color: var(--green); }
+  .event-log .cat-ws { color: var(--blue); }
+  .event-log .cat-error { color: var(--red); }
+  .event-log .cat-reconnect { color: var(--yellow); }
+  .event-log .msg { color: var(--text); }
+
+  .full-width { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Spike 003: WebSocket Price Streaming</h1>
+  <span id="statusBadge" class="status-badge status-disconnected">Disconnected</span>
+  <span id="staleBadge" class="status-badge" style="display:none">Stale >30s</span>
+</div>
+
+<div class="controls">
+  <input id="marketInput" type="text" value="market-001" placeholder="Market ID">
+  <button onclick="connectWS()">Connect</button>
+  <button class="danger" onclick="disconnectWS()">Disconnect</button>
+  <button onclick="simulateDisconnect()">Simulate Drop</button>
+  <span id="reconnectInfo" style="color: var(--text-dim); font-size: 12px;"></span>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h2>Live Prices</h2>
+    <div class="price-display">
+      <div class="price-box yes">
+        <div class="price-label">YES</div>
+        <div class="price-value" id="yesPrice">--</div>
+        <div class="price-change" id="yesChange"></div>
+      </div>
+      <div class="price-box no">
+        <div class="price-label">NO</div>
+        <div class="price-value" id="noPrice">--</div>
+        <div class="price-change" id="noChange"></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-value" id="latencyMs">--</div>
+        <div class="metric-label">Latency (ms)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="msgCount">0</div>
+        <div class="metric-label">Messages</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="reconnects">0</div>
+        <div class="metric-label">Reconnects</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value" id="volume24h">--</div>
+        <div class="metric-label">24h Volume</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Price History</h2>
+    <div class="chart-container">
+      <canvas id="priceChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card full-width">
+    <h2>Event Log</h2>
+    <div class="event-log" id="eventLog"></div>
+  </div>
+</div>
+
+<script>
+let ws = null;
+let reconnectAttempt = 0;
+let reconnectTimer = null;
+let stalTimer = null;
+let lastMsgTime = 0;
+let msgCount = 0;
+let reconnectCount = 0;
+let prevYes = null;
+let priceHistory = [];
+const MAX_HISTORY = 100;
+const STALE_THRESHOLD_MS = 30000;
+const MAX_RECONNECT_DELAY_MS = 30000;
+
+// --- Event log ---
+function logEvent(cat, msg) {
+  const log = document.getElementById('eventLog');
+  const ts = new Date().toLocaleTimeString();
+  const catClass = {price: 'cat-price', ws: 'cat-ws', error: 'cat-error', reconnect: 'cat-reconnect'}[cat] || '';
+  const entry = document.createElement('div');
+  entry.className = 'entry';
+  entry.innerHTML = `<span class="ts">${ts}</span><span class="cat ${catClass}">${cat}</span><span class="msg">${msg}</span>`;
+  log.prepend(entry);
+  if (log.children.length > 200) log.removeChild(log.lastChild);
+}
+
+// --- Status badge ---
+function setStatus(status) {
+  const badge = document.getElementById('statusBadge');
+  badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+  badge.className = 'status-badge status-' + status;
+}
+
+// --- Stale detection ---
+function resetStaleTimer() {
+  lastMsgTime = Date.now();
+  document.getElementById('staleBadge').style.display = 'none';
+  clearInterval(stalTimer);
+  stalTimer = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN && Date.now() - lastMsgTime > STALE_THRESHOLD_MS) {
+      document.getElementById('staleBadge').style.display = '';
+      logEvent('error', `No data for ${Math.round((Date.now() - lastMsgTime) / 1000)}s`);
+    }
+  }, 5000);
+}
+
+// --- Price chart (simple canvas) ---
+function drawChart() {
+  const canvas = document.getElementById('priceChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const w = canvas.offsetWidth;
+  const h = canvas.offsetHeight;
+
+  ctx.clearRect(0, 0, w, h);
+
+  if (priceHistory.length < 2) return;
+
+  // Draw grid
+  ctx.strokeStyle = '#2a2d3a';
+  ctx.lineWidth = 1;
+  for (let y = 0; y <= 1; y += 0.25) {
+    const py = h - y * h;
+    ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(w, py); ctx.stroke();
+    ctx.fillStyle = '#71717a';
+    ctx.font = '10px monospace';
+    ctx.fillText((y * 100).toFixed(0) + '%', 4, py - 4);
+  }
+
+  // Draw YES line
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  priceHistory.forEach((p, i) => {
+    const x = (i / (MAX_HISTORY - 1)) * w;
+    const y = h - p.yes * h;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Draw NO line
+  ctx.strokeStyle = '#ef4444';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  priceHistory.forEach((p, i) => {
+    const x = (i / (MAX_HISTORY - 1)) * w;
+    const y = h - p.no * h;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+// --- WebSocket connection ---
+function connectWS() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.close();
+  }
+
+  const marketId = document.getElementById('marketInput').value.trim();
+  if (!marketId) return;
+
+  const url = `ws://${location.host}/ws/prices/${marketId}`;
+  logEvent('ws', `Connecting to ${url}...`);
+  setStatus('reconnecting');
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    setStatus('live');
+    reconnectAttempt = 0;
+    document.getElementById('reconnectInfo').textContent = '';
+    logEvent('ws', 'Connected');
+    resetStaleTimer();
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'pong') return;
+    if (data.type !== 'price_update') return;
+
+    msgCount++;
+    resetStaleTimer();
+
+    const yes = parseFloat(data.yes_price);
+    const no = parseFloat(data.no_price);
+    const latency = data._latency_ms || 0;
+
+    // Update prices
+    document.getElementById('yesPrice').textContent = (yes * 100).toFixed(1) + '%';
+    document.getElementById('noPrice').textContent = (no * 100).toFixed(1) + '%';
+    document.getElementById('latencyMs').textContent = latency.toFixed(1);
+    document.getElementById('msgCount').textContent = msgCount;
+    document.getElementById('volume24h').textContent = '$' + Number(parseFloat(data.volume_24h)).toLocaleString(undefined, {maximumFractionDigits: 0});
+
+    // Change indicators
+    if (prevYes !== null) {
+      const diff = yes - prevYes;
+      const sign = diff > 0 ? '+' : '';
+      const cls = diff > 0 ? 'price-up' : diff < 0 ? 'price-down' : '';
+      document.getElementById('yesChange').className = 'price-change ' + cls;
+      document.getElementById('yesChange').textContent = sign + (diff * 100).toFixed(2) + '%';
+      document.getElementById('noChange').className = 'price-change ' + (diff < 0 ? 'price-up' : diff > 0 ? 'price-down' : '');
+      document.getElementById('noChange').textContent = (diff < 0 ? '+' : '') + (-diff * 100).toFixed(2) + '%';
+    }
+    prevYes = yes;
+
+    // History
+    priceHistory.push({ yes, no, ts: Date.now() });
+    if (priceHistory.length > MAX_HISTORY) priceHistory.shift();
+    drawChart();
+
+    logEvent('price', `YES=${(yes*100).toFixed(1)}% NO=${(no*100).toFixed(1)}% latency=${latency.toFixed(1)}ms seq=${data.seq}`);
+  };
+
+  ws.onclose = (event) => {
+    setStatus('disconnected');
+    logEvent('ws', `Disconnected (code=${event.code}, reason=${event.reason || 'none'})`);
+    scheduleReconnect();
+  };
+
+  ws.onerror = (event) => {
+    logEvent('error', 'WebSocket error');
+  };
+}
+
+// --- Reconnect with exponential backoff ---
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+
+  // Exponential backoff: 1s, 2s, 4s, 8s, ... capped at 30s
+  const delay = Math.min(1000 * Math.pow(2, reconnectAttempt), MAX_RECONNECT_DELAY_MS);
+  const jitter = delay * 0.2 * Math.random();
+  const total = Math.round(delay + jitter);
+
+  reconnectAttempt++;
+  reconnectCount++;
+  document.getElementById('reconnects').textContent = reconnectCount;
+  document.getElementById('reconnectInfo').textContent = `Reconnecting in ${(total/1000).toFixed(1)}s (attempt ${reconnectAttempt})`;
+  setStatus('reconnecting');
+  logEvent('reconnect', `Attempt ${reconnectAttempt} in ${total}ms (backoff: ${delay}ms + jitter: ${Math.round(jitter)}ms)`);
+
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connectWS();
+  }, total);
+}
+
+function disconnectWS() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = null;
+  reconnectAttempt = 0;
+  if (ws) {
+    ws.onclose = () => { setStatus('disconnected'); logEvent('ws', 'Manually disconnected'); };
+    ws.close();
+    ws = null;
+  }
+}
+
+function simulateDisconnect() {
+  if (ws) {
+    logEvent('ws', 'Simulating network drop (close without clean shutdown)');
+    ws.close(4000, 'simulated-drop');
+  }
+}
+
+// Auto-resize chart
+window.addEventListener('resize', drawChart);
+</script>
+
+</body>
+</html>

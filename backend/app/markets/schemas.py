@@ -6,7 +6,14 @@ from decimal import Decimal
 from typing import Generic, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 T = TypeVar("T")
 
@@ -90,11 +97,18 @@ class MarketRead(BaseModel):
     status: str
     deadline: datetime
     bet_count: int
+    volume: Decimal = Decimal("0")
+    volume_24hr: Decimal = Decimal("0")
     created_at: datetime
     updated_at: datetime
     closed_at: datetime | None
     resolved_at: datetime | None
     outcomes: list[OutcomeRead]
+
+    @field_serializer("volume", "volume_24hr")
+    @classmethod
+    def serialize_volume_decimal(cls, v: Decimal) -> str:
+        return str(v)
 
 
 class MarketListItem(BaseModel):
@@ -105,11 +119,36 @@ class MarketListItem(BaseModel):
     slug: str
     category: str | None
     source: str
+    source_market_id: str | None = None
+    polymarket_slug: str | None = None
     status: str
     deadline: datetime
     bet_count: int
     created_at: datetime
+    volume: Decimal = Decimal("0")
+    volume_24hr: Decimal = Decimal("0")
+    source_url: str | None = None
     outcomes: list[OutcomeRead]
+
+    @field_serializer("volume", "volume_24hr")
+    @classmethod
+    def serialize_decimal(cls, v: Decimal) -> str:
+        return str(v)
+
+    @model_validator(mode="after")
+    def compute_source_url(self) -> MarketListItem:
+        """Derive source_url from source + polymarket_slug (T-06-07).
+
+        Uses the Gamma API slug for the URL path — the numeric
+        source_market_id is not a valid Polymarket event URL segment.
+        """
+        if self.source == "POLYMARKET" and self.polymarket_slug:
+            self.source_url = (
+                f"https://polymarket.com/event/{self.polymarket_slug}"
+            )
+        else:
+            self.source_url = None
+        return self
 
 
 def paginated_response(

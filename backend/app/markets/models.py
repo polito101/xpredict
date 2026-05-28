@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID as PyUUID
 from uuid import uuid4
 
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import get_settings
 from app.db.base import Base
+from app.db.types import Money
 from app.db.types import Odds  # integration: odds precision alias (Numeric(8,6), NOT money)
 from app.markets.enums import MarketSourceEnum, MarketStatus
 
@@ -63,6 +65,15 @@ class Market(Base):
     condition_id: Mapped[str | None] = mapped_column(
         String(200), nullable=True,
     )
+    polymarket_slug: Mapped[str | None] = mapped_column(
+        String(300), nullable=True,
+    )
+    volume: Mapped[Money] = mapped_column(
+        server_default="0", default=Decimal("0"),
+    )
+    volume_24hr: Mapped[Money] = mapped_column(
+        server_default="0", default=Decimal("0"),
+    )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="OPEN",
     )
@@ -104,6 +115,16 @@ class Market(Base):
 
 class Outcome(Base):
     __tablename__ = "outcomes"
+    __table_args__ = (
+        CheckConstraint(
+            "initial_odds >= 0 AND initial_odds <= 1",
+            name="ck_outcomes_initial_odds_range",
+        ),
+        CheckConstraint(
+            "current_odds >= 0 AND current_odds <= 1",
+            name="ck_outcomes_current_odds_range",
+        ),
+    )
 
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
@@ -131,6 +152,12 @@ class Outcome(Base):
 
 class OddsSnapshot(Base):
     __tablename__ = "odds_snapshots"
+    __table_args__ = (
+        CheckConstraint(
+            "probability >= 0 AND probability <= 1",
+            name="ck_odds_snapshots_probability_range",
+        ),
+    )
 
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-last_updated: "2026-05-27T16:40:26.125Z"
-last_activity: 2026-05-27
+status: executing
+last_updated: "2026-05-28T09:18:06.141Z"
+last_activity: 2026-05-28 -- Phase 06 merge with main (phases 3+5 integrated)
 progress:
   total_phases: 11
-  completed_phases: 3
-  total_plans: 15
-  completed_plans: 15
+  completed_phases: 5
+  total_plans: 18
+  completed_plans: 18
   percent: 27
 ---
 
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 03 — wallet-double-entry-ledger
+**Current focus:** Phase 06 — polymarket-sync-catalog-replication
 
 ## Current Position
 
-Phase: 03 (wallet-double-entry-ledger) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-05-27
+Phase: 06 (polymarket-sync-catalog-replication) — COMPLETE
+Plan: 3 of 3
+Status: Phase 06 complete — PR #7 open, resolving merge conflicts
+Last activity: 2026-05-28
 
 Progress: [██████████] 100%
 
@@ -130,6 +130,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-27T16:40:08.653Z
-Stopped at: Completed 03-05-PLAN.md (player wallet reads + Stripe stub — WAL-03/WAL-04/SC#4/SC#6; Phase 3 complete 6/6)
+Last session: 2026-05-28T09:18:06.141Z
+Stopped at: Phase 06 merge conflict resolution (integrating main with phases 3+5)
 Resume file: None
