@@ -188,13 +188,14 @@ class MarketService:
         """Return house markets first (by created_at desc), then Polymarket by
         volume_24hr desc (D-01). Home page endpoint — no pagination.
         """
-        # Query 1: house markets, OPEN, ordered by created_at desc
+        # Query 1: house markets, OPEN, ordered by created_at desc, bounded
         house_stmt = (
             select(Market)
             .where(Market.source == MarketSourceEnum.HOUSE.value)
             .where(Market.status == MarketStatus.OPEN.value)
             .options(selectinload(Market.outcomes))
             .order_by(Market.created_at.desc())
+            .limit(50)
         )
         house_result = await session.execute(house_stmt)
         house_markets = list(house_result.scalars().all())
