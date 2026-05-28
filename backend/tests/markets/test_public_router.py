@@ -80,9 +80,10 @@ async def test_public_list_returns_open_markets(engine: AsyncEngine) -> None:
             resp = await c.get("/api/v1/markets")
         assert resp.status_code == 200
         body = resp.json()
-        assert "items" in body
-        assert body["total"] >= 1
-        for item in body["items"]:
+        # Phase 6: response is now a flat list (D-01 house-first sorting)
+        assert isinstance(body, list)
+        assert len(body) >= 1
+        for item in body:
             assert item["status"] == "OPEN"
     finally:
         await _cleanup_admin(engine)
@@ -105,7 +106,8 @@ async def test_public_list_excludes_closed_markets(engine: AsyncEngine) -> None:
 
             resp = await c.get("/api/v1/markets")
         body = resp.json()
-        ids = {item["id"] for item in body["items"]}
+        # Phase 6: response is now a flat list (D-01)
+        ids = {item["id"] for item in body}
         assert market["id"] not in ids
     finally:
         await _cleanup_admin(engine)

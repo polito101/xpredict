@@ -128,24 +128,13 @@ public_market_router = APIRouter(
 )
 
 
-@public_market_router.get("", response_model=PaginatedResponse[MarketListItem])
+@public_market_router.get("", response_model=list[MarketListItem])
 async def list_markets_public(
     session: Annotated[AsyncSession, Depends(get_async_session)],
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=20, ge=1, le=100),
-) -> PaginatedResponse[MarketListItem]:
-    items, total = await MarketService.list_markets(
-        session,
-        page=page,
-        page_size=page_size,
-        status=MarketStatus.OPEN.value,
-    )
-    return paginated_response(
-        [MarketListItem.model_validate(m) for m in items],
-        total,
-        page,
-        page_size,
-    )
+) -> list[MarketListItem]:
+    """Public home page market list — house first, then Polymarket by volume (D-01)."""
+    markets = await MarketService.list_home_markets(session)
+    return [MarketListItem.model_validate(m) for m in markets]
 
 
 @public_market_router.get("/{slug}", response_model=MarketRead)

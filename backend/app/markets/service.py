@@ -184,6 +184,36 @@ class MarketService:
         return market
 
     @staticmethod
+    async def list_home_markets(session: AsyncSession) -> list[Market]:
+        """Return house markets first (by created_at desc), then Polymarket by
+        volume_24hr desc (D-01). Home page endpoint — no pagination.
+        """
+        # Query 1: house markets, OPEN, ordered by created_at desc
+        house_stmt = (
+            select(Market)
+            .where(Market.source == MarketSourceEnum.HOUSE.value)
+            .where(Market.status == MarketStatus.OPEN.value)
+            .options(selectinload(Market.outcomes))
+            .order_by(Market.created_at.desc())
+        )
+        house_result = await session.execute(house_stmt)
+        house_markets = list(house_result.scalars().all())
+
+        # Query 2: Polymarket markets, OPEN, ordered by volume_24hr desc, limit 25
+        pm_stmt = (
+            select(Market)
+            .where(Market.source == MarketSourceEnum.POLYMARKET.value)
+            .where(Market.status == MarketStatus.OPEN.value)
+            .options(selectinload(Market.outcomes))
+            .order_by(Market.volume_24hr.desc())
+            .limit(25)
+        )
+        pm_result = await session.execute(pm_stmt)
+        pm_markets = list(pm_result.scalars().all())
+
+        return house_markets + pm_markets
+
+    @staticmethod
     async def list_markets(
         session: AsyncSession,
         *,

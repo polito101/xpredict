@@ -6,7 +6,14 @@ from decimal import Decimal
 from typing import Generic, TypeVar
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 T = TypeVar("T")
 
@@ -105,11 +112,31 @@ class MarketListItem(BaseModel):
     slug: str
     category: str | None
     source: str
+    source_market_id: str | None = None
     status: str
     deadline: datetime
     bet_count: int
     created_at: datetime
+    volume: Decimal = Decimal("0")
+    volume_24hr: Decimal = Decimal("0")
+    source_url: str | None = None
     outcomes: list[OutcomeRead]
+
+    @field_serializer("volume", "volume_24hr")
+    @classmethod
+    def serialize_decimal(cls, v: Decimal) -> str:
+        return str(v)
+
+    @model_validator(mode="after")
+    def compute_source_url(self) -> MarketListItem:
+        """Derive source_url from source + source_market_id (T-06-07)."""
+        if self.source == "POLYMARKET" and self.source_market_id:
+            self.source_url = (
+                f"https://polymarket.com/event/{self.source_market_id}"
+            )
+        else:
+            self.source_url = None
+        return self
 
 
 def paginated_response(
