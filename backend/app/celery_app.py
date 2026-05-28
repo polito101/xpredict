@@ -38,6 +38,9 @@ celery_app = Celery(
     "xpredict",
     broker=str(settings.REDIS_URL),
     backend=str(settings.REDIS_URL),
+    include=[
+        "app.integrations.polymarket.tasks",
+    ],
 )
 celery_app.conf.beat_scheduler = "redbeat.RedBeatScheduler"
 celery_app.conf.redbeat_redis_url = str(settings.REDIS_URL)
