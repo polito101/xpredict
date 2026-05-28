@@ -16,8 +16,10 @@ from decimal import Decimal
 from uuid import UUID
 
 import structlog
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -78,9 +80,10 @@ class PolymarketAdapter:
         """
         synced = 0
         for raw in raw_markets:
+            # --- Phase 1: Parse (ValidationError only) ---
             try:
                 parsed = GammaMarket.model_validate(raw)
-            except Exception:
+            except ValidationError:
                 log.warning("gamma.parse_failed", raw_id=raw.get("id"))
                 continue
 
@@ -98,81 +101,90 @@ class PolymarketAdapter:
                 or "Resolution via Polymarket UMA oracle"
             )
 
-            # Upsert market
-            market_values = {
-                "source": MarketSourceEnum.POLYMARKET.value,
-                "source_market_id": parsed.id,
-                "condition_id": parsed.condition_id,
-                "question": parsed.question,
-                "slug": slug,
-                "polymarket_slug": parsed.slug,
-                "status": parsed.internal_status.value,
-                "volume": parsed.volume,
-                "volume_24hr": parsed.volume_24hr_decimal,
-                "deadline": deadline,
-                "resolution_criteria": description,
-            }
+            # --- Phase 2: DB upsert (IntegrityError handled separately) ---
+            try:
+                # Upsert market
+                market_values = {
+                    "source": MarketSourceEnum.POLYMARKET.value,
+                    "source_market_id": parsed.id,
+                    "condition_id": parsed.condition_id,
+                    "question": parsed.question,
+                    "slug": slug,
+                    "polymarket_slug": parsed.slug,
+                    "status": parsed.internal_status.value,
+                    "volume": parsed.volume,
+                    "volume_24hr": parsed.volume_24hr_decimal,
+                    "deadline": deadline,
+                    "resolution_criteria": description,
+                }
 
-            stmt = pg_insert(Market).values(**market_values)
-            stmt = stmt.on_conflict_do_update(
-                index_elements=["source", "source_market_id"],
-                index_where=Market.source_market_id.isnot(None),
-                set_={
-                    "question": stmt.excluded.question,
-                    "status": stmt.excluded.status,
-                    "volume": stmt.excluded.volume,
-                    "volume_24hr": stmt.excluded.volume_24hr,
-                    "updated_at": datetime.now(UTC),
-                },
-            )
-            await session.execute(stmt)
+                stmt = pg_insert(Market).values(**market_values)
+                stmt = stmt.on_conflict_do_update(
+                    index_elements=["source", "source_market_id"],
+                    index_where=Market.source_market_id.isnot(None),
+                    set_={
+                        "question": stmt.excluded.question,
+                        "status": stmt.excluded.status,
+                        "volume": stmt.excluded.volume,
+                        "volume_24hr": stmt.excluded.volume_24hr,
+                        "updated_at": datetime.now(UTC),
+                    },
+                )
+                await session.execute(stmt)
 
-            # After upsert, fetch the market to get its id for outcomes.
-            market_row = await session.execute(
-                select(Market).where(
-                    Market.source == MarketSourceEnum.POLYMARKET.value,
-                    Market.source_market_id == parsed.id,
-                ),
-            )
-            market = market_row.scalar_one_or_none()
-            if market is None:
-                continue
+                # After upsert, fetch the market to get its id for outcomes.
+                market_row = await session.execute(
+                    select(Market).where(
+                        Market.source == MarketSourceEnum.POLYMARKET.value,
+                        Market.source_market_id == parsed.id,
+                    ),
+                )
+                market = market_row.scalar_one_or_none()
+                if market is None:
+                    continue
 
-            # Upsert YES and NO outcomes with current odds.
-            if parsed.outcomes_raw and parsed.outcome_prices_raw:
-                for idx, label in enumerate(parsed.outcomes_raw[:2]):
-                    price = (
-                        Decimal(parsed.outcome_prices_raw[idx])
-                        if idx < len(parsed.outcome_prices_raw)
-                        else Decimal("0.5")
-                    )
-                    # Outcomes don't have a unique constraint for upsert,
-                    # so we check existence first and update if present.
-                    existing = await session.execute(
-                        select(Outcome).where(
-                            Outcome.market_id == market.id,
-                            Outcome.label == label[:50],
-                        ),
-                    )
-                    existing_outcome = existing.scalar_one_or_none()
-                    if existing_outcome:
-                        existing_outcome.current_odds = price
-                    else:
-                        session.add(
-                            Outcome(
-                                market_id=market.id,
-                                label=label[:50],
-                                initial_odds=price,
-                                current_odds=price,
+                # Upsert YES and NO outcomes with current odds.
+                if parsed.outcomes_raw and parsed.outcome_prices_raw:
+                    for idx, label in enumerate(parsed.outcomes_raw[:2]):
+                        price = (
+                            Decimal(parsed.outcome_prices_raw[idx])
+                            if idx < len(parsed.outcome_prices_raw)
+                            else Decimal("0.5")
+                        )
+                        # Outcomes don't have a unique constraint for upsert,
+                        # so we check existence first and update if present.
+                        existing = await session.execute(
+                            select(Outcome).where(
+                                Outcome.market_id == market.id,
+                                Outcome.label == label[:50],
                             ),
                         )
+                        existing_outcome = existing.scalar_one_or_none()
+                        if existing_outcome:
+                            existing_outcome.current_odds = price
+                        else:
+                            session.add(
+                                Outcome(
+                                    market_id=market.id,
+                                    label=label[:50],
+                                    initial_odds=price,
+                                    current_odds=price,
+                                ),
+                            )
 
-            await session.flush()
-            synced += 1
-            log.info(
-                "market.synced",
-                source_market_id=parsed.id,
-                status=parsed.internal_status.value,
-            )
+                await session.flush()
+                synced += 1
+                log.info(
+                    "market.synced",
+                    source_market_id=parsed.id,
+                    status=parsed.internal_status.value,
+                )
+            except IntegrityError:
+                await session.rollback()
+                log.warning(
+                    "gamma.upsert_conflict",
+                    source_market_id=parsed.id,
+                )
+                continue
 
         return synced
