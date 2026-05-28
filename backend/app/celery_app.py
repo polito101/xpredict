@@ -41,7 +41,18 @@ celery_app = Celery(
 )
 celery_app.conf.beat_scheduler = "redbeat.RedBeatScheduler"
 celery_app.conf.redbeat_redis_url = str(settings.REDIS_URL)
-celery_app.conf.beat_schedule = {}  # Phases 2-9 append tasks here
+celery_app.conf.beat_schedule = {
+    # Phase 6 — Polymarket sync (MKT-05, MKT-06)
+    "poll-polymarket-top25": {
+        "task": "app.integrations.polymarket.tasks.poll_polymarket_top25",
+        "schedule": 30.0,
+    },
+    "snapshot-odds": {
+        "task": "app.integrations.polymarket.tasks.snapshot_odds",
+        "schedule": 300.0,
+    },
+    # Phases 7-9 append tasks here
+}
 # Route all tasks to the "default" queue so worker (-Q default) picks them up.
 # Without this, Celery's library default is "celery" and tasks queue there
 # while the worker idles on "default" (silent stall in production).
