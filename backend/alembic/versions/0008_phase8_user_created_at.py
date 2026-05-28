@@ -1,7 +1,7 @@
 """Phase 8 (Plan 08-01): add users.created_at for the admin CRM.
 
-Revision ID: 0007_phase8_user_created_at
-Revises: 0006_merge_phase5_phase6
+Revision ID: 0008_phase8_user_created_at
+Revises: 0007_phase7_grace_period
 Create Date: 2026-05-28
 
 The fastapi-users base ``users`` table (migration 0002) ships id / email /
@@ -23,8 +23,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0007_phase8_user_created_at"
-down_revision: str | None = "0006_merge_phase5_phase6"
+revision: str = "0008_phase8_user_created_at"
+down_revision: str | None = "0007_phase7_grace_period"
 branch_labels: str | None = None
 depends_on: str | None = None
 

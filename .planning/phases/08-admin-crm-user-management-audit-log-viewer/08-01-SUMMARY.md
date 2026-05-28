@@ -38,7 +38,7 @@ key-files:
     - backend/app/admin/schemas.py
     - backend/app/admin/service.py
     - backend/app/admin/router.py
-    - backend/alembic/versions/0007_phase8_user_created_at.py
+    - backend/alembic/versions/0008_phase8_user_created_at.py
     - backend/tests/admin/_helpers.py
     - backend/tests/admin/conftest.py
     - backend/tests/admin/test_user_list.py
@@ -101,7 +101,7 @@ _TDD note: both tasks are `tdd="true"`. The feature is integration-test-driven (
 - `backend/app/admin/router.py` — `admin_crm_router` with the 6 endpoints (no `from __future__ import annotations`).
 - `backend/app/main.py` — include `admin_crm_router`.
 - `backend/app/auth/models.py` — add `User.created_at` (signup timestamp).
-- `backend/alembic/versions/0007_phase8_user_created_at.py` — additive migration for `users.created_at` (server_default now()).
+- `backend/alembic/versions/0008_phase8_user_created_at.py` — additive migration for `users.created_at` (server_default now()).
 - `backend/app/auth/manager.py` — `UserManager.assert_not_banned` (login ban check).
 - `backend/app/auth/router.py` — call `assert_not_banned` in the player login proxy (403).
 - `backend/app/wallet/admin_router.py` — inline `banned_at` check on the recharge TARGET user (403).
@@ -119,8 +119,8 @@ _TDD note: both tasks are `tdd="true"`. The feature is integration-test-driven (
 **1. [Rule 2 - Missing Critical] Added `users.created_at` column + migration 0007**
 - **Found during:** Task 1 (user list service) — first test run failed with `AttributeError: type object 'User' has no attribute 'created_at'`.
 - **Issue:** The plan's `UserListItem.created_at`, the `signup_after`/`signup_before` filters, and `sort_by=created_at` (all from D-05) require a per-user signup timestamp that did not exist on the `users` table.
-- **Fix:** Added `User.created_at` (`Mapped[datetime]`, server_default `now()`, Python default `datetime.now(UTC)`) and Alembic migration `0007_phase8_user_created_at` (additive, backfills existing rows). Single alembic head preserved.
-- **Files modified:** `backend/app/auth/models.py`, `backend/alembic/versions/0007_phase8_user_created_at.py`
+- **Fix:** Added `User.created_at` (`Mapped[datetime]`, server_default `now()`, Python default `datetime.now(UTC)`) and Alembic migration `0008_phase8_user_created_at` (additive, backfills existing rows). Single alembic head preserved.
+- **Files modified:** `backend/app/auth/models.py`, `backend/alembic/versions/0008_phase8_user_created_at.py`
 - **Verification:** `uv run alembic heads` → single head; admin list/sort/filter tests pass.
 - **Committed in:** `ad1578d`
 
@@ -165,7 +165,7 @@ None — all endpoints are wired to real queries. `UserDetail.email_verified_at`
 - `uv run ruff check app/admin/` → clean. `uv run mypy app/admin/` → clean.
 - `uv run python scripts/lint_money_columns.py` → OK, 0 warnings.
 - `gitleaks protect --staged` (both commits) → no leaks.
-- `uv run alembic heads` → single head `0007_phase8_user_created_at`.
+- `uv run alembic heads` → single head `0008_phase8_user_created_at`.
 
 ## User Setup Required
 None — no external service configuration required.
