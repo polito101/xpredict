@@ -17,10 +17,10 @@ interface SourceBadgeProps {
 }
 
 export function SourceBadge({ source, sourceUrl }: SourceBadgeProps) {
-  if (source === "POLYMARKET") {
+  if (source === "POLYMARKET" && sourceUrl) {
     return (
       <a
-        href={sourceUrl ?? "#"}
+        href={sourceUrl}
         target="_blank"
         rel="noopener noreferrer"
         aria-label="View on Polymarket (opens in new tab)"
@@ -36,6 +36,20 @@ export function SourceBadge({ source, sourceUrl }: SourceBadgeProps) {
           Polymarket
         </Badge>
       </a>
+    );
+  }
+
+  if (source === "POLYMARKET") {
+    return (
+      <Badge
+        variant="secondary"
+        className={cn(
+          "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+          "text-xs",
+        )}
+      >
+        Polymarket
+      </Badge>
     );
   }
 
