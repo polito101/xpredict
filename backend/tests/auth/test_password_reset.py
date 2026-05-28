@@ -65,7 +65,7 @@ async def _request_reset_and_capture_token(
 
     captured: list[str] = []
 
-    async def _mock_send_reset(*, to: str, token: str) -> None:
+    async def _mock_send_reset(*_args: object, to: str, token: str) -> None:
         captured.append(token)
 
     monkeypatch.setattr(
