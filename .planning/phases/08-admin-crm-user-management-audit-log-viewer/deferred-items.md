@@ -45,3 +45,32 @@ the executor SCOPE BOUNDARY); logged for the PM / a future hardening pass.
   has an arg-count `TypeError` + no mailpit DNS in this env) and
   `tests/test_gitleaks_blocks_secret.py::test_gitleaks_clean_scan_of_full_repo`
   (full-repo scan). None are caused by Phase 8 changes.
+
+## 08-02
+
+- **`tests/core/test_audit_immutability.py::test_audit_log_delete_blocked` fails
+  ONLY in-file-order (pre-existing savepoint flaw, NOT introduced here).** Running
+  the file as a group fails the 4th test with an `InFailedSQLTransactionError`
+  on its `INSERT INTO audit_log` — the prior `test_audit_log_update_blocked`
+  raises a `DBAPIError` WITHOUT wrapping it in `session.begin_nested()`, so the
+  abort poisons the shared session-scoped transaction and the next statement
+  fails. The SAME test PASSES in isolation
+  (`pytest tests/core/test_audit_immutability.py::test_audit_log_delete_blocked`
+  -> 1 passed). This is the EXACT latent flaw already logged in
+  `STATE.md` (2026-05-27, Plan 03-01: "the pre-existing
+  `tests/core/test_audit_immutability.py` has this latent flaw — fails on its 4th
+  test under `-x` … logged for a follow-up retrofit"). It is entirely independent
+  of the 08-02 read-only audit viewer (which never UPDATEs/DELETEs audit rows).
+  Fix is a one-line savepoint wrap in that test file — out of scope here
+  (pre-existing test-infra bug in a file this plan does not touch).
+
+- **`tests/wallet/test_concurrent_transfers.py::test_50_concurrent_overdraft`
+  fails ONLY under multi-group async load (pre-existing Windows isolation flake,
+  NOT introduced here).** When run alongside other suites
+  (`tests/admin tests/wallet tests/bets` together) the 50-concurrent-overdraft
+  SELECT-FOR-UPDATE test fails; run in isolation
+  (`pytest tests/wallet/test_concurrent_transfers.py`) it PASSES (1 passed). This
+  is the documented session-scoped-testcontainer-engine collapse under full/large
+  async load that makes this stack "CI-Linux-only, won't true-green on Windows"
+  (see 08-01 note above + STATE.md). 08-02 changes are read-only (export queries +
+  audit viewer) and touch NONE of the wallet concurrency write path.

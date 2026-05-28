@@ -81,7 +81,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **ADU-03**: Admin can manually recharge a user's wallet with stake amount and mandatory reason text; recharge is audit-logged
 - [x] **ADU-04**: Admin can ban a user (state machine: active → banned); banned user cannot log in or bet; balance is frozen (visible, immutable), never zeroed
 - [x] **ADU-05**: Admin can unban a user; previously frozen balance is restored as-is
-- [ ] **ADU-06**: Admin can export users / transactions / bets to CSV from admin UI (not exposed to players)
+- [x] **ADU-06**: Admin can export users / transactions / bets to CSV from admin UI (not exposed to players)
 
 ### Admin — Markets (ADM)
 
@@ -98,7 +98,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **ADD-01**: Admin landing page after login is the KPI dashboard, not the user list
 - [ ] **ADD-02**: KPI dashboard shows: 24h volume, daily active users, total active markets, pending resolutions count, house P&L (today + cumulative)
 - [ ] **ADD-03**: KPI dashboard uses Recharts for volume-over-time visualization, with daily granularity for first 30 days
-- [ ] **ADD-04**: Admin can view audit log: chronological, filterable by event_type and actor, immutable (read-only UI; underlying table has UPDATE/DELETE trigger block)
+- [x] **ADD-04**: Admin can view audit log: chronological, filterable by event_type and actor, immutable (read-only UI; underlying table has UPDATE/DELETE trigger block)
 - [ ] **ADD-05**: Admin can configure instance branding: brand name, logo image, primary/secondary palette colors — stored in single-row TenantConfig
 - [ ] **ADD-06**: Player-facing UI reads branding config at runtime; changes apply on next page navigation (no rebuild required)
 
@@ -224,7 +224,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADU-03 | Phase 5 | Pending |
 | ADU-04 | Phase 8 | Complete |
 | ADU-05 | Phase 8 | Complete |
-| ADU-06 | Phase 8 | Pending |
+| ADU-06 | Phase 8 | Complete |
 | ADM-01 | Phase 4 | Pending |
 | ADM-02 | Phase 4 | Pending |
 | ADM-03 | Phase 4 | Pending |
@@ -235,7 +235,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADD-01 | Phase 10 | Pending |
 | ADD-02 | Phase 10 | Pending |
 | ADD-03 | Phase 10 | Pending |
-| ADD-04 | Phase 8 | Pending |
+| ADD-04 | Phase 8 | Complete |
 | ADD-05 | Phase 10 | Pending |
 | ADD-06 | Phase 10 | Pending |
 | PLT-01 | Phase 1 | Done (01-03: audit_log + feature_flags both ship tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'; integration test test_tenant_id_default green) |

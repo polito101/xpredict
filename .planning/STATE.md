@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-28T19:14:02.390Z"
+last_updated: "2026-05-28T21:45:32.635Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 11
   completed_phases: 5
-  total_plans: 23
-  completed_plans: 21
+  total_plans: 26
+  completed_plans: 22
   percent: 45
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 08 (admin-crm-user-management-audit-log-viewer) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-28
 
-Progress: [█████████░] 91%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ Progress: [█████████░] 91%
 | Phase 03-wallet-double-entry-ledger P04 | ~13min | 3 tasks tasks | 5 files files |
 | Phase 03-wallet-double-entry-ledger P05 | ~10min | 3 tasks | 8 files |
 | Phase 08 P01 | 27min | 2 tasks | 17 files |
+| Phase 08 P08-02 | 12min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Phase 8: added users.created_at (migration 0007) for admin CRM signup sort/filter (ADU-01/D-05)
 - [Phase ?]: Phase 8: login ban check via UserManager.assert_not_banned in login proxy (no on_after_login hook); 403 for valid-but-banned
 - [Phase ?]: Phase 8: audit events admin.user_banned/admin.user_unbanned per CONTEXT D-04/D-13 (D-13 viewer dropdown)
+- [Phase ?]: 2026-05-28 (Plan 08-02): CSV export with formula-injection protection — sanitize_csv_cell prefixes a single quote to any cell starting with = + - @ TAB CR (D-09/T-08-05/OWASP); money as str(Decimal), ISO 8601 UTC, MAX_EXPORT_ROWS=10000 cap; stdlib csv.DictWriter batch (D-10). 3 admin-Bearer-gated export endpoints reuse the 08-01 user-list filters.
+- [Phase ?]: 2026-05-28 (Plan 08-02): audit-log viewer is strictly read-only (GET-only audit_admin_router, mutation methods 405) on top of the Phase 1 DB immutability trigger+REVOKE (T-08-07); JSONB payload returned as a raw JSON object (D-12); KNOWN_EVENT_TYPES (19) for the D-13 dropdown; actor ILIKE reuses _escape_like wildcard guard (T-08-08).
 
 ### Pending Todos
 
@@ -134,6 +137,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-28T19:14:02.380Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-05-28T21:45:08.389Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
