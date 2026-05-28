@@ -11,7 +11,6 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
-    Numeric,
     String,
     Text,
     func,
@@ -22,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.types import Money
+from app.db.types import Odds  # integration: odds precision alias (Numeric(8,6), NOT money)
 from app.markets.enums import MarketSourceEnum, MarketStatus
 
 
@@ -139,8 +139,8 @@ class Outcome(Base):
         index=True,
     )
     label: Mapped[str] = mapped_column(String(50), nullable=False)
-    initial_odds: Mapped[Decimal] = mapped_column(Numeric(8, 6), nullable=False)
-    current_odds: Mapped[Decimal] = mapped_column(Numeric(8, 6), nullable=False)
+    initial_odds: Mapped[Odds] = mapped_column()
+    current_odds: Mapped[Odds] = mapped_column()
     tenant_id: Mapped[PyUUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
@@ -177,7 +177,7 @@ class OddsSnapshot(Base):
         nullable=False,
         index=True,
     )
-    probability: Mapped[Decimal] = mapped_column(Numeric(8, 6), nullable=False)
+    probability: Mapped[Odds] = mapped_column()
     snapshot_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(),
     )

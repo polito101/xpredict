@@ -11,6 +11,7 @@ the shape.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 from uuid import UUID
@@ -71,6 +72,13 @@ class Settings(BaseSettings):
     # Mirrors SECRET_KEY but exposed to Next.js middleware for HS256 verify.
     # Symmetric (A8); RS256 would split this into a public-key file in Phase 11.
     ADMIN_JWT_PUBLIC_SECRET: str | None = None
+
+    # -------------------------------------------------------------------------
+    # Phase 5 — Bets & Settlement (WAL-02 / ADU-03)
+    # -------------------------------------------------------------------------
+    SIGNUP_BONUS_AMOUNT: Decimal = Decimal("1000.0000")
+    BET_MIN_STAKE: Decimal = Decimal("1.0000")
+    BET_MAX_STAKE: Decimal = Decimal("100000.0000")
 
     # -------------------------------------------------------------------------
     # Phase 6 — Polymarket Sync (MKT-05, MKT-06)

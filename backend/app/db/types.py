@@ -19,3 +19,10 @@ from sqlalchemy.orm import mapped_column
 
 Money = Annotated[Decimal, mapped_column(Numeric(18, 4), nullable=False)]
 """18-digit precision, 4-digit scale Decimal — never Float, never Postgres MONEY."""
+
+Odds = Annotated[Decimal, mapped_column(Numeric(8, 6), nullable=False)]
+"""A probability/price in (0, 1] — the odds precision (``Numeric(8, 6)``) Phase 4 uses
+for market outcomes (``Outcome.current_odds``). Deliberately DISTINCT from :data:`Money`:
+odds are NOT money, and this dedicated alias keeps ``scripts/lint_money_columns.py`` green
+(the lint requires money columns to be ``Numeric(18, 4)``; odds are a different scale). A
+bet locks the chosen outcome's odds at placement in ``Bet.odds_at_placement``."""
