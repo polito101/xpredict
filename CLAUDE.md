@@ -41,9 +41,9 @@ Every phase completes this flow before a PR can be opened:
 4. `/gsd-verify-work`    → generates `.planning/phases/XX/VERIFICATION.md`
 5. `/gsd-code-review`
 6. ✏️ AI marks `PHASES.md` → `👀 In review` + PR number and commits
-7. `/gsd-ship`           → opens the PR via GitHub MCP
+7. `/gsd-ship`           → opens the PR (via `gh` or the GitHub MCP)
 
-PR creation is blocked automatically if `PLAN.md` or `VERIFICATION.md` are missing.
+PR creation is no longer hook-blocked (the `check-phase-ready` gate was removed 2026-05-28). `PLAN.md` and `VERIFICATION.md` are still expected per the workflow above — enforcement is now on the dev/PM, not a hook.
 
 > **Light mode:** for straightforward phases use `/gsd-autonomous` — it covers steps 2–5 and 7 in one command. Steps 1 and 6 are always done by the AI automatically.
 
@@ -65,9 +65,9 @@ Reserve inline execution for strictly-sequential or shared-state steps.
 
 ## Branches & PRs
 - **Per-phase branches** (`branching_strategy: "phase"`, template `gsd/phase-{phase}-{slug}`). Never commit directly to `main`.
-- **1 PR per phase.** Open PRs **via the GitHub MCP** (`create_pull_request`), not `gh`.
+- **1 PR per phase** — though Pol may approve a **consolidated PR bundling multiple phases**. Open PRs with the **GitHub CLI** (`gh pr create`) or the GitHub MCP (`create_pull_request`). Never push to `main`.
 - Before opening, compare `PLAN.md` vs. what was implemented and produce the PR body.
-- Only the PM approves/merges. A PR without a matching `PLAN.md` is blocked automatically.
+- Only the PM approves/merges. (The automatic `check-phase-ready` PR-gate hook was removed 2026-05-28 — a matching `PLAN.md` is still expected, but no longer hook-enforced.)
 
 ## Slack
 - `#general` — PR + merge notifications via native GitHub↔Slack integration.

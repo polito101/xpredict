@@ -11,6 +11,7 @@ the shape.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 from uuid import UUID
@@ -71,6 +72,18 @@ class Settings(BaseSettings):
     # Mirrors SECRET_KEY but exposed to Next.js middleware for HS256 verify.
     # Symmetric (A8); RS256 would split this into a public-key file in Phase 11.
     ADMIN_JWT_PUBLIC_SECRET: str | None = None
+
+    # -------------------------------------------------------------------------
+    # Phase 5 — Bets & Settlement (WAL-02 / ADU-03)
+    # -------------------------------------------------------------------------
+    # One-time sign-up bonus credited to a player's wallet on email verification
+    # (SC#4). PLAY_USD, Decimal end-to-end (PITFALLS #4). Operator-tunable via env.
+    SIGNUP_BONUS_AMOUNT: Decimal = Decimal("1000.0000")
+    # Per-bet stake limits (SC#3), server-enforced on POST /bets. PLAY_USD, Decimal.
+    # These are TENANT-level defaults; per-market overrides + an operator CRUD are Phase 10
+    # (TenantConfig). Operator-tunable via env (BET_MIN_STAKE / BET_MAX_STAKE).
+    BET_MIN_STAKE: Decimal = Decimal("1.0000")
+    BET_MAX_STAKE: Decimal = Decimal("100000.0000")
 
     @property
     def is_dev(self) -> bool:

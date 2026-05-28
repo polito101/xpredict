@@ -37,10 +37,14 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.auth.rate_limit import limiter
 from app.auth.router import build_auth_routers
+from app.bets.router import bets_router
 from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
 from app.routers import health
+from app.settlement.router import settlement_admin_router
+from app.wallet.admin_router import wallet_admin_router
+from app.wallet.router import wallet_router
 
 # Read settings at module load — explicit Settings() per D-09; tests can patch this.
 settings = Settings()
@@ -138,6 +142,10 @@ app.include_router(health.router)
 app.include_router(build_auth_routers())
 app.include_router(admin_market_router)
 app.include_router(public_market_router)
+app.include_router(wallet_admin_router)
+app.include_router(wallet_router)
+app.include_router(bets_router)
+app.include_router(settlement_admin_router)
 
 
 @app.api_route("/_sentry-test", methods=["GET", "HEAD"])
