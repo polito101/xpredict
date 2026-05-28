@@ -97,11 +97,18 @@ class MarketRead(BaseModel):
     status: str
     deadline: datetime
     bet_count: int
+    volume: Decimal = Decimal("0")
+    volume_24hr: Decimal = Decimal("0")
     created_at: datetime
     updated_at: datetime
     closed_at: datetime | None
     resolved_at: datetime | None
     outcomes: list[OutcomeRead]
+
+    @field_serializer("volume", "volume_24hr")
+    @classmethod
+    def serialize_volume_decimal(cls, v: Decimal) -> str:
+        return str(v)
 
 
 class MarketListItem(BaseModel):
