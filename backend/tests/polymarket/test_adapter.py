@@ -43,15 +43,44 @@ class TestProtocolConformance:
         assert isinstance(adapter, MarketSource)
 
     @pytest.mark.asyncio
-    async def test_detect_resolution_returns_none(self) -> None:
-        """Phase 6 stub — detect_resolution always returns None."""
+    async def test_detect_resolution_returns_none_for_closed_proposed(self) -> None:
+        """detect_resolution returns None when Gamma reports closed=true, proposed (SC#3)."""
+        from unittest.mock import AsyncMock, MagicMock, patch
         from uuid import uuid4
 
-        from unittest.mock import AsyncMock
+        from app.markets.enums import MarketSourceEnum
+
+        market_id = uuid4()
+        fake_market = MagicMock()
+        fake_market.source_market_id = "gamma-123"
+        fake_market.source = MarketSourceEnum.POLYMARKET.value
+        fake_market.outcomes = []
+
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = fake_market
+
+        session = AsyncMock()
+        session.execute = AsyncMock(return_value=mock_result)
+
+        closed_proposed_raw = {
+            "id": "gamma-123",
+            "question": "Will it happen?",
+            "closed": True,
+            "umaResolutionStatus": "proposed",
+            "outcomePrices": '["0.5","0.5"]',
+            "outcomes": '["Yes","No"]',
+        }
 
         adapter = PolymarketAdapter()
-        session = AsyncMock()
-        result = await adapter.detect_resolution(session, uuid4())
+        with patch(
+            "app.integrations.polymarket.adapter.GammaClient.fetch_market_by_id",
+            new=AsyncMock(return_value=closed_proposed_raw),
+        ), patch(
+            "app.integrations.polymarket.adapter.GammaClient.close",
+            new=AsyncMock(),
+        ):
+            result = await adapter.detect_resolution(session, market_id)
+
         assert result is None
 
 
