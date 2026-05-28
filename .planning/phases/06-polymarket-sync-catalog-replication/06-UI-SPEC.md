@@ -48,7 +48,7 @@ Exceptions: none
 | Role | Size | Weight | Line Height | Usage in this phase |
 |------|------|--------|-------------|---------------------|
 | Body | 14px (`text-sm`) | 400 (normal) | 1.5 (`leading-normal`) | Market card metadata: volume, deadline, odds values |
-| Label | 12px (`text-xs`) | 500 (medium) | 1.4 | Source badge text, secondary metadata labels |
+| Label | 12px (`text-xs`) | 400 (normal) | 1.4 | Source badge text, secondary metadata labels |
 | Heading | 20px (`text-xl`) | 600 (semibold) | 1.3 (`leading-tight`) | Page heading "Markets" |
 | Card Title | 16px (`text-base`) | 600 (semibold) | 1.4 (`leading-snug`) | Market question text on each card |
 
@@ -170,8 +170,8 @@ Accent reserved for: primary action buttons (Phase 5 "Place Bet" will use this),
 ### Odds display
 
 - YES and NO percentages displayed as integers: `Math.round(odds * 100)` + `%`
-- YES text uses `text-emerald-700 dark:text-emerald-400 font-medium`
-- NO text uses `text-rose-700 dark:text-rose-400 font-medium`
+- YES text uses `text-emerald-700 dark:text-emerald-400 font-normal`
+- NO text uses `text-rose-700 dark:text-rose-400 font-normal`
 - Layout: flex row with `justify-between`, labels "YES" and "NO" as `text-xs uppercase tracking-wide text-zinc-500`
 
 ### Volume formatting
