@@ -24,7 +24,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [ ] **Phase 3: Wallet & Double-Entry Ledger** - `accounts` + `transfers` + `entries` schema (append-only, immutable, ACID-bound), `NUMERIC(18,4)` everywhere, idempotent transfers, `CHECK (balance >= 0)`, admin recharge primitive, Stripe stub interface, nightly reconciliation.
 - [ ] **Phase 4: Markets Domain & HouseAdapter** - `MarketSource` Protocol, Market/Outcome/OddsSnapshot models, HouseAdapter implementation, admin CRUD for house markets (create/edit-while-zero-bets/close), criteria locked at first bet.
 - [ ] **Phase 5: Bets, Settlement & First End-to-End Demo (House Markets Only)** - Place-bet flow (ACID-wrapped, idempotent), portfolio with P&L, sign-up bonus on email verify, admin two-step resolve with mandatory justification, idempotent SettlementService, reversal path. **First demoable happy path lands here.**
-- [ ] **Phase 6: Polymarket Sync (Catalog Replication)** - Custom httpx + tenacity Gamma client, PolymarketAdapter implements `MarketSource`, Celery Beat 30s top-25 poll + 5min odds snapshot, Redis distributed lock for dedupe, `closed` vs `resolved` distinction enforced.
+- [x] **Phase 6: Polymarket Sync (Catalog Replication)** - Custom httpx + tenacity Gamma client, PolymarketAdapter implements `MarketSource`, Celery Beat 30s top-25 poll + 5min odds snapshot, Redis distributed lock for dedupe, `closed` vs `resolved` distinction enforced. (completed 2026-05-28)
 - [ ] **Phase 7: Polymarket Auto-Resolution & Admin Override** - `detect_resolutions` Beat task (60s) with UMA dispute-window + internal grace, reuses Phase 5 SettlementService, admin force-settle override for stuck mirrored markets.
 - [ ] **Phase 8: Admin CRM (User Management & Audit Log Viewer)** - Paginated user list with search/filters, user detail page (profile + balance + history + bets), ban/unban state machine with frozen-balance semantics, CSV export, immutable audit-log viewer.
 - [ ] **Phase 9: User App UX Polish (Market Detail & Real-Time)** - Market detail page with resolution criteria + price-history chart + activity feed, real-time WebSocket price updates for mirrored polls + house edits.
@@ -145,8 +145,8 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Plans**: 3 plans
 **Plan list**:
 - [x] 06-01-PLAN.md — GammaClient + Pydantic v2 parser + PolymarketAdapter + migration 0004 + Protocol conformance + VCR fixture tests (MKT-05, MKT-06)
-- [ ] 06-02-PLAN.md — Celery Beat tasks (poll 30s + snapshot 5min) + Redis dedupe lock + house-first market list API (MKT-01, MKT-05, MKT-06)
-- [ ] 06-03-PLAN.md — Frontend market list: MarketCard + SourceBadge + OddsDisplay + responsive grid home page (MKT-01, MKT-02)
+- [x] 06-02-PLAN.md — Celery Beat tasks (poll 30s + snapshot 5min) + Redis dedupe lock + house-first market list API (MKT-01, MKT-05, MKT-06)
+- [x] 06-03-PLAN.md — Frontend market list: MarketCard + SourceBadge + OddsDisplay + responsive grid home page (MKT-01, MKT-02)
 **Research/spike flags**: **SPIKE completed** — spike-002 validated Pydantic v2 parser, state machine, and VCR fixtures. 4 fixture files captured and proven correct.
 **Critical pitfalls covered**: PITFALL #2 (closed vs resolved distinction; this phase puts the guard in code even though settlement is in Phase 7), PITFALL #9 (rate-limit math; batch single call instead of per-market loop; tenacity backoff with jitter; Redis dedupe lock; latency monitoring as throttle warning).
 
@@ -248,7 +248,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/2 | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
-| 6. Polymarket Sync (Catalog Replication) | 1/3 | In Progress|  |
+| 6. Polymarket Sync (Catalog Replication) | 3/3 | Complete   | 2026-05-28 |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
 | 8. Admin CRM (User Management & Audit Log Viewer) | 0/TBD | Not started | - |
 | 9. User App UX Polish (Market Detail & Real-Time) | 0/TBD | Not started | - |
