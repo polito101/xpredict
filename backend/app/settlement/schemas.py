@@ -38,6 +38,26 @@ class ResolveMarketResponse(BaseModel):
     total_loser_stake: DecimalStr
 
 
+class ForceSettleRequest(BaseModel):
+    """Body for ``POST /admin/markets/{market_id}/force-settle`` — admin override (ADM-06)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    winning_outcome_id: UUID
+    justification: str = Field(min_length=1, description="Mandatory force-settle justification.")
+
+
+class ForceSettleResponse(BaseModel):
+    """Summary of a force-settle override — money as JSON strings (SC#4)."""
+
+    market_id: UUID
+    winning_outcome_id: UUID
+    bets_settled: int
+    total_payout: DecimalStr
+    total_loser_stake: DecimalStr
+    uma_status_at_override: str | None
+
+
 class ReverseSettlementRequest(BaseModel):
     """Body for ``POST /admin/markets/{market_id}/reverse``."""
 

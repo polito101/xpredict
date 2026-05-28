@@ -56,6 +56,11 @@ celery_app.conf.beat_schedule = {
         "schedule": 300.0,
     },
     # Phases 7-9 append tasks here
+    # Phase 7 — Polymarket auto-resolution (STL-01): detect UMA-resolved markets every 60s
+    "detect-polymarket-resolutions": {
+        "task": "app.integrations.polymarket.tasks.detect_polymarket_resolutions",
+        "schedule": 60.0,
+    },
 }
 # Route all tasks to the "default" queue so worker (-Q default) picks them up.
 # Without this, Celery's library default is "celery" and tasks queue there
@@ -155,6 +160,7 @@ def _on_task_failure(
     if exception is None:
         return
     import sentry_sdk
+
     sentry_sdk.capture_exception(exception)
 
 

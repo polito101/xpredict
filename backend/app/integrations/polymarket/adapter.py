@@ -4,8 +4,9 @@ Provides: fetch_active_markets, fetch_market, detect_resolution, sync_top25.
 sync_top25 uses PostgreSQL INSERT ... ON CONFLICT for idempotent upsert
 on the (source, source_market_id) partial unique index (migration 0004).
 
-detect_resolution returns None in Phase 6. Phase 7 implements real
-resolution detection via Gamma API + UMA oracle status.
+detect_resolution queries Gamma for a single market's current UMA state and
+returns a ResolutionResult if the canonical _derive_status() reports RESOLVED,
+otherwise None. Phase 7 (STL-01).
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.integrations.market_source import ResolutionResult
+from app.integrations.polymarket.client import GammaClient
 from app.integrations.polymarket.schemas import GammaMarket
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, Outcome, generate_slug
@@ -31,11 +33,41 @@ from app.markets.models import Market, Outcome, generate_slug
 log = structlog.get_logger()
 
 
+def _map_winning_outcome_id(
+    outcome_prices_raw: list[str],
+    outcomes_raw: list[str],
+    db_outcomes: list[Outcome],
+) -> UUID:
+    """Return the DB Outcome UUID whose label matches the winning Gamma outcome.
+
+    Winner is the first index where outcomePrices is "1" or "1.0".
+    Labels were stored as label[:50] during sync_top25.
+    Raises ValueError on no clear winner or label mismatch.
+    """
+    winner_idx = next(
+        (i for i, p in enumerate(outcome_prices_raw) if p in ("1", "1.0")),
+        None,
+    )
+    if winner_idx is None or winner_idx >= len(outcomes_raw):
+        raise ValueError(f"No clear winner in outcomePrices: {outcome_prices_raw}")
+    winner_label = outcomes_raw[winner_idx]
+    label_to_id = {o.label: o.id for o in db_outcomes}
+    truncated = winner_label[:50]
+    if truncated not in label_to_id:
+        raise ValueError(
+            f"Winner label '{truncated}' not found in DB outcomes: {list(label_to_id)}"
+        )
+    return label_to_id[truncated]
+
+
 class PolymarketAdapter:
     """Adapter implementing the MarketSource Protocol for Polymarket."""
 
     async def fetch_active_markets(
-        self, session: AsyncSession, *, limit: int = 25,
+        self,
+        session: AsyncSession,
+        *,
+        limit: int = 25,
     ) -> list[Market]:
         """Fetch active Polymarket-sourced markets from local DB."""
         stmt = (
@@ -50,7 +82,9 @@ class PolymarketAdapter:
         return list(result.scalars().all())
 
     async def fetch_market(
-        self, session: AsyncSession, market_id: UUID,
+        self,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> Market | None:
         """Fetch a single market by internal UUID with outcomes + snapshots."""
         stmt = (
@@ -65,13 +99,61 @@ class PolymarketAdapter:
         return result.scalar_one_or_none()
 
     async def detect_resolution(
-        self, session: AsyncSession, market_id: UUID,
+        self,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> ResolutionResult | None:
-        """Phase 6 stub — returns None. Phase 7 implements real detection."""
-        return None
+        """Check if a Polymarket-mirrored market has been resolved by UMA (STL-01).
+
+        Delegates the closed/UMA truth table entirely to GammaMarket._derive_status().
+        Returns ResolutionResult when RESOLVED with a clear winner, None otherwise.
+        """
+        stmt = select(Market).where(Market.id == market_id).options(selectinload(Market.outcomes))
+        result = await session.execute(stmt)
+        market = result.scalar_one_or_none()
+        if market is None or market.source_market_id is None:
+            log.warning("gamma.market_not_found", market_id=str(market_id))
+            return None
+
+        client = GammaClient()
+        try:
+            raw = await client.fetch_market_by_id(market.source_market_id)
+        finally:
+            await client.close()
+
+        if raw is None:
+            log.warning("gamma.market_not_found", source_market_id=market.source_market_id)
+            return None
+
+        try:
+            parsed = GammaMarket.model_validate(raw)
+        except ValidationError:
+            log.warning("gamma.parse_failed", source_market_id=market.source_market_id)
+            return None
+
+        if parsed.internal_status != MarketStatus.RESOLVED:
+            return None
+
+        try:
+            winning_outcome_id = _map_winning_outcome_id(
+                parsed.outcome_prices_raw,
+                parsed.outcomes_raw,
+                market.outcomes,
+            )
+        except ValueError as exc:
+            log.warning("gamma.winner_mapping_failed", error=str(exc), market_id=str(market_id))
+            return None
+
+        return ResolutionResult(
+            winning_outcome_id=winning_outcome_id,
+            source="polymarket_uma",
+            confidence="high",
+        )
 
     async def sync_top25(
-        self, session: AsyncSession, raw_markets: list[dict[str, object]],
+        self,
+        session: AsyncSession,
+        raw_markets: list[dict[str, object]],
     ) -> int:
         """Upsert raw Gamma API markets into the local DB.
 
@@ -99,10 +181,7 @@ class PolymarketAdapter:
             # random-suffix collisions on every sync cycle (WR-01).
             # Prefix with "pm-" to namespace away from house market slugs.
             slug = f"pm-{parsed.slug}"[:100] if parsed.slug else generate_slug(parsed.question)
-            description = (
-                parsed.description
-                or "Resolution via Polymarket UMA oracle"
-            )
+            description = parsed.description or "Resolution via Polymarket UMA oracle"
 
             # --- Phase 2: DB upsert (IntegrityError handled separately) ---
             try:
