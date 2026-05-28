@@ -72,6 +72,14 @@ class Settings(BaseSettings):
     # Symmetric (A8); RS256 would split this into a public-key file in Phase 11.
     ADMIN_JWT_PUBLIC_SECRET: str | None = None
 
+    # -------------------------------------------------------------------------
+    # Phase 6 — Polymarket Sync (MKT-05, MKT-06)
+    # -------------------------------------------------------------------------
+    GAMMA_API_BASE_URL: str = "https://gamma-api.polymarket.com"
+    POLYMARKET_POLL_INTERVAL_SECONDS: int = 30
+    POLYMARKET_SNAPSHOT_INTERVAL_SECONDS: int = 300
+    POLYMARKET_LOCK_TTL_SECONDS: int = 25
+
     @property
     def is_dev(self) -> bool:
         """Drives structlog renderer, Sentry init skip, cookie Secure flag (Phase 2)."""

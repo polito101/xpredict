@@ -142,6 +142,7 @@ testpaths = ["tests"]
 pythonpath = [".", "scripts", "bin"]
 markers = [
   "integration: tests that require testcontainers Postgres (slow)",
+  "unit: fast unit tests with no external dependencies",
 ]
 filterwarnings = [
   "error",

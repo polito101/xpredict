@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import get_settings
 from app.db.base import Base
+from app.db.types import Money
 from app.markets.enums import MarketSourceEnum, MarketStatus
 
 
@@ -63,6 +64,12 @@ class Market(Base):
     )
     condition_id: Mapped[str | None] = mapped_column(
         String(200), nullable=True,
+    )
+    volume: Mapped[Money] = mapped_column(
+        server_default="0", default=Decimal("0"),
+    )
+    volume_24hr: Mapped[Money] = mapped_column(
+        server_default="0", default=Decimal("0"),
     )
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, server_default="OPEN",
