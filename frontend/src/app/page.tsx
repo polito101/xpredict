@@ -1,10 +1,20 @@
+/**
+ * Home page -- displays the market catalog.
+ *
+ * Replaces the Phase 1 scaffold placeholder with a real market list.
+ * Uses React Suspense with MarketListSkeleton as the loading fallback.
+ */
+import { Suspense } from "react";
+import MarketList from "@/components/market-list";
+import { MarketListSkeleton } from "@/components/market-list-skeleton";
+
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
-      <h1 className="text-4xl font-semibold tracking-tight">XPredict</h1>
-      <p className="text-base text-zinc-600 dark:text-zinc-400">
-        Phase 1 &mdash; scaffold OK
-      </p>
+    <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-12">
+      <h1 className="text-xl font-semibold mb-8">Markets</h1>
+      <Suspense fallback={<MarketListSkeleton />}>
+        <MarketList />
+      </Suspense>
     </main>
   );
 }
