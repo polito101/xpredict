@@ -11,7 +11,7 @@
 | 3 | Wallet & Double-Entry Ledger | Agustin | ✅ Done | `integration/phase-05-full` | [#8](https://github.com/polito101/xpredict/pull/8) |
 | 4 | Markets Domain & HouseAdapter | Pol | 👀 In review | `gsd/phase-04-markets-domain-houseadapter` | [#6](https://github.com/polito101/xpredict/pull/6) |
 | 5 | Bets, Settlement & First E2E Demo | Agustin | ✅ Done | `integration/phase-05-full` | [#8](https://github.com/polito101/xpredict/pull/8) |
-| 6 | Polymarket Sync | Pol | 👀 In review | `gsd/phase-06-polymarket-sync-catalog-replication` | [#7](https://github.com/polito101/xpredict/pull/7) |
+| 6 | Polymarket Sync | Pol | ✅ Done | `gsd/phase-06-polymarket-sync-catalog-replication` | [#7](https://github.com/polito101/xpredict/pull/7) |
 | 7 | Polymarket Auto-Resolution | — | ⬜ Not started | — | — |
 | 8 | Admin CRM | — | ⬜ Not started | — | — |
 | 9 | User App UX Polish & Real-Time | — | ⬜ Not started | — | — |
