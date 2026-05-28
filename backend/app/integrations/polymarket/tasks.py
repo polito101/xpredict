@@ -12,6 +12,7 @@ future chart rendering (Phase 9).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 
 import sentry_sdk
 import structlog
@@ -69,6 +70,7 @@ async def _run_poll_sync(
         return
 
     client = GammaClient()
+    session: AsyncSession | None = None
     try:
         raw_markets = await client.fetch_top_markets(limit=25)
 
@@ -92,6 +94,9 @@ async def _run_poll_sync(
     except Exception as exc:
         log.error("poll_failed", error=str(exc))
         sentry_sdk.capture_exception(exc)
+        if session is not None:
+            with contextlib.suppress(Exception):
+                await session.rollback()
     finally:
         await release_poll_lock(redis)
         await client.close()
