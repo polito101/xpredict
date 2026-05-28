@@ -20,8 +20,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.db.types import Money
-from app.db.types import Odds  # integration: odds precision alias (Numeric(8,6), NOT money)
+from app.db.types import (
+    Money,
+    Odds,  # integration: odds precision alias (Numeric(8,6), NOT money)
+)
 from app.markets.enums import MarketSourceEnum, MarketStatus
 
 
