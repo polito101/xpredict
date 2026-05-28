@@ -142,8 +142,12 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   5. The `snapshot_odds` task runs every 5 minutes and writes one `odds_snapshots` row per open market outcome (both house and mirrored); the snapshot table is populated for at least one full 30-minute test interval without errors.
   6. The Pydantic parser explicitly handles Polymarket's stringified-JSON fields (`outcomes`, `outcomePrices`, `clobTokenIds` are JSON-decoded; `volume`/`liquidity` parsed to `Decimal` from strings); the parser refuses (`extra='forbid'` in dev, `extra='allow'` + warning log in staging) on unknown fields and logs a structured event so schema drift is detected.
   7. **`closed` vs `resolved` distinction is enforced at the model layer**: the Polymarket mapper sets a market's internal `status` based on a function of `closed`, `umaResolutionStatus`, and `outcomePrices`, and a unit test asserts that a market with `closed=true` but `umaResolutionStatus` not in `{resolved}` does NOT enter our `RESOLVED` state — even though we are not yet auto-settling in this phase.
-**Plans**: TBD
-**Research/spike flags**: **SPIKE recommended** — Gamma API schema quirks (stringified JSON in `outcomes`/`outcomePrices`/`clobTokenIds`, mixed string-vs-number numerics in `volume24hr`, undocumented `umaResolutionStatus` values) justify a 1-2 hour spike via `/gsd-spike` before planning. Recommended: capture a real Gamma response on day 1 of planning and pin it as a VCR fixture for tests. STACK.md 2.2 and PITFALLS.md #2 and #9 are the primary references.
+**Plans**: 3 plans
+**Plan list**:
+- [ ] 06-01-PLAN.md — GammaClient + Pydantic v2 parser + PolymarketAdapter + migration 0004 + Protocol conformance + VCR fixture tests (MKT-05, MKT-06)
+- [ ] 06-02-PLAN.md — Celery Beat tasks (poll 30s + snapshot 5min) + Redis dedupe lock + house-first market list API (MKT-01, MKT-05, MKT-06)
+- [ ] 06-03-PLAN.md — Frontend market list: MarketCard + SourceBadge + OddsDisplay + responsive grid home page (MKT-01, MKT-02)
+**Research/spike flags**: **SPIKE completed** — spike-002 validated Pydantic v2 parser, state machine, and VCR fixtures. 4 fixture files captured and proven correct.
 **Critical pitfalls covered**: PITFALL #2 (closed vs resolved distinction; this phase puts the guard in code even though settlement is in Phase 7), PITFALL #9 (rate-limit math; batch single call instead of per-market loop; tenacity backoff with jitter; Redis dedupe lock; latency monitoring as throttle warning).
 
 ### Phase 7: Polymarket Auto-Resolution & Admin Override
@@ -244,7 +248,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/2 | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
-| 6. Polymarket Sync (Catalog Replication) | 0/TBD | Not started | - |
+| 6. Polymarket Sync (Catalog Replication) | 0/3 | Not started | - |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
 | 8. Admin CRM (User Management & Audit Log Viewer) | 0/TBD | Not started | - |
 | 9. User App UX Polish (Market Detail & Real-Time) | 0/TBD | Not started | - |
