@@ -570,22 +570,16 @@ export function MarketCard({ market }: { market: MarketItem }) {
 | A5 | `lucide-react` may need explicit install (could already be a shadcn transitive dep) | Standard Stack / Frontend | Minor; `pnpm add` is idempotent |
 | A6 | Gamma API field `volume24hr` is always present on active markets | Architecture Patterns | If absent on some markets, fallback to 0 for sorting |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Gamma API `order` parameter validation**
-   - What we know: The spike used `?active=true&closed=false&limit=10` but did not test `order=volume24hr`.
-   - What's unclear: Whether the Gamma API supports `order` as a query parameter, or if ordering must be done client-side after fetching.
-   - Recommendation: The implementation should fetch with `order=volume24hr` and fall back to client-side sort if the API ignores it. Either way, the result is the same -- just affects whether we fetch more than 25 and trim, or the API does it for us.
+   - RESOLVED: Fetch with `order=volume24hr` parameter; if API ignores it, client-side sort as fallback. Plan 06-01 GammaClient.fetch_top_markets implements this.
 
 2. **Unique constraint on (source, source_market_id)**
-   - What we know: The `markets` table has `source` and `source_market_id` columns but no explicit UNIQUE constraint on the pair.
-   - What's unclear: Whether Phase 4 migration added a unique index.
-   - Recommendation: Migration 0004 should add `CREATE UNIQUE INDEX IF NOT EXISTS ix_markets_source_source_market_id ON markets (source, source_market_id) WHERE source_market_id IS NOT NULL` to support the upsert pattern. The `WHERE` clause excludes house markets (which have `source_market_id = NULL`).
+   - RESOLVED: Migration 0004 adds `CREATE UNIQUE INDEX IF NOT EXISTS ix_markets_source_source_market_id ON markets (source, source_market_id) WHERE source_market_id IS NOT NULL`. Plan 06-01 Task 1 implements this.
 
 3. **`source_url` column for badge link**
-   - What we know: The `MarketCard` source badge needs a link to the Polymarket source URL (e.g., `https://polymarket.com/event/{slug}`). The current `Market` model has no `source_url` field.
-   - What's unclear: Whether to add a column or derive the URL from `source` + `slug`.
-   - Recommendation: Derive it: `source === "POLYMARKET" ? \`https://polymarket.com/event/\${source_market_id}\` : null`. No new column needed. Add as a computed property in the API response schema.
+   - RESOLVED: Derived in API response schema via `model_validator` — `source == POLYMARKET ? https://polymarket.com/event/{source_market_id} : null`. No new column. Plan 06-02 Task 2 implements this in `MarketListItem` schema.
 
 ## Validation Architecture
 
