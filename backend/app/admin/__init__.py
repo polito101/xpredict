@@ -1,1 +1,1 @@
-# Phase 8 owns this — see ROADMAP.md
+"""Admin CRM module (Phase 8) — user management, ban/unban, history reads."""
