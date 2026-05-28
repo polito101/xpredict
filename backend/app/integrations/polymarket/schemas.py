@@ -37,8 +37,10 @@ def _gamma_model_config() -> ConfigDict:
 
         is_dev = get_settings().is_dev
     except Exception:
-        # During test collection or when env vars aren't set, default to allow.
-        is_dev = False
+        # During test collection or when env vars aren't set, default to
+        # stricter mode (ignore) — unknown environments should not silently
+        # propagate unexpected API fields into business logic.
+        is_dev = True
     extra_mode: str = "ignore" if is_dev else "allow"
     return ConfigDict(extra=extra_mode, populate_by_name=True)  # type: ignore[typeddict-item]
 
