@@ -115,6 +115,16 @@ class Market(Base):
 
 class Outcome(Base):
     __tablename__ = "outcomes"
+    __table_args__ = (
+        CheckConstraint(
+            "initial_odds >= 0 AND initial_odds <= 1",
+            name="ck_outcomes_initial_odds_range",
+        ),
+        CheckConstraint(
+            "current_odds >= 0 AND current_odds <= 1",
+            name="ck_outcomes_current_odds_range",
+        ),
+    )
 
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
@@ -142,6 +152,12 @@ class Outcome(Base):
 
 class OddsSnapshot(Base):
     __tablename__ = "odds_snapshots"
+    __table_args__ = (
+        CheckConstraint(
+            "probability >= 0 AND probability <= 1",
+            name="ck_odds_snapshots_probability_range",
+        ),
+    )
 
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),

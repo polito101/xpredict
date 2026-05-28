@@ -73,8 +73,30 @@ def upgrade() -> None:
         postgresql_where=sa.text("source_market_id IS NOT NULL"),
     )
 
+    # ------------------------------------------------------------------
+    # CHECK constraints for odds/probability range [0, 1] (IN-01).
+    # ------------------------------------------------------------------
+    op.create_check_constraint(
+        "ck_outcomes_initial_odds_range",
+        "outcomes",
+        "initial_odds >= 0 AND initial_odds <= 1",
+    )
+    op.create_check_constraint(
+        "ck_outcomes_current_odds_range",
+        "outcomes",
+        "current_odds >= 0 AND current_odds <= 1",
+    )
+    op.create_check_constraint(
+        "ck_odds_snapshots_probability_range",
+        "odds_snapshots",
+        "probability >= 0 AND probability <= 1",
+    )
+
 
 def downgrade() -> None:
+    op.drop_constraint("ck_odds_snapshots_probability_range", "odds_snapshots")
+    op.drop_constraint("ck_outcomes_current_odds_range", "outcomes")
+    op.drop_constraint("ck_outcomes_initial_odds_range", "outcomes")
     op.drop_index(
         "ix_markets_source_source_market_id",
         table_name="markets",
