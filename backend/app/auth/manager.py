@@ -101,9 +101,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             raise exceptions.UserAlreadyExists()
 
         user_dict = (
-            user_create.create_update_dict()
-            if safe
-            else user_create.create_update_dict_superuser()
+            user_create.create_update_dict() if safe else user_create.create_update_dict_superuser()
         )
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
@@ -136,21 +134,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     ) -> None:
         """Enforce 12+ chars, upper/lower/digit, no email substring."""
         if len(password) < 12:
-            raise InvalidPasswordException(
-                reason="Password must be at least 12 characters."
-            )
+            raise InvalidPasswordException(reason="Password must be at least 12 characters.")
         if not re.search(r"[A-Z]", password):
-            raise InvalidPasswordException(
-                reason="Password must contain an uppercase letter."
-            )
+            raise InvalidPasswordException(reason="Password must contain an uppercase letter.")
         if not re.search(r"[a-z]", password):
-            raise InvalidPasswordException(
-                reason="Password must contain a lowercase letter."
-            )
+            raise InvalidPasswordException(reason="Password must contain a lowercase letter.")
         if not re.search(r"\d", password):
-            raise InvalidPasswordException(
-                reason="Password must contain a digit."
-            )
+            raise InvalidPasswordException(reason="Password must contain a digit.")
         # Email-substring rule — applies to both UserCreate (register) AND
         # User (password change), since BaseUserManager passes whichever is
         # available. We check BOTH the full address and the local part, so
@@ -162,16 +152,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             email_lc = email.lower()
             local_part = email_lc.split("@", 1)[0]
             if email_lc in password_lc or (local_part and local_part in password_lc):
-                raise InvalidPasswordException(
-                    reason="Password must not contain your email."
-                )
+                raise InvalidPasswordException(reason="Password must not contain your email.")
 
     # ------------------------------------------------------------------
     # AUTH-02 — register / request_verify hook chain
     # ------------------------------------------------------------------
-    async def on_after_register(
-        self, user: User, request: Request | None = None
-    ) -> None:
+    async def on_after_register(self, user: User, request: Request | None = None) -> None:
         """Audit + trigger verification email (Pitfall 5 — best-effort SMTP)."""
         await self._audit(
             actor=f"user:{user.id}",
@@ -199,9 +185,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         Called from on_after_register or POST /auth/request-verify-token.
         """
         try:
-            await self.email_service.send_verification_email(
-                to=user.email, token=token
-            )
+            await self.email_service.send_verification_email(to=user.email, token=token)
         except Exception as exc:
             logger.error(
                 "verification_email_send_failed",
@@ -214,9 +198,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     # AUTH-03 — verify hook (audit only; user.is_verified=True is set by
     # fastapi-users itself)
     # ------------------------------------------------------------------
-    async def on_after_verify(
-        self, user: User, request: Request | None = None
-    ) -> None:
+    async def on_after_verify(self, user: User, request: Request | None = None) -> None:
         await self._audit(
             actor=f"user:{user.id}",
             event_type="auth.email_verified",
@@ -256,9 +238,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             request=request,
         )
         try:
-            await self.email_service.send_reset_password_email(
-                to=user.email, token=token
-            )
+            await self.email_service.send_reset_password_email(to=user.email, token=token)
         except Exception as exc:
             logger.error(
                 "reset_password_email_send_failed",
@@ -270,9 +250,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     # ------------------------------------------------------------------
     # AUTH-06 — reset-password completion: belt-and-suspenders Pitfall 6
     # ------------------------------------------------------------------
-    async def on_after_reset_password(
-        self, user: User, request: Request | None = None
-    ) -> None:
+    async def on_after_reset_password(self, user: User, request: Request | None = None) -> None:
         """Bump token_version AND revoke all active refresh tokens (Pitfall 6).
 
         Uses a CAS (check-and-set) WHERE clause to avoid a lost-update race

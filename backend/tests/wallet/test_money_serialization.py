@@ -99,9 +99,7 @@ async def _seed_admin() -> None:
     hashed = PasswordHash.recommended().hash(_ADMIN_PASSWORD)
     session_maker = _get_session_maker()
     async with session_maker() as s, s.begin():
-        await s.execute(
-            text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL}
-        )
+        await s.execute(text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL})
         await s.execute(
             text(
                 "INSERT INTO users "
@@ -195,9 +193,7 @@ async def test_balance_is_json_string() -> None:
         async with _client() as client:
             user_id = await _register_verified_player(client, email)
             token = await _admin_bearer(client)
-            await _recharge(
-                client, user_id=user_id, token=token, amount="100.0000", key=key
-            )
+            await _recharge(client, user_id=user_id, token=token, amount="100.0000", key=key)
             await _login_player(client, email)
 
             resp = await client.get("/wallet/me/balance")

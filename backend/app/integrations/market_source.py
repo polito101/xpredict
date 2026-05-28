@@ -22,15 +22,22 @@ class ResolutionResult:
 @runtime_checkable
 class MarketSource(Protocol):
     async def fetch_active_markets(
-        self, session: AsyncSession, *, limit: int = 25,
+        self,
+        session: AsyncSession,
+        *,
+        limit: int = 25,
     ) -> list[Market]: ...
 
     async def fetch_market(
-        self, session: AsyncSession, market_id: UUID,
+        self,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> Market | None: ...
 
     async def detect_resolution(
-        self, session: AsyncSession, market_id: UUID,
+        self,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> ResolutionResult | None: ...
 
 
@@ -50,7 +57,10 @@ def get_adapter(source: MarketSourceEnum) -> MarketSource:
 
 class HouseAdapter:
     async def fetch_active_markets(
-        self, session: AsyncSession, *, limit: int = 25,
+        self,
+        session: AsyncSession,
+        *,
+        limit: int = 25,
     ) -> list[Market]:
         stmt = (
             select(Market)
@@ -64,7 +74,9 @@ class HouseAdapter:
         return list(result.scalars().all())
 
     async def fetch_market(
-        self, session: AsyncSession, market_id: UUID,
+        self,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> Market | None:
         stmt = (
             select(Market)
@@ -78,7 +90,9 @@ class HouseAdapter:
         return result.scalar_one_or_none()
 
     async def detect_resolution(
-        self, session: AsyncSession, market_id: UUID,
+        self,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> ResolutionResult | None:
         return None
 

@@ -75,9 +75,9 @@ def test_recharge_schema_has_no_destination_field() -> None:
     forbidden_substrings = ("dst", "dest", "recipient", "to_user", "target", "payee")
     for name in field_names:
         lowered = name.lower()
-        assert not any(s in lowered for s in forbidden_substrings), (
-            f"unexpected destination-like field on RechargeRequest: {name}"
-        )
+        assert not any(
+            s in lowered for s in forbidden_substrings
+        ), f"unexpected destination-like field on RechargeRequest: {name}"
 
 
 # ======================================================================
@@ -104,16 +104,14 @@ def test_no_user_to_user_endpoint_exists() -> None:
     for route in app.routes:
         path = getattr(route, "path", "")
         lowered = path.lower()
-        assert not any(marker in lowered for marker in destination_markers), (
-            f"route path exposes a user-to-user destination: {path}"
-        )
+        assert not any(
+            marker in lowered for marker in destination_markers
+        ), f"route path exposes a user-to-user destination: {path}"
         # A recharge-style path must carry at most ONE user id segment (the
         # credited path user) — never a second {..._user_id} that would name a
         # source/destination user pair.
         if "recharge" in lowered:
-            assert lowered.count("user_id") <= 1, (
-                f"recharge route names more than one user: {path}"
-            )
+            assert lowered.count("user_id") <= 1, f"recharge route names more than one user: {path}"
 
     # The recharge body schema (the only wallet-mutation surface) has no
     # destination field — re-assert at the inventory layer for defense-in-depth.
@@ -139,17 +137,15 @@ def test_entry_schema_has_no_user_to_user_fk() -> None:
 
     assert "account_id" in fk_columns, fk_columns
     # The account-referencing FK targets the accounts table.
-    account_referencing = [
-        fk for fk in account_fks if fk.column.table.name == "accounts"
-    ]
-    assert len(account_referencing) == 1, (
-        f"expected exactly one accounts FK on entries, got {len(account_referencing)}"
-    )
+    account_referencing = [fk for fk in account_fks if fk.column.table.name == "accounts"]
+    assert (
+        len(account_referencing) == 1
+    ), f"expected exactly one accounts FK on entries, got {len(account_referencing)}"
     assert account_referencing[0].parent.name == "account_id"
     # No FK on entries points to a users table (a user-to-user coupling).
-    assert "users" not in fk_targets, (
-        f"entries must not FK a user table (user-to-user coupling): {fk_targets}"
-    )
+    assert (
+        "users" not in fk_targets
+    ), f"entries must not FK a user table (user-to-user coupling): {fk_targets}"
     # Sanity: there is no second distinct account-referencing column that could
     # name a destination user wallet on the same entry row.
     account_cols_on_entry = {
@@ -184,9 +180,7 @@ async def test_recharge_rejects_dst_user_id_live(engine: AsyncEngine) -> None:
     player_email = f"no-u2u-player-{uuid.uuid4().hex[:8]}@example.com"
     sm = _get_session_maker()
     async with sm() as s, s.begin():
-        await s.execute(
-            text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL}
-        )
+        await s.execute(text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL})
         await s.execute(
             text(
                 "INSERT INTO users "
@@ -201,9 +195,7 @@ async def test_recharge_rejects_dst_user_id_live(engine: AsyncEngine) -> None:
 
     transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
     try:
-        async with httpx.AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as client:
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
             reg = await client.post(
                 "/auth/register",
                 json={"email": player_email, "password": "Valid-Pass-1234"},
@@ -234,9 +226,5 @@ async def test_recharge_rejects_dst_user_id_live(engine: AsyncEngine) -> None:
         assert resp.status_code == 422, resp.text
     finally:
         async with sm() as s, s.begin():
-            await s.execute(
-                text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL}
-            )
-            await s.execute(
-                text("DELETE FROM users WHERE email = :em"), {"em": player_email}
-            )
+            await s.execute(text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL})
+            await s.execute(text("DELETE FROM users WHERE email = :em"), {"em": player_email})

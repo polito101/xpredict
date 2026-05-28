@@ -53,13 +53,17 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     # Phase 8 ban state — column shipped now (CONTEXT line 23), logic deferred.
     banned_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     # AUTH-06 / Pitfall 6: bump on password reset to invalidate every prior
     # refresh token in one shot. ``DatabaseStrategy.read_token`` enforces this.
     token_version: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0", default=0,
+        Integer,
+        nullable=False,
+        server_default="0",
+        default=0,
     )
 
     # tenant_id ghost (PLT-01 / D-22) — copies the pattern from
@@ -73,7 +77,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     # AUTH-09 reuse-detection cleanup: cascade=all,delete-orphan so user
     # deletion (Phase 8) wipes every issued token.
     refresh_tokens: Mapped[list[RefreshToken]] = relationship(
-        back_populates="user", cascade="all, delete-orphan",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
 
@@ -91,11 +96,14 @@ class RefreshToken(Base):
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid4,                              # WR-05: Python-side default
-        server_default=func.gen_random_uuid(),      # raw SQL inserts
+        default=uuid4,  # WR-05: Python-side default
+        server_default=func.gen_random_uuid(),  # raw SQL inserts
     )
     token_hash: Mapped[str] = mapped_column(
-        Text, unique=True, nullable=False, index=True,
+        Text,
+        unique=True,
+        nullable=False,
+        index=True,
     )
     user_id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
@@ -104,21 +112,29 @@ class RefreshToken(Base):
         index=True,
     )
     expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
     revoked_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     # ``reuse_count`` increments when the reuse-detection branch fires
     # (presenting an already-revoked token revokes ALL user tokens; the
     # counter on the surviving row records how many times this happened).
     reuse_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0", default=0,
+        Integer,
+        nullable=False,
+        server_default="0",
+        default=0,
     )
     # Snapshot of user.token_version at issue time. AUTH-06 belt-and-suspenders:
     # DatabaseStrategy.read_token returns None when user.token_version > this.
     token_version: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0", default=0,
+        Integer,
+        nullable=False,
+        server_default="0",
+        default=0,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

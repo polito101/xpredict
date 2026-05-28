@@ -106,9 +106,7 @@ async def _seed_admin() -> None:
     hashed = PasswordHash.recommended().hash(_ADMIN_PASSWORD)
     session_maker = _get_session_maker()
     async with session_maker() as s, s.begin():
-        await s.execute(
-            text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL}
-        )
+        await s.execute(text("DELETE FROM users WHERE email = :em"), {"em": _ADMIN_EMAIL})
         await s.execute(
             text(
                 "INSERT INTO users "
@@ -181,13 +179,7 @@ async def _entries_for_transfer(transfer_id: UUID) -> list[Entry]:
     session_maker = _get_session_maker()
     async with session_maker() as s:
         return list(
-            (
-                await s.execute(
-                    select(Entry).where(Entry.transfer_id == transfer_id)
-                )
-            )
-            .scalars()
-            .all()
+            (await s.execute(select(Entry).where(Entry.transfer_id == transfer_id))).scalars().all()
         )
 
 

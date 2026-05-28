@@ -115,9 +115,7 @@ async def _balance(account_id: UUID) -> Decimal:
     session_maker = _get_session_maker()
     async with session_maker() as s:
         return (
-            await s.execute(
-                text("SELECT balance FROM accounts WHERE id = :id"), {"id": account_id}
-            )
+            await s.execute(text("SELECT balance FROM accounts WHERE id = :id"), {"id": account_id})
         ).scalar_one()
 
 
@@ -162,6 +160,4 @@ async def test_fault_mid_transaction_rolls_back(monkeypatch: pytest.MonkeyPatch)
     assert transfers_after == 0, f"transfer leaked despite fault: {transfers_after}"
     assert entries_after == 0, f"entries leaked despite fault: {entries_after}"
     assert await _balance(wallet_id) == OPENING, "debit cache changed despite rollback"
-    assert await _balance(counterparty_id) == Decimal("0"), (
-        "credit cache changed despite rollback"
-    )
+    assert await _balance(counterparty_id) == Decimal("0"), "credit cache changed despite rollback"

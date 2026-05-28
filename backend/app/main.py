@@ -122,7 +122,8 @@ app.state.limiter = limiter
 
 @app.exception_handler(RateLimitExceeded)
 async def _rate_limit_exceeded_handler(  # type: ignore[no-untyped-def]
-    request, exc,
+    request,
+    exc,
 ):
     """Generic 429 — never leak whether the email existed (T-02-08, T-02-10)."""
     from fastapi.responses import JSONResponse

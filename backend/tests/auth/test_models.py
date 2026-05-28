@@ -32,12 +32,10 @@ from app.db.base import Base
 def test_user_multiple_inheritance() -> None:
     """``User`` MRO must include BOTH SQLAlchemyBaseUserTableUUID AND Base."""
     mro = User.__mro__
-    assert SQLAlchemyBaseUserTableUUID in mro, (
-        f"User must inherit SQLAlchemyBaseUserTableUUID; got MRO={[c.__name__ for c in mro]}"
-    )
-    assert Base in mro, (
-        f"User must inherit app.db.base.Base; got MRO={[c.__name__ for c in mro]}"
-    )
+    assert (
+        SQLAlchemyBaseUserTableUUID in mro
+    ), f"User must inherit SQLAlchemyBaseUserTableUUID; got MRO={[c.__name__ for c in mro]}"
+    assert Base in mro, f"User must inherit app.db.base.Base; got MRO={[c.__name__ for c in mro]}"
 
 
 def test_user_tablename() -> None:
@@ -216,9 +214,7 @@ def test_user_read_maps_is_superuser_to_is_admin() -> None:
     assert "is_admin" in dumped, f"UserRead.model_dump() missing is_admin: {dumped}"
     assert dumped["is_admin"] is True
     # Defense-in-depth: is_superuser MUST NOT appear in the wire payload.
-    assert "is_superuser" not in dumped, (
-        f"UserRead leaks is_superuser to model_dump(): {dumped}"
-    )
+    assert "is_superuser" not in dumped, f"UserRead leaks is_superuser to model_dump(): {dumped}"
 
 
 def test_user_read_player_dump() -> None:

@@ -123,10 +123,7 @@ def test_beat_schedule_entries() -> None:
 
     assert "snapshot-odds" in schedule
     assert schedule["snapshot-odds"]["schedule"] == 300.0
-    assert (
-        schedule["snapshot-odds"]["task"]
-        == "app.integrations.polymarket.tasks.snapshot_odds"
-    )
+    assert schedule["snapshot-odds"]["task"] == "app.integrations.polymarket.tasks.snapshot_odds"
 
 
 # ---------------------------------------------------------------------------

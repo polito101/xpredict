@@ -26,7 +26,10 @@ async def _client() -> httpx.AsyncClient:
 
 
 async def _seed_user(
-    engine: AsyncEngine, email: str, *, is_superuser: bool = False,
+    engine: AsyncEngine,
+    email: str,
+    *,
+    is_superuser: bool = False,
 ) -> None:
     hashed = PasswordHash.recommended().hash(_ADMIN_PASSWORD)
     async with engine.connect() as conn:

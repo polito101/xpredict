@@ -47,6 +47,7 @@ async def _mint_verify_token(engine: "AsyncEngine", email: str) -> str:
         # verification_token_secret. Easier: call _generate_verification_token
         # directly.
         from fastapi_users.jwt import generate_jwt
+
         return generate_jwt(
             data={"sub": str(user.id), "email": user.email, "aud": "fastapi-users:verify"},
             secret=manager.verification_token_secret,

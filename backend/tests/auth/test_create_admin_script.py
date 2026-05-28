@@ -153,10 +153,7 @@ async def test_refuses_empty_env(
         rc = await main()
         assert rc == 1
         captured = capsys.readouterr()
-        assert (
-            "FIRST_ADMIN_EMAIL" in captured.err
-            and "FIRST_ADMIN_PASSWORD" in captured.err
-        )
+        assert "FIRST_ADMIN_EMAIL" in captured.err and "FIRST_ADMIN_PASSWORD" in captured.err
     finally:
         _reset_settings_cache()
 

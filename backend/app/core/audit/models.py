@@ -28,7 +28,7 @@ class AuditLog(Base):
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid4,                      # Python-side default (WR-05): id is set
+        default=uuid4,  # Python-side default (WR-05): id is set
         server_default=func.gen_random_uuid(),  # immediately on construction, no
         # pre-flush None window. server_default is still present for raw SQL inserts.
     )

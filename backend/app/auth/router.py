@@ -59,7 +59,7 @@ cookie_transport = CookieTransport(
     cookie_name="xpredict_session",
     cookie_max_age=settings.REFRESH_TOKEN_LIFETIME_SECONDS,
     cookie_httponly=True,
-    cookie_secure=not settings.is_dev,       # False in dev, True in staging/prod
+    cookie_secure=not settings.is_dev,  # False in dev, True in staging/prod
     cookie_samesite="lax",
     cookie_path="/",
 )
@@ -242,8 +242,7 @@ def _strip_proxy_owned(fu_router: APIRouter) -> APIRouter:
     OpenAPI schema and route table clean.
     """
     fu_router.routes = [
-        r for r in fu_router.routes
-        if getattr(r, "path", None) not in _PROXY_OWNED_PATHS
+        r for r in fu_router.routes if getattr(r, "path", None) not in _PROXY_OWNED_PATHS
     ]
     return fu_router
 
@@ -290,7 +289,9 @@ def build_auth_routers() -> APIRouter:
     # access /auth/users/me.
     parent.include_router(
         fastapi_users_player.get_users_router(
-            UserRead, UserUpdate, requires_verification=True,
+            UserRead,
+            UserUpdate,
+            requires_verification=True,
         ),
         prefix="/auth/users",
         tags=["auth"],

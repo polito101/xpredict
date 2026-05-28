@@ -68,15 +68,15 @@ class _FakeUserManager:
 
     async def get(self, user_id: uuid.UUID) -> Any:
         async with self._engine.connect() as conn:
-            result = await conn.execute(
-                select(User).where(User.id == user_id)
-            )
+            result = await conn.execute(select(User).where(User.id == user_id))
             row = result.first()
             if row is None:
                 raise LookupError(user_id)
+
             # Return an object with attrs (token_version, id) that match a User.
             class _UserStub:
                 pass
+
             stub = _UserStub()
             stub.id = row.id
             stub.token_version = row.token_version
@@ -138,9 +138,7 @@ async def test_token_hash_is_sha256(engine: AsyncEngine) -> None:
 
         # 1b. The row's token_hash is exactly sha256(raw).
         async with engine.connect() as conn:
-            result = await conn.execute(
-                select(RefreshToken).where(RefreshToken.user_id == uid)
-            )
+            result = await conn.execute(select(RefreshToken).where(RefreshToken.user_id == uid))
             row = result.first()
             assert row is not None
             assert row.token_hash == _hash(raw_token)
@@ -209,17 +207,12 @@ async def test_reuse_detection_revokes_all(engine: AsyncEngine) -> None:
                     {"uid": uid},
                 )
             ).scalar()
-            assert active_after == 0, (
-                "reuse detection failed to revoke all active tokens"
-            )
+            assert active_after == 0, "reuse detection failed to revoke all active tokens"
 
             # reuse_count incremented on the originally-revoked row.
             reuse_count_a = (
                 await conn.execute(
-                    text(
-                        "SELECT reuse_count FROM refresh_tokens "
-                        "WHERE token_hash = :h"
-                    ),
+                    text("SELECT reuse_count FROM refresh_tokens " "WHERE token_hash = :h"),
                     {"h": _hash(token_a)},
                 )
             ).scalar()
@@ -262,9 +255,7 @@ async def test_expired_token_returns_none(engine: AsyncEngine) -> None:
         async with engine.connect() as conn:
             row = (
                 await conn.execute(
-                    select(RefreshToken).where(
-                        RefreshToken.token_hash == _hash(raw_token)
-                    )
+                    select(RefreshToken).where(RefreshToken.token_hash == _hash(raw_token))
                 )
             ).first()
             assert row is not None
@@ -297,9 +288,7 @@ async def test_token_version_bump_invalidates(engine: AsyncEngine) -> None:
 
         # Bump user.token_version directly via engine.
         async with engine.connect() as conn:
-            await conn.execute(
-                update(User).where(User.id == uid).values(token_version=1)
-            )
+            await conn.execute(update(User).where(User.id == uid).values(token_version=1))
             await conn.commit()
 
         # Token snapshot version is 0; user is now 1 → must return None.
