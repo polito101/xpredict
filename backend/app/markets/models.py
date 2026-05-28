@@ -95,6 +95,9 @@ class Market(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
     )
+    uma_resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )
     tenant_id: Mapped[PyUUID | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,

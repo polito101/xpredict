@@ -88,6 +88,11 @@ class Settings(BaseSettings):
     POLYMARKET_SNAPSHOT_INTERVAL_SECONDS: int = 300
     POLYMARKET_LOCK_TTL_SECONDS: int = 25
 
+    # -------------------------------------------------------------------------
+    # Phase 7 — Polymarket Auto-Resolution (STL-01)
+    # -------------------------------------------------------------------------
+    POLYMARKET_GRACE_PERIOD_MINUTES: int = 30
+
     @property
     def is_dev(self) -> bool:
         """Drives structlog renderer, Sentry init skip, cookie Secure flag (Phase 2)."""
