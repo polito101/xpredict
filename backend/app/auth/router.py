@@ -157,6 +157,11 @@ async def login_proxy(
             detail="LOGIN_BAD_CREDENTIALS",
         )
 
+    # Phase 8 D-02 — ban enforcement at login. Valid credentials but a banned
+    # account is 403 "Account suspended" (NOT 401/400 — the credentials are
+    # correct, the account is suspended). No cookie is issued (T-08-02).
+    user_manager.assert_not_banned(user)
+
     strategy = get_database_strategy()
     response = await player_backend.login(strategy, user)
 
