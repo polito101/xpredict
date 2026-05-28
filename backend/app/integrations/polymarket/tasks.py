@@ -298,19 +298,19 @@ async def _run_detect_resolutions(
             await redis.aclose()
 
 
-@celery_app.task(name="app.integrations.polymarket.tasks.poll_polymarket_top25")
+@celery_app.task(name="app.integrations.polymarket.tasks.poll_polymarket_top25")  # type: ignore[untyped-decorator]
 def poll_polymarket_top25() -> None:
     """Celery task wrapping _run_poll_sync in asyncio.run."""
     asyncio.run(_run_poll_sync())
 
 
-@celery_app.task(name="app.integrations.polymarket.tasks.snapshot_odds")
+@celery_app.task(name="app.integrations.polymarket.tasks.snapshot_odds")  # type: ignore[untyped-decorator]
 def snapshot_odds() -> None:
     """Celery task wrapping _run_snapshot_odds in asyncio.run."""
     asyncio.run(_run_snapshot_odds())
 
 
-@celery_app.task(name="app.integrations.polymarket.tasks.detect_polymarket_resolutions")
+@celery_app.task(name="app.integrations.polymarket.tasks.detect_polymarket_resolutions")  # type: ignore[untyped-decorator]
 def detect_polymarket_resolutions() -> None:
     """Beat task: check for UMA-resolved Polymarket markets every 60s (STL-01)."""
     asyncio.run(_run_detect_resolutions())

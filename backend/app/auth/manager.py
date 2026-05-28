@@ -101,7 +101,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             raise exceptions.UserAlreadyExists()
 
         user_dict = (
-            user_create.create_update_dict() if safe else user_create.create_update_dict_superuser()
+            user_create.create_update_dict()  # type: ignore[no-untyped-call]
+            if safe
+            else user_create.create_update_dict_superuser()  # type: ignore[no-untyped-call]
         )
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
@@ -109,8 +111,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         # Use the SAME session the user_db adapter holds, and do NOT let the
         # stock adapter commit early — we own the single commit below so the
         # user row and the wallet row land in ONE transaction (SC#1).
-        session: AsyncSession = self.user_db.session
-        user = self.user_db.user_table(**user_dict)
+        session: AsyncSession = self.user_db.session  # type: ignore[attr-defined]
+        user: User = self.user_db.user_table(**user_dict)  # type: ignore[attr-defined]
         session.add(user)
         await session.flush()  # user.id is now populated, NOT yet committed
 
@@ -270,12 +272,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 update(User)
                 .where(
                     User.id == user.id,  # type: ignore[arg-type]
-                    User.token_version == user.token_version,  # type: ignore[arg-type]
+                    User.token_version == user.token_version,
                 )
                 .values(token_version=User.token_version + 1)
                 .returning(User.token_version)
             )
-            if result.rowcount == 0:
+            if result.rowcount == 0:  # type: ignore[attr-defined]
                 # Concurrent reset already bumped the version — the DB is in
                 # the correct state; log for observability but do not re-bump.
                 logger.warning(
