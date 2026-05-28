@@ -144,7 +144,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   7. **`closed` vs `resolved` distinction is enforced at the model layer**: the Polymarket mapper sets a market's internal `status` based on a function of `closed`, `umaResolutionStatus`, and `outcomePrices`, and a unit test asserts that a market with `closed=true` but `umaResolutionStatus` not in `{resolved}` does NOT enter our `RESOLVED` state — even though we are not yet auto-settling in this phase.
 **Plans**: 3 plans
 **Plan list**:
-- [ ] 06-01-PLAN.md — GammaClient + Pydantic v2 parser + PolymarketAdapter + migration 0004 + Protocol conformance + VCR fixture tests (MKT-05, MKT-06)
+- [x] 06-01-PLAN.md — GammaClient + Pydantic v2 parser + PolymarketAdapter + migration 0004 + Protocol conformance + VCR fixture tests (MKT-05, MKT-06)
 - [ ] 06-02-PLAN.md — Celery Beat tasks (poll 30s + snapshot 5min) + Redis dedupe lock + house-first market list API (MKT-01, MKT-05, MKT-06)
 - [ ] 06-03-PLAN.md — Frontend market list: MarketCard + SourceBadge + OddsDisplay + responsive grid home page (MKT-01, MKT-02)
 **Research/spike flags**: **SPIKE completed** — spike-002 validated Pydantic v2 parser, state machine, and VCR fixtures. 4 fixture files captured and proven correct.
@@ -248,7 +248,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 3. Wallet & Double-Entry Ledger | 0/TBD | Not started | - |
 | 4. Markets Domain & HouseAdapter | 0/2 | Not started | - |
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
-| 6. Polymarket Sync (Catalog Replication) | 0/3 | Not started | - |
+| 6. Polymarket Sync (Catalog Replication) | 1/3 | In Progress|  |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
 | 8. Admin CRM (User Management & Audit Log Viewer) | 0/TBD | Not started | - |
 | 9. User App UX Polish (Market Detail & Real-Time) | 0/TBD | Not started | - |
