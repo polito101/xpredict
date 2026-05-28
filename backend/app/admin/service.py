@@ -192,6 +192,189 @@ class AdminUserService:
         }
 
     # ------------------------------------------------------------------ #
+    # CSV export reads (D-08 / ADU-06) — return rows of dicts ready for the
+    # csv_export builders. All capped at MAX_EXPORT_ROWS at the DB layer
+    # (T-08-09); the builders re-cap defensively.
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    async def export_users(
+        session: AsyncSession,
+        *,
+        search: str | None = None,
+        status: str | None = None,
+        signup_after: datetime | None = None,
+        signup_before: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return the filtered users for CSV export (same filters as the list).
+
+        Reuses ``_apply_user_filters`` so the export honours exactly the same
+        ``search`` / ``status`` / signup-date predicates as
+        ``GET /api/v1/admin/users`` (D-08: "export the current filtered view").
+        Each dict carries ``email``, ``display_name``, ``banned_at``,
+        ``created_at``, ``last_activity`` and ``balance`` — the shape
+        ``build_users_csv`` consumes.
+        """
+        # Avoid a circular import at module load (csv_export is leaf-level).
+        from app.admin.csv_export import MAX_EXPORT_ROWS
+
+        wallet = (
+            select(Account.owner_id.label("uid"), Account.balance.label("balance"))
+            .where(
+                Account.owner_type == OWNER_USER,
+                Account.kind == KIND_USER_WALLET,
+                Account.currency == PLAY_USD,
+            )
+            .subquery()
+        )
+        last_bet = (
+            select(
+                Bet.user_id.label("uid"),
+                func.max(Bet.created_at).label("last_activity"),
+            )
+            .group_by(Bet.user_id)
+            .subquery()
+        )
+        base: Select[Any] = (
+            select(
+                User,
+                func.coalesce(wallet.c.balance, 0).label("balance"),
+                last_bet.c.last_activity.label("last_activity"),
+            )
+            .select_from(User)
+            .outerjoin(wallet, wallet.c.uid == User.id)
+            .outerjoin(last_bet, last_bet.c.uid == User.id)
+        )
+        base = AdminUserService._apply_user_filters(
+            base,
+            search=search,
+            status=status,
+            signup_after=signup_after,
+            signup_before=signup_before,
+        )
+        stmt = base.order_by(User.created_at.desc()).limit(MAX_EXPORT_ROWS)
+        rows = (await session.execute(stmt)).all()
+        return [
+            AdminUserService._user_row_to_dict(
+                user, balance=balance, last_activity=last_activity
+            )
+            for (user, balance, last_activity) in rows
+        ]
+
+    @staticmethod
+    async def export_transactions(
+        session: AsyncSession, *, user_id: UUID | None = None
+    ) -> list[dict[str, Any]]:
+        """Return wallet transactions for CSV export, optionally scoped to one user.
+
+        Joins ``user_email`` (via the wallet account's ``owner_id``) so the
+        export is self-describing. Each dict carries ``id``, ``user_email``,
+        ``kind``, ``amount``, ``reason``, ``created_at`` — the shape
+        ``build_transactions_csv`` consumes.
+        """
+        from app.admin.csv_export import MAX_EXPORT_ROWS
+
+        stmt = (
+            select(
+                Entry.id.label("id"),
+                User.email.label("user_email"),  # type: ignore[attr-defined]
+                Transfer.kind.label("kind"),
+                Entry.amount.label("amount"),
+                Entry.created_at.label("created_at"),
+                Transfer.transfer_metadata.label("metadata"),
+            )
+            .select_from(Entry)
+            .join(Transfer, Entry.transfer_id == Transfer.id)
+            .join(Account, Account.id == Entry.account_id)
+            .outerjoin(User, User.id == Account.owner_id)  # type: ignore[arg-type]
+            .where(
+                Account.owner_type == OWNER_USER,
+                Account.kind == KIND_USER_WALLET,
+                Account.currency == PLAY_USD,
+            )
+        )
+        if user_id is not None:
+            stmt = stmt.where(Account.owner_id == user_id)
+        stmt = stmt.order_by(Entry.created_at.desc(), Entry.id.desc()).limit(MAX_EXPORT_ROWS)
+        rows = (await session.execute(stmt)).all()
+        return [
+            {
+                "id": row.id,
+                "user_email": row.user_email,
+                "kind": row.kind,
+                "amount": row.amount,
+                "reason": (row.metadata or {}).get("reason"),
+                "created_at": row.created_at,
+            }
+            for row in rows
+        ]
+
+    @staticmethod
+    async def export_bets(
+        session: AsyncSession, *, user_id: UUID | None = None
+    ) -> list[dict[str, Any]]:
+        """Return bets for CSV export, optionally scoped to one user.
+
+        Joins ``user_email`` plus the market question + outcome label, and
+        computes realized P&L for settled bets (winner positive, loser
+        ``-stake``; ``None`` while pending) exactly like ``get_user_bets``.
+        Each dict carries ``id``, ``user_email``, ``market_question``,
+        ``outcome``, ``stake``, ``status``, ``pnl``, ``created_at`` — the shape
+        ``build_bets_csv`` consumes.
+        """
+        from app.admin.csv_export import MAX_EXPORT_ROWS
+
+        stmt = (
+            select(
+                Bet.id.label("id"),
+                User.email.label("user_email"),  # type: ignore[attr-defined]
+                Market.question.label("market_question"),
+                Outcome.label.label("outcome_label"),
+                Bet.stake.label("stake"),
+                Bet.status.label("status"),
+                Bet.odds_at_placement.label("odds_at_placement"),
+                Bet.created_at.label("created_at"),
+            )
+            .select_from(Bet)
+            .outerjoin(User, User.id == Bet.user_id)  # type: ignore[arg-type]
+            .outerjoin(Market, Market.id == Bet.market_id)
+            .outerjoin(Outcome, Outcome.id == Bet.outcome_id)
+        )
+        if user_id is not None:
+            stmt = stmt.where(Bet.user_id == user_id)
+        stmt = stmt.order_by(Bet.created_at.desc(), Bet.id.desc()).limit(MAX_EXPORT_ROWS)
+        rows = (await session.execute(stmt)).all()
+
+        from decimal import Decimal
+
+        from app.bets.constants import BET_PENDING, BET_SETTLED_WON
+        from app.settlement.payout import compute_payout, profit_or_loss, quantize_money
+
+        items: list[dict[str, Any]] = []
+        for row in rows:
+            pnl: Any = None
+            if row.status != BET_PENDING:
+                won = row.status == BET_SETTLED_WON
+                payout = (
+                    compute_payout(row.stake, row.odds_at_placement)
+                    if won
+                    else quantize_money(Decimal("0"))
+                )
+                pnl = profit_or_loss(row.stake, payout)
+            items.append(
+                {
+                    "id": row.id,
+                    "user_email": row.user_email,
+                    "market_question": row.market_question or "(unknown market)",
+                    "outcome": row.outcome_label or "(unknown outcome)",
+                    "stake": row.stake,
+                    "status": row.status,
+                    "pnl": pnl,
+                    "created_at": row.created_at,
+                }
+            )
+        return items
+
+    # ------------------------------------------------------------------ #
     # User detail — profile + balance + counts (D-07).
     # ------------------------------------------------------------------ #
     @staticmethod
