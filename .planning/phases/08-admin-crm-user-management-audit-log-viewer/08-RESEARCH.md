@@ -527,22 +527,25 @@ async def list_audit_log(
 | A2 | `on_after_login` hook in fastapi-users v15 fires after token mint but before response send | Code Examples (ban at login) | If the hook fires after the response is already sent, the ban check arrives too late. May need an alternative approach (dependency check). |
 | A3 | TanStack Table v8.21.3 is compatible with React 19 | Standard Stack | React 19 is the project's React version. TanStack Table v8 should be compatible but was not verified against React 19 specifically. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Next.js version discrepancy**
    - What we know: `package.json` shows `"next": "^16.2.6"` but multiple CONTEXT/STATE entries reference Next 15.x and the decision to pin `next@^15.5.18`. The current `frontend/node_modules` glob suggests 15.5.18 is installed.
    - What's unclear: Whether `package.json` was updated to ^16 after Phase 2's pin decision.
    - Recommendation: The planner should run `pnpm list next` in `frontend/` to confirm the installed version before planning frontend tasks.
+   - RESOLVED: Plan 03 Task 2 verifies actual installed version at runtime via `pnpm list next` before proceeding with frontend work.
 
 2. **Ban enforcement at login -- hook vs dependency**
    - What we know: D-02 says "UserManager.on_after_login or a dependency check". fastapi-users v15 `on_after_login` fires after successful auth.
    - What's unclear: Whether `on_after_login` can raise an HTTP exception to block the response, or whether a separate dependency is cleaner.
    - Recommendation: Test in the plan's first wave. A separate FastAPI dependency (`current_unbanned_player`) that wraps `current_active_player` + checks `banned_at` is the safest approach. However, for the admin login path, the check must happen in the admin login proxy function (`admin_login_proxy` in `admin_router.py` line 149) since admin users cannot be banned in v1 (they're superusers).
+   - RESOLVED: Plan 01 implements a check in UserManager that returns 403 for banned users at login, plus enforcement in wallet/admin_router.py for recharge. Bet enforcement already exists via current_betting_player.
 
 3. **Admin API proxy architecture for frontend**
    - What we know: Admin JWT is HttpOnly cookie scoped to `/admin`. Client Components cannot read it.
    - What's unclear: Whether to use Server Actions (existing pattern), Route Handlers (new `/app/admin/api/` proxy), or have the Next.js Server Components do SSR data fetching.
    - Recommendation: Use Next.js Server Components for initial data fetch (SSR reads cookie, forwards Bearer, returns data to page). For client-side pagination/sorting (TanStack Table state changes), use a thin Route Handler proxy or Server Actions for refetch.
+   - RESOLVED: Plan 03 Task 3 implements `adminApiFetch` as a "use server" Server Action that reads the HttpOnly admin_jwt cookie and forwards as Bearer header. Client Components call this via Server Actions for refetch on pagination/sort/filter.
 
 ## Environment Availability
 

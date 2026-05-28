@@ -2,7 +2,7 @@
 phase: 8
 slug: admin-crm-user-management-audit-log-viewer
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-28
 ---
@@ -38,12 +38,12 @@ created: 2026-05-28
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | ADU-01 | — | N/A | integration | `uv run pytest tests/admin/test_user_list.py -x` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | ADU-02 | — | N/A | integration | `uv run pytest tests/admin/test_user_detail.py -x` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | ADU-04 | T-8-ban | Banned user login returns 403, bets rejected, recharge rejected | integration | `uv run pytest tests/admin/test_ban.py -x` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | ADU-05 | T-8-csv | CSV injection chars prefixed with single quote | unit | `uv run pytest tests/admin/test_csv_export.py -x` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | ADU-06 | — | N/A | integration | `uv run pytest tests/admin/test_audit_log.py -x` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | ADD-04 | T-8-auth | All admin endpoints require is_admin=true | integration | `uv run pytest tests/admin/test_admin_auth.py -x` | ❌ W0 | ⬜ pending |
+| 08-01-01 | 01 | 1 | ADU-01 | — | N/A | integration | `uv run pytest tests/admin/test_user_list.py -x` | ❌ W0 | ⬜ pending |
+| 08-01-01 | 01 | 1 | ADU-02 | — | N/A | integration | `uv run pytest tests/admin/test_user_detail.py -x` | ❌ W0 | ⬜ pending |
+| 08-01-01 | 01 | 1 | ADU-04 | T-8-ban | Banned user login returns 403, bets rejected, recharge rejected | integration | `uv run pytest tests/admin/test_ban_unban.py -x` | ❌ W0 | ⬜ pending |
+| 08-02-01 | 02 | 2 | ADU-06 | T-8-csv | CSV injection chars prefixed with single quote | unit | `uv run pytest tests/admin/test_csv_export.py -x` | ❌ W0 | ⬜ pending |
+| 08-02-02 | 02 | 2 | ADD-04 | — | N/A | integration | `uv run pytest tests/admin/test_audit_log.py -x` | ❌ W0 | ⬜ pending |
+| 08-01-01 | 01 | 1 | ADD-04 | T-8-auth | All admin endpoints require is_admin=true | integration | `uv run pytest tests/admin/test_admin_auth_gate.py -x` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
