@@ -44,8 +44,8 @@ const mockMarket: MarketItem = {
   volume_24hr: "150000",
   source_url: "https://polymarket.com/event/test-123",
   outcomes: [
-    { id: "out-1", label: "YES", initial_odds: "0.50", current_odds: "0.63" },
-    { id: "out-2", label: "NO", initial_odds: "0.50", current_odds: "0.37" },
+    { id: "out-1", label: "Yes", initial_odds: "0.50", current_odds: "0.63" },
+    { id: "out-2", label: "No", initial_odds: "0.50", current_odds: "0.37" },
   ],
 };
 

@@ -28,12 +28,17 @@ interface MarketCardProps {
 }
 
 export function MarketCard({ market }: MarketCardProps) {
-  // Compute YES/NO percentages from outcomes
-  const yesOutcome = market.outcomes.find((o) => o.label === "YES");
-  const yesPercent = yesOutcome
-    ? Math.round(parseFloat(yesOutcome.current_odds) * 100)
+  // Compute YES/NO percentages from outcomes.
+  // Gamma API returns title-case labels ("Yes"/"No"), so compare
+  // case-insensitively. For non-binary markets, fall back to first outcome.
+  const yesOutcome = market.outcomes.find(
+    (o) => o.label.toUpperCase() === "YES"
+  );
+  const primaryOutcome = yesOutcome ?? market.outcomes[0];
+  const primaryPercent = primaryOutcome
+    ? Math.round(parseFloat(primaryOutcome.current_odds) * 100)
     : 50;
-  const noPercent = 100 - yesPercent;
+  const secondaryPercent = 100 - primaryPercent;
 
   const deadline = formatDeadline(market.deadline);
   const isEnded = deadline === "Ended";
@@ -52,7 +57,7 @@ export function MarketCard({ market }: MarketCardProps) {
         </h3>
       </CardHeader>
       <CardContent className="p-6 pt-0">
-        <OddsDisplay yes={yesPercent} no={noPercent} />
+        <OddsDisplay yes={primaryPercent} no={secondaryPercent} />
       </CardContent>
       <CardFooter className="p-6 pt-0 flex justify-between items-end">
         <div className="text-sm text-zinc-500">
