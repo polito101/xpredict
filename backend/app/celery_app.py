@@ -160,6 +160,7 @@ def _on_task_failure(
     if exception is None:
         return
     import sentry_sdk
+
     sentry_sdk.capture_exception(exception)
 
 

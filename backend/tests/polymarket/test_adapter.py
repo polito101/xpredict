@@ -7,7 +7,7 @@ and fetch_active_markets correctness.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import pytest
 
@@ -29,7 +29,7 @@ pytestmark_unit = pytest.mark.unit
 class TestProtocolConformance:
     """Protocol and registry checks — no external deps."""
 
-    pytestmark = [pytest.mark.unit]
+    pytestmark: ClassVar = [pytest.mark.unit]
 
     def test_protocol_conformance(self) -> None:
         """PolymarketAdapter passes MarketSource Protocol isinstance check."""
@@ -72,12 +72,15 @@ class TestProtocolConformance:
         }
 
         adapter = PolymarketAdapter()
-        with patch(
-            "app.integrations.polymarket.adapter.GammaClient.fetch_market_by_id",
-            new=AsyncMock(return_value=closed_proposed_raw),
-        ), patch(
-            "app.integrations.polymarket.adapter.GammaClient.close",
-            new=AsyncMock(),
+        with (
+            patch(
+                "app.integrations.polymarket.adapter.GammaClient.fetch_market_by_id",
+                new=AsyncMock(return_value=closed_proposed_raw),
+            ),
+            patch(
+                "app.integrations.polymarket.adapter.GammaClient.close",
+                new=AsyncMock(),
+            ),
         ):
             result = await adapter.detect_resolution(session, market_id)
 

@@ -191,6 +191,7 @@ async def _run_detect_resolutions(
             session = session_override
         else:
             from app.db.session import _get_session_maker
+
             session = _get_session_maker()()
 
         now = datetime.now(UTC)

@@ -3,18 +3,13 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
 from app.integrations.polymarket.schemas import GammaMarket
 from app.markets.enums import MarketSourceEnum, MarketStatus
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
 
 # ---------------------------------------------------------------------------
 # Unit tests — no DB required
@@ -24,10 +19,6 @@ if TYPE_CHECKING:
 @pytest.mark.unit
 def test_candidate_query_returns_expired_markets() -> None:
     """Candidate query filters POLYMARKET OPEN/CLOSED markets past their deadline."""
-    from sqlalchemy.orm import selectinload
-
-    from app.integrations.polymarket.tasks import _run_detect_resolutions
-    from app.markets.models import Market
 
     # Verify the task imports and selects on the correct columns.
     # We test the filter predicates by inspecting _derive_status logic on the schema.
@@ -59,6 +50,7 @@ def test_candidate_query_returns_expired_markets() -> None:
 
     # Verify the task constant keys.
     from app.integrations.polymarket.tasks import DETECT_LOCK_KEY, LOCK_KEY
+
     assert DETECT_LOCK_KEY != LOCK_KEY, "Detect lock must be distinct from poll lock (T-07-04)"
     assert "detect" in DETECT_LOCK_KEY
 
@@ -225,10 +217,7 @@ def test_beat_schedule_registered() -> None:
     assert "detect-polymarket-resolutions" in schedule
     entry = schedule["detect-polymarket-resolutions"]
     assert entry["schedule"] == 60.0
-    assert (
-        entry["task"]
-        == "app.integrations.polymarket.tasks.detect_polymarket_resolutions"
-    )
+    assert entry["task"] == "app.integrations.polymarket.tasks.detect_polymarket_resolutions"
 
 
 # ---------------------------------------------------------------------------
@@ -243,33 +232,39 @@ _integration_marks = [
 
 @pytest.mark.integration
 @pytest.mark.asyncio(loop_scope="session")
-async def test_integration_proposed_not_settled(async_session: AsyncSession) -> None:
-    """Integration: closed/proposed market never triggers settlement (SC#3)."""
+async def test_integration_proposed_not_settled() -> None:
+    """Integration: closed/proposed market never triggers settlement (SC#3).
+
+    Uses _get_session_maker() directly (not the shared async_session fixture) so
+    each operation gets a clean session — same pattern as test_reversal_after_auto_settlement.
+    """
     from decimal import Decimal
 
     from sqlalchemy import select
 
-    from app.bets.models import Bet
-    from app.bets.service import BetService
+    from app.db.session import _get_session_maker
     from app.integrations.polymarket.tasks import _run_detect_resolutions
     from app.markets.models import Market, Outcome
 
     market_id = uuid4()
     outcome_id = uuid4()
+    source_market_id = f"gamma-integration-{market_id.hex[:8]}"
 
-    async with async_session.begin():
+    sm = _get_session_maker()
+
+    async with sm() as s, s.begin():
         mkt = Market(
             id=market_id,
             question="Integration test: proposed market",
             slug=f"integration-proposed-{market_id.hex[:8]}",
             resolution_criteria="test",
             source=MarketSourceEnum.POLYMARKET.value,
-            source_market_id=f"gamma-integration-{market_id.hex[:8]}",
+            source_market_id=source_market_id,
             status=MarketStatus.CLOSED.value,
             deadline=datetime(2020, 1, 1, tzinfo=UTC),
         )
-        async_session.add(mkt)
-        await async_session.flush()
+        s.add(mkt)
+        await s.flush()
 
         out = Outcome(
             id=outcome_id,
@@ -278,10 +273,10 @@ async def test_integration_proposed_not_settled(async_session: AsyncSession) -> 
             initial_odds=Decimal("0.5"),
             current_odds=Decimal("0.5"),
         )
-        async_session.add(out)
+        s.add(out)
 
     closed_proposed = {
-        "id": mkt.source_market_id,
+        "id": source_market_id,
         "question": "Integration test?",
         "closed": True,
         "umaResolutionStatus": "proposed",
@@ -293,31 +288,35 @@ async def test_integration_proposed_not_settled(async_session: AsyncSession) -> 
     redis.set = AsyncMock(return_value=True)
     redis.delete = AsyncMock()
 
-    with (
-        patch(
-            "app.integrations.polymarket.tasks.GammaClient.fetch_market_by_id",
-            new=AsyncMock(return_value=closed_proposed),
-        ),
-        patch("app.integrations.polymarket.tasks.GammaClient.close", new=AsyncMock()),
-    ):
-        await _run_detect_resolutions(redis_override=redis, session_override=async_session)
+    async with sm() as detect_session:
+        with (
+            patch(
+                "app.integrations.polymarket.tasks.GammaClient.fetch_market_by_id",
+                new=AsyncMock(return_value=closed_proposed),
+            ),
+            patch("app.integrations.polymarket.tasks.GammaClient.close", new=AsyncMock()),
+        ):
+            await _run_detect_resolutions(redis_override=redis, session_override=detect_session)
 
     # Market should still be CLOSED, not RESOLVED.
-    await async_session.refresh(mkt)
-    assert mkt.status == MarketStatus.CLOSED.value
+    async with sm() as s:
+        result = await s.execute(select(Market).where(Market.id == market_id))
+        market = result.scalar_one()
+        assert market.status == MarketStatus.CLOSED.value
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio(loop_scope="session")
-async def test_reversal_after_auto_settlement(async_session: AsyncSession) -> None:
-    """Auto-settle then reverse: compensating entries restore balances (SC#6)."""
+async def test_reversal_after_auto_settlement() -> None:
+    """Auto-settle then reverse: compensating entries restore balances (SC#6).
+
+    Uses _get_session_maker() directly (not the shared async_session fixture) so
+    each SettlementService call gets a clean session with no pre-existing autobegun
+    transaction — SettlementService opens its own begin() internally.
+    """
     from decimal import Decimal
 
-    from sqlalchemy import select
-
-    from app.bets.constants import BET_PENDING, BET_SETTLED_WON
-    from app.bets.models import Bet
-    from app.integrations.polymarket.tasks import _run_detect_resolutions
+    from app.db.session import _get_session_maker
     from app.markets.models import Market, Outcome
     from app.settlement.adapters import HouseMarketResolveAdapter
     from app.settlement.service import SettlementService
@@ -326,7 +325,8 @@ async def test_reversal_after_auto_settlement(async_session: AsyncSession) -> No
     yes_id = uuid4()
     no_id = uuid4()
 
-    async with async_session.begin():
+    sm = _get_session_maker()
+    async with sm() as s, s.begin():
         mkt = Market(
             id=market_id,
             question="Auto-settlement reversal test",
@@ -337,35 +337,42 @@ async def test_reversal_after_auto_settlement(async_session: AsyncSession) -> No
             status=MarketStatus.OPEN.value,
             deadline=datetime(2020, 1, 1, tzinfo=UTC),
         )
-        async_session.add(mkt)
-        await async_session.flush()
+        s.add(mkt)
+        await s.flush()
         yes_out = Outcome(
-            id=yes_id, market_id=market_id, label="Yes",
-            initial_odds=Decimal("0.5"), current_odds=Decimal("0.5"),
+            id=yes_id,
+            market_id=market_id,
+            label="Yes",
+            initial_odds=Decimal("0.5"),
+            current_odds=Decimal("0.5"),
         )
         no_out = Outcome(
-            id=no_id, market_id=market_id, label="No",
-            initial_odds=Decimal("0.5"), current_odds=Decimal("0.5"),
+            id=no_id,
+            market_id=market_id,
+            label="No",
+            initial_odds=Decimal("0.5"),
+            current_odds=Decimal("0.5"),
         )
-        async_session.add_all([yes_out, no_out])
+        s.add_all([yes_out, no_out])
 
-    # Auto-settle via SettlementService with actor_user_id=None (system resolution).
-    await SettlementService.resolve_market(
-        async_session,
-        market_id=market_id,
-        winning_outcome_id=yes_id,
-        market_resolver=HouseMarketResolveAdapter(),
-        justification="Auto-resolved: Polymarket UMA oracle confirmed resolution",
-        actor_user_id=None,
-    )
+    # Each SettlementService call opens its own clean session.begin() transaction.
+    async with sm() as s:
+        await SettlementService.resolve_market(
+            s,
+            market_id=market_id,
+            winning_outcome_id=yes_id,
+            market_resolver=HouseMarketResolveAdapter(),
+            justification="Auto-resolved: Polymarket UMA oracle confirmed resolution",
+            actor_user_id=None,
+        )
 
-    # Reverse the settlement — compensating entries should restore balances.
-    reversed_count = await SettlementService.reverse_settlement(
-        async_session,
-        market_id=market_id,
-        market_resolver=HouseMarketResolveAdapter(),
-        justification="Test reversal after auto-settlement",
-        actor_user_id=uuid4(),
-    )
+    async with sm() as s:
+        reversed_count = await SettlementService.reverse_settlement(
+            s,
+            market_id=market_id,
+            market_resolver=HouseMarketResolveAdapter(),
+            justification="Test reversal after auto-settlement",
+            actor_user_id=uuid4(),
+        )
 
     assert reversed_count >= 0  # 0 bets in this test (no bets placed), no-op but valid

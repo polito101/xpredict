@@ -54,51 +54,73 @@ class Market(Base):
     )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     slug: Mapped[str] = mapped_column(
-        String(100), unique=True, index=True, nullable=False,
+        String(100),
+        unique=True,
+        index=True,
+        nullable=False,
     )
     resolution_criteria: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="HOUSE",
+        String(20),
+        nullable=False,
+        server_default="HOUSE",
     )
     source_market_id: Mapped[str | None] = mapped_column(
-        String(200), nullable=True,
+        String(200),
+        nullable=True,
     )
     condition_id: Mapped[str | None] = mapped_column(
-        String(200), nullable=True,
+        String(200),
+        nullable=True,
     )
     polymarket_slug: Mapped[str | None] = mapped_column(
-        String(300), nullable=True,
+        String(300),
+        nullable=True,
     )
     volume: Mapped[Money] = mapped_column(
-        server_default="0", default=Decimal("0"),
+        server_default="0",
+        default=Decimal("0"),
     )
     volume_24hr: Mapped[Money] = mapped_column(
-        server_default="0", default=Decimal("0"),
+        server_default="0",
+        default=Decimal("0"),
     )
     status: Mapped[str] = mapped_column(
-        String(20), nullable=False, server_default="OPEN",
+        String(20),
+        nullable=False,
+        server_default="OPEN",
     )
     deadline: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
+        DateTime(timezone=True),
+        nullable=False,
     )
     bet_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0", default=0,
+        Integer,
+        nullable=False,
+        server_default="0",
+        default=0,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(),
+        DateTime(timezone=True),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
     )
     closed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     uma_resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
+        DateTime(timezone=True),
+        nullable=True,
     )
     tenant_id: Mapped[PyUUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -184,7 +206,8 @@ class OddsSnapshot(Base):
     )
     probability: Mapped[Odds] = mapped_column()
     snapshot_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(),
+        DateTime(timezone=True),
+        server_default=func.now(),
     )
     tenant_id: Mapped[PyUUID | None] = mapped_column(
         UUID(as_uuid=True),

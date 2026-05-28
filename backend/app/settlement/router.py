@@ -155,8 +155,15 @@ async def force_settle_polymarket_market(
             detail="Market not found or not a Polymarket market.",
         )
 
+    # Capture source_market_id before closing the read tx so the object stays accessible.
+    source_market_id = market.source_market_id or ""
+    # Clear the autobegun read-tx so SettlementService can open its own begin().
+    # (session.get starts an autobegun tx; session.begin() below would raise
+    # InvalidRequestError if a tx is already active — same pattern as /resolve.)
+    await session.rollback()
+
     # Snapshot the current Gamma UMA status for the audit record (T-07-10).
-    current = await gamma_client.fetch_market_by_id(market.source_market_id or "")
+    current = await gamma_client.fetch_market_by_id(source_market_id)
     await gamma_client.close()
     uma_status_at_override: str | None = (current or {}).get("umaResolutionStatus")  # type: ignore[assignment]
 
