@@ -222,7 +222,11 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   5. The audit log viewer at `/admin/audit-log` is read-only, paginated, filterable by `event_type` and `actor_user_id`, and displays every audit entry from Phases 3, 5, and 7; an admin UI attempt to edit a row is blocked (no edit affordance) and a direct DB `UPDATE` test against the audit_log table fails because of the Phase 1 trigger.
   6. A negative auth test confirms every `/admin/*` endpoint added in this phase requires `is_admin = true`; a player-cookie request to `/admin/users` returns 403, and a missing-Bearer request returns 401.
 
-**Plans**: TBD
+**Plans**: 3 plans
+**Plan list**:
+- [ ] 08-01-PLAN.md — Backend API core: user list, detail, ban/unban with 3 enforcement points + integration tests (ADU-01, ADU-02, ADU-04, ADU-05)
+- [ ] 08-02-PLAN.md — CSV export with injection protection + audit log read endpoint + tests (ADU-06, ADD-04)
+- [ ] 08-03-PLAN.md — Frontend admin pages: user list, user detail with tabs, audit log viewer, TanStack Table + shadcn (ADU-01, ADU-02, ADU-04, ADU-05, ADU-06, ADD-04)
 **Research/spike flags**: None — TanStack Table v8 + shadcn primitives are well-documented for admin tables.
 **Critical pitfalls covered**: PITFALL #6 (the audit log viewer makes the immutable trail visible to operators — the demo-trust signal), PITFALL #8 (admin auth surface separation re-verified).
 **UI hint**: yes
