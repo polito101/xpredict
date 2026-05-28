@@ -65,6 +65,9 @@ class Market(Base):
     condition_id: Mapped[str | None] = mapped_column(
         String(200), nullable=True,
     )
+    polymarket_slug: Mapped[str | None] = mapped_column(
+        String(300), nullable=True,
+    )
     volume: Mapped[Money] = mapped_column(
         server_default="0", default=Decimal("0"),
     )

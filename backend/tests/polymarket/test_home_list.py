@@ -31,6 +31,7 @@ async def _create_market(
     question: str = "Test market?",
     volume_24hr: Decimal = Decimal("0"),
     source_market_id: str | None = None,
+    polymarket_slug: str | None = None,
 ) -> Market:
     """Helper to insert a market with 2 outcomes."""
     market = Market(
@@ -42,6 +43,7 @@ async def _create_market(
         deadline=datetime.now(UTC) + timedelta(days=1),
         volume_24hr=volume_24hr,
         source_market_id=source_market_id,
+        polymarket_slug=polymarket_slug,
     )
     session.add(market)
     await session.flush()
@@ -179,6 +181,7 @@ async def test_public_endpoint_returns_mixed_list(engine: AsyncEngine) -> None:
             question="Endpoint test PM market?",
             volume_24hr=Decimal("75000"),
             source_market_id="pm-endpoint-test-001",
+            polymarket_slug="endpoint-test-pm-market",
         )
         await session.commit()
 
@@ -218,7 +221,7 @@ async def test_public_endpoint_returns_mixed_list(engine: AsyncEngine) -> None:
         # source_url for Polymarket market
         assert pm_item["source_url"] is not None
         assert pm_item["source_url"].startswith("https://polymarket.com/event/")
-        assert "pm-endpoint-test-001" in pm_item["source_url"]
+        assert "endpoint-test-pm-market" in pm_item["source_url"]
 
         # source_url for house market is null
         assert house_item["source_url"] is None

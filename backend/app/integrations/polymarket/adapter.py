@@ -105,6 +105,7 @@ class PolymarketAdapter:
                 "condition_id": parsed.condition_id,
                 "question": parsed.question,
                 "slug": slug,
+                "polymarket_slug": parsed.slug,
                 "status": parsed.internal_status.value,
                 "volume": parsed.volume,
                 "volume_24hr": parsed.volume_24hr_decimal,

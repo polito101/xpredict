@@ -48,6 +48,19 @@ def upgrade() -> None:
     )
 
     # ------------------------------------------------------------------
+    # Polymarket slug — stores the Gamma API slug for source_url construction.
+    # Numeric source_market_id is not a valid Polymarket URL path segment.
+    # ------------------------------------------------------------------
+    op.add_column(
+        "markets",
+        sa.Column(
+            "polymarket_slug",
+            sa.String(300),
+            nullable=True,
+        ),
+    )
+
+    # ------------------------------------------------------------------
     # Partial unique index for upsert on (source, source_market_id)
     # Only applies when source_market_id IS NOT NULL (house markets
     # don't have one).
@@ -66,5 +79,6 @@ def downgrade() -> None:
         "ix_markets_source_source_market_id",
         table_name="markets",
     )
+    op.drop_column("markets", "polymarket_slug")
     op.drop_column("markets", "volume_24hr")
     op.drop_column("markets", "volume")

@@ -113,6 +113,7 @@ class MarketListItem(BaseModel):
     category: str | None
     source: str
     source_market_id: str | None = None
+    polymarket_slug: str | None = None
     status: str
     deadline: datetime
     bet_count: int
@@ -129,10 +130,14 @@ class MarketListItem(BaseModel):
 
     @model_validator(mode="after")
     def compute_source_url(self) -> MarketListItem:
-        """Derive source_url from source + source_market_id (T-06-07)."""
-        if self.source == "POLYMARKET" and self.source_market_id:
+        """Derive source_url from source + polymarket_slug (T-06-07).
+
+        Uses the Gamma API slug for the URL path — the numeric
+        source_market_id is not a valid Polymarket event URL segment.
+        """
+        if self.source == "POLYMARKET" and self.polymarket_slug:
             self.source_url = (
-                f"https://polymarket.com/event/{self.source_market_id}"
+                f"https://polymarket.com/event/{self.polymarket_slug}"
             )
         else:
             self.source_url = None
