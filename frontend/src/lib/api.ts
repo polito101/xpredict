@@ -72,15 +72,35 @@ export interface ActivityItem {
 
 // -- Fetch helpers -----------------------------------------------------------
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/**
+ * Resolves the backend base URL for the current execution context.
+ *
+ * Server-side (SSR / Server Components) reaches the backend over the internal
+ * network — in Docker that is `BACKEND_URL` (e.g. `http://backend:8000`). The
+ * browser must use the public, host-reachable URL from `NEXT_PUBLIC_API_URL`
+ * (e.g. `http://localhost:8000`). Conflating the two left the client-side
+ * price-history re-fetch (and, mirrored in `use-market-socket`, the WS base)
+ * pointing at the unresolvable `backend` hostname under the dockerized
+ * `bin/dev` stack — the browser cannot resolve a Docker-internal hostname
+ * (Phase 9 closeout finding). Both fall back to localhost for host-run dev.
+ */
+function apiBase(): string {
+  if (typeof window === "undefined") {
+    return (
+      process.env.BACKEND_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:8000"
+    );
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+}
 
 /**
  * Fetches the public market list from the backend.
  * Uses `cache: "no-store"` for Server Component (fresh on every render).
  */
 export async function fetchMarkets(): Promise<MarketItem[]> {
-  const res = await fetch(`${API_BASE}/api/v1/markets`, {
+  const res = await fetch(`${apiBase()}/api/v1/markets`, {
     cache: "no-store",
   });
 
@@ -110,7 +130,7 @@ export class MarketNotFound extends Error {
  */
 export async function fetchMarket(slug: string): Promise<MarketDetail> {
   const res = await fetch(
-    `${API_BASE}/api/v1/markets/${encodeURIComponent(slug)}`,
+    `${apiBase()}/api/v1/markets/${encodeURIComponent(slug)}`,
     { cache: "no-store" },
   );
 
@@ -134,7 +154,7 @@ export async function fetchPriceHistory(
   window: PriceWindow = "7d",
 ): Promise<PriceHistoryResponse> {
   const res = await fetch(
-    `${API_BASE}/api/v1/markets/${encodeURIComponent(slug)}/price-history?window=${window}`,
+    `${apiBase()}/api/v1/markets/${encodeURIComponent(slug)}/price-history?window=${window}`,
     { cache: "no-store" },
   );
 
@@ -151,7 +171,7 @@ export async function fetchPriceHistory(
  */
 export async function fetchActivity(slug: string): Promise<ActivityItem[]> {
   const res = await fetch(
-    `${API_BASE}/api/v1/markets/${encodeURIComponent(slug)}/activity`,
+    `${apiBase()}/api/v1/markets/${encodeURIComponent(slug)}/activity`,
     { cache: "no-store" },
   );
 
