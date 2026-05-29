@@ -30,6 +30,11 @@ const STALE_THRESHOLD_MS = 30_000;
 const STALE_CHECK_INTERVAL_MS = 5_000;
 const PING_INTERVAL_MS = 25_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
+// Cap the backoff exponent so the attempt counter never grows without bound
+// (WR-01). 2**5 * 1000ms = 32s already exceeds MAX_RECONNECT_DELAY_MS, so past
+// this point the delay is saturated and a larger exponent is meaningless (and
+// 2**1024 overflows to Infinity). Clamping the ref keeps it a small integer.
+const MAX_RECONNECT_ATTEMPTS_FOR_BACKOFF = 5;
 
 const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
 
@@ -67,12 +72,19 @@ export function useMarketSocket(
       if (reconnectTimerRef.current || closedByUnmountRef.current) return;
       setState("reconnecting");
       // Exponential backoff: 1s, 2s, 4s, ... capped at 30s, plus 20% jitter.
-      const delay = Math.min(
-        1000 * 2 ** reconnectAttemptRef.current,
-        MAX_RECONNECT_DELAY_MS,
+      // Clamp the exponent (WR-01) so a long outage can't grow the attempt ref
+      // without bound (2**1024 → Infinity); the delay is already saturated by
+      // MAX_RECONNECT_ATTEMPTS_FOR_BACKOFF, so a larger exponent is meaningless.
+      const attempt = Math.min(
+        reconnectAttemptRef.current,
+        MAX_RECONNECT_ATTEMPTS_FOR_BACKOFF,
       );
+      const delay = Math.min(1000 * 2 ** attempt, MAX_RECONNECT_DELAY_MS);
       const jitter = delay * 0.2 * Math.random();
-      reconnectAttemptRef.current += 1;
+      reconnectAttemptRef.current = Math.min(
+        reconnectAttemptRef.current + 1,
+        MAX_RECONNECT_ATTEMPTS_FOR_BACKOFF,
+      );
       reconnectTimerRef.current = setTimeout(() => {
         reconnectTimerRef.current = null;
         connect();
