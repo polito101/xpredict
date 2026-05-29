@@ -246,7 +246,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Real-time backend pipeline: lift spike 003 (ConnectionManager + redis.asyncio subscriber + WS /ws/markets/{id}) into app/realtime/, wire lifespan, + both producer hooks (admin odds edit post-commit, Polymarket poll on-change) (MKT-04) [W1]
+- [x] 09-01-PLAN.md — Real-time backend pipeline: lift spike 003 (ConnectionManager + redis.asyncio subscriber + WS /ws/markets/{id}) into app/realtime/, wire lifespan, + both producer hooks (admin odds edit post-commit, Polymarket poll on-change) (MKT-04) [W1]
 
 **Wave 2** *(02 blocked on 01 — shared markets/ files; 03 blocked on 01 — needs the WS endpoint)*
 
@@ -320,7 +320,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Polymarket Sync (Catalog Replication) | 3/3 | Complete   | 2026-05-28 |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
 | 8. Admin CRM (User Management & Audit Log Viewer) | 0/TBD | Not started | - |
-| 9. User App UX Polish (Market Detail & Real-Time) | 0/4 | Planned | - |
+| 9. User App UX Polish (Market Detail & Real-Time) | 1/4 | In Progress|  |
 | 10. Admin KPI Dashboard & Configurable Branding | 0/TBD | Not started | - |
 | 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
 

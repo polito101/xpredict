@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-05-29T15:53:11.839Z"
-last_activity: 2026-05-29 -- Phase 9 execution started
+last_updated: "2026-05-29T16:31:33.184Z"
+last_activity: 2026-05-29
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 27
-  completed_plans: 20
+  completed_plans: 21
   percent: 45
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 9 (User App UX Polish (Market Detail & Real-Time)) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 9
-Last activity: 2026-05-29 -- Phase 9 execution started
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-05-29
 
-Progress: [██████████] 100%
+Progress: [████████░░] 78%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ Progress: [██████████] 100%
 | Phase 03-wallet-double-entry-ledger P03 | ~5min | 2 tasks | 2 files |
 | Phase 03-wallet-double-entry-ledger P04 | ~13min | 3 tasks tasks | 5 files files |
 | Phase 03-wallet-double-entry-ledger P05 | ~10min | 3 tasks | 8 files |
+| Phase 09-user-app-ux-polish-market-detail-real-time P01 | ~30min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -105,6 +106,7 @@ Recent decisions affecting current work:
 - [Phase ?]: Plan 03-03: UserManager.create override (RESEARCH Option A) co-inserts the user_wallet on the adapter's own session between the user INSERT and a SINGLE commit -- user + wallet land atomically (SC#1/WAL-01). The stock fastapi-users SQLAlchemyUserDatabase.create() commits BEFORE on_after_register fires (verified in installed v15.0.5 source), so the hook can never host same-transaction work (Pitfall 1); the override is the fix. WalletService.create_wallet stays add+flush-only (caller-owned tx). Fault injection proves a wallet-creation failure rolls the user back too (no orphan).
 - [Phase ?]: [Phase 03]: 03-04: POST /admin/wallets/{user_id}/recharge -- first money-moving endpoint. Admin-Bearer-gated (current_active_admin), Idempotency-Key required (400 if absent), debits house_promo + credits path user only via WalletService.recharge, money-as-string response (MoneyStr=Annotated[Decimal,PlainSerializer]), wallet.recharge audited. SC#5/WAL-09 firewall: RechargeRequest extra=forbid (no destination field -> dst_user_id is 422) + route inventory + Entry.account_id FK targets accounts only. Audit is action-THEN-audit (recharge self-commits its session.begin(); handler audits + commits after) mirroring the auth surface, NOT same-tx-as-transfer -- avoids rewriting validated 03-02 concurrency code. Two Rule-1 fixes: pre-read autobegan tx -> rollback() before recharge.begin(); session churn expired admin/transfer ORM instances -> capture .id as plain values before commit (MissingGreenlet). WAL-09 complete.
 - [Phase ?]: [Phase 03]: 03-05: player wallet read surface — GET /wallet/me/balance (WAL-03) + GET /wallet/me/transactions (WAL-04), cookie-gated by current_active_player + strictly self-scoped (NO user_id param -> cross-user read structurally impossible, T-03-18); money as JSON string via MoneyStr (SC#4, asserted on the raw wire); get_transactions is read-only offset pagination over the caller's own entries. SC#6/PLT-05 Stripe stub: recharge(payment_provider='stripe') raises NotImplementedError (in the quick non-integration run) + DISABLED 'Add funds' button on the new Next.js /wallet page. Rule-1 fix: wallet/router.py OMITS 'from __future__ import annotations' (FastAPI 3.13 mis-resolved Annotated[Depends] as query params -> 422) — same constraint admin_router.py documents. Phase 3 COMPLETE (6/6).
+- [Phase ?]: 2026-05-29 (Plan 09-01): Real-time WS price-broadcast backend (MKT-04) shipped — spike-003 pipeline (ConnectionManager + redis.asyncio psubscribe(prices:*) subscriber + public /ws/markets/{market_id}) lifted verbatim into app/realtime/ and wired into the app/main.py lifespan (one subscriber task per worker -> multi-worker correct). Two producer hooks publish a lean string-odds delta {type,market_id,outcomes:[{outcome_id,odds}],ts} to prices:{market_id} POST-COMMIT only (Pitfall 3): admin odds edit publishes in the router after session.commit(); the Polymarket poll publishes via its held AioRedis after commit, per-market, on-change only (Pitfall 4). MarketService.update_market now returns (market, odds_deltas) so the router owns the post-commit publish; format_odds quantizes to Numeric(8,6) so the socket string == the REST OutcomeRead string. ZERO new backend deps; NO new Celery Beat entry. All automated checks green (4 producer, 127 non-integration, 100 realtime+markets+polymarket; ruff/mypy/money-lint clean). Browser round-trip is documented manual-verify (Plan 09-03 builds the frontend socket).
 
 ### Pending Todos
 
@@ -130,6 +132,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-28T09:18:06.141Z
+Last session: 2026-05-29T16:31:03.091Z
 Stopped at: Phase 06 merge conflict resolution (integrating main with phases 3+5)
 Resume file: None
