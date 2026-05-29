@@ -130,11 +130,14 @@ export async function placeBetAction(
       return { errors: { _form: [COPY.marketClosed] } };
     case 403: {
       // Disambiguate banned vs unverified on the backend detail text. The
-      // banned gate (current_betting_player) sends "Account is banned ...";
-      // fastapi-users' unverified gate sends a different detail. Default to
+      // banned gate (current_betting_player) sends "Account is banned from
+      // placing bets."; fastapi-users' unverified gate sends a different detail.
+      // Match the full "is banned" sentinel — NOT a bare "ban" substring (WR-07),
+      // which would mis-map any future 403 detail containing the letters "ban"
+      // (e.g. "bandwidth", "abandoned request") to the banned copy. Default to
       // the unverified copy when the detail is not the banned sentinel.
       const detail = (await readDetail(res)).toLowerCase();
-      if (detail.includes("ban")) {
+      if (detail.includes("is banned")) {
         return { errors: { _form: [COPY.banned] } };
       }
       return { errors: { _form: [COPY.unverified] } };
