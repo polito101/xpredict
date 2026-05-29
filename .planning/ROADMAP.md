@@ -241,8 +241,23 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   4. The WebSocket connection auto-reconnects on disconnect with exponential backoff and a visible "Live" indicator in the UI; a "stale > 30s" badge appears if no updates have arrived in 30s (per PITFALLS.md UX section: explicit staleness, never silent).
   5. Empty / loading / error states are present on the home page, market list, market detail, and portfolio pages (skeleton loaders, friendly empty states, explicit error messages — no generic "transaction failed" toasts on the bet flow per the UX pitfall table).
 
-**Plans**: TBD
-**Research/spike flags**: None — Recharts + WebSocket patterns are well-documented.
+**Plans**: 4 plans (3 waves)
+**Plan list**:
+
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — Real-time backend pipeline: lift spike 003 (ConnectionManager + redis.asyncio subscriber + WS /ws/markets/{id}) into app/realtime/, wire lifespan, + both producer hooks (admin odds edit post-commit, Polymarket poll on-change) (MKT-04) [W1]
+
+**Wave 2** *(02 blocked on 01 — shared markets/ files; 03 blocked on 01 — needs the WS endpoint)*
+
+- [ ] 09-02-PLAN.md — Backend read surface: GET /{slug}/price-history (server-side 30d downsampling) + GET /{slug}/activity (anonymized last-20) + schemas (MKT-03) [W2]
+- [ ] 09-03-PLAN.md — Frontend foundation: install Recharts + react-is pin/pnpm-override + Radix dialog/select, PriceHistoryChart, use-market-socket hook (Live/Stale/Reconnecting), LiveIndicator, api.ts fetchers — NOT autonomous (blocking package-legitimacy checkpoint) (MKT-03, MKT-04) [W2]
+
+**Wave 3** *(blocked on 02 + 03)*
+
+- [ ] 09-04-PLAN.md — Market detail page /markets/[slug]: SSR shell + two-column grid, order-entry form → confirm dialog → place_bet (inline error states), anonymized recent-activity feed, skeletons (MKT-03) [W3]
+
+**Research/spike flags**: None — Recharts + WebSocket patterns are well-documented (WS pipeline lifts VALIDATED spike 003).
 **Critical pitfalls covered**: UX trust pitfalls (hidden resolution criteria, stale-price masking, opaque error states).
 **UI hint**: yes
 
@@ -305,7 +320,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Polymarket Sync (Catalog Replication) | 3/3 | Complete   | 2026-05-28 |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
 | 8. Admin CRM (User Management & Audit Log Viewer) | 0/TBD | Not started | - |
-| 9. User App UX Polish (Market Detail & Real-Time) | 0/TBD | Not started | - |
+| 9. User App UX Polish (Market Detail & Real-Time) | 0/4 | Planned | - |
 | 10. Admin KPI Dashboard & Configurable Branding | 0/TBD | Not started | - |
 | 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
 
