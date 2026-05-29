@@ -30,6 +30,21 @@ export interface MarketItem {
   outcomes: MarketOutcome[];
 }
 
+/**
+ * A single YES-probability snapshot for the price-history chart.
+ *
+ * `probability` is a string on the wire (backend `Numeric(8,6)` serialized as
+ * a string — the project's money/odds-as-string convention). Only round it
+ * for display; never store it as a float.
+ */
+export interface PricePoint {
+  ts: string;
+  probability: string;
+}
+
+/** Chart window options for the price-history chart (default `7d`). */
+export type PriceWindow = "24h" | "7d" | "30d";
+
 // -- Fetch helpers -----------------------------------------------------------
 
 const API_BASE =
