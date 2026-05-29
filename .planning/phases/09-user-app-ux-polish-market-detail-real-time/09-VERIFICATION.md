@@ -1,8 +1,9 @@
 ---
 phase: 09-user-app-ux-polish-market-detail-real-time
 verified: 2026-05-29T20:15:00Z
-status: human_needed
-score: 10/10 must-haves verified (all automated truths VERIFIED; 2 browser-only items route to human)
+status: passed
+score: 10/10 must-haves verified; the 2 browser-only items were validated live during closeout (2026-05-29)
+closeout_validation: "Live stack (docker Postgres+Redis + uvicorn + Next dev) + headless browser: realtime round-trip YES 62%->77% in place + Stale->Live; Recharts emerald YES line renders for a POLYMARKET Yes/No market (react-is + IN-01 live). See 09-HUMAN-UAT.md."
 overrides_applied: 0
 human_verification:
   - test: "Full MKT-04 browser round-trip: admin odds edit and/or Polymarket poll causes odds to animate on /markets/{slug} within 2s"
@@ -17,8 +18,8 @@ human_verification:
 
 **Phase Goal:** Polish the player surface to "feels real" quality — a market detail page with resolution criteria, price-history chart, recent-activity feed, and real-time WebSocket price updates that animate on every Polymarket poll and admin odds edit.
 **Verified:** 2026-05-29T20:15:00Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Status:** passed — initial verification was `human_needed`; the 2 browser-only items were validated live during closeout (running stack + headless browser; see `09-HUMAN-UAT.md`).
+**Re-verification:** No — initial verification (status upgraded after live closeout validation)
 
 ## Goal Achievement
 
