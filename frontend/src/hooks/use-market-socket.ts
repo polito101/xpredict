@@ -81,6 +81,24 @@ export function useMarketSocket(
 
     function connect() {
       if (closedByUnmountRef.current) return;
+      // Tear down any prior socket BEFORE creating a new one (BL-01). On a flaky
+      // connection (open→error→close→reconnect) the old socket's handlers stay
+      // live until the browser GCs it, so a late frame from socket A could call
+      // setOdds AFTER socket B is authoritative — odds briefly regress. Detach
+      // its handlers and close it so it can neither schedule another reconnect
+      // nor mutate state once it is no longer wsRef.current.
+      const prev = wsRef.current;
+      if (prev) {
+        prev.onopen = null;
+        prev.onmessage = null;
+        prev.onclose = null;
+        prev.onerror = null;
+        try {
+          prev.close();
+        } catch {
+          /* noop */
+        }
+      }
       const url = `${WS_BASE}/ws/markets/${marketId}`;
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -92,6 +110,10 @@ export function useMarketSocket(
       };
 
       ws.onmessage = (event: MessageEvent) => {
+        // Guard against a stale socket (BL-01): if this is no longer the
+        // authoritative socket, a late frame must NOT mutate odds — otherwise
+        // an older socket could regress the value a newer socket just set.
+        if (wsRef.current !== ws) return;
         let data: PriceUpdateMessage;
         try {
           data = JSON.parse(event.data) as PriceUpdateMessage;
@@ -116,7 +138,9 @@ export function useMarketSocket(
       };
 
       ws.onclose = () => {
-        if (closedByUnmountRef.current) return;
+        // A stale socket's close must not schedule a reconnect (BL-01) — only
+        // the current socket drives the reconnect state machine.
+        if (closedByUnmountRef.current || wsRef.current !== ws) return;
         scheduleReconnect();
       };
 
