@@ -162,6 +162,179 @@ async def _seed_market_with_snapshots(
     return market.slug
 
 
+async def _seed_polymarket_style_market_with_snapshots(
+    session: AsyncSession,
+    *,
+    snapshot_count: int,
+    yes_label: str = "Yes",
+    no_label: str = "No",
+    interval_minutes: int = 5,
+) -> str:
+    """Seed one OPEN Polymarket-sourced market whose YES outcome label is stored
+    TITLE-CASE ("Yes"/"No"), mirroring how ``PolymarketAdapter.sync_top25`` persists
+    the Gamma API's ``outcomes`` array verbatim (``label[:50]``, never normalized).
+
+    Attaches ``snapshot_count`` OddsSnapshot rows to the YES leg. Returns the slug.
+    Rows are NOT committed — the caller's ``async_session`` fixture rolls back on
+    teardown. Regression seed for IN-01 (case-insensitive YES selection).
+    """
+    from app.markets.enums import MarketSourceEnum, MarketStatus
+    from app.markets.models import Market, OddsSnapshot, Outcome, generate_slug
+
+    market = Market(
+        question="Will the title-case market chart?",
+        slug=generate_slug("Will the title-case market chart"),
+        resolution_criteria="resolves via Polymarket UMA oracle",
+        category="test",
+        source=MarketSourceEnum.POLYMARKET.value,
+        status=MarketStatus.OPEN.value,
+        deadline=datetime.now(UTC) + timedelta(days=2),
+    )
+    session.add(market)
+    await session.flush()
+
+    yes = Outcome(
+        market_id=market.id,
+        label=yes_label,
+        initial_odds=Decimal("0.500000"),
+        current_odds=Decimal("0.500000"),
+    )
+    no = Outcome(
+        market_id=market.id,
+        label=no_label,
+        initial_odds=Decimal("0.500000"),
+        current_odds=Decimal("0.500000"),
+    )
+    session.add_all([yes, no])
+    await session.flush()
+
+    start = datetime.now(UTC) - timedelta(minutes=interval_minutes * snapshot_count)
+    snaps = [
+        OddsSnapshot(
+            market_id=market.id,
+            outcome_id=yes.id,
+            probability=Decimal("0.500000"),
+            snapshot_at=start + timedelta(minutes=interval_minutes * i),
+        )
+        for i in range(snapshot_count)
+    ]
+    session.add_all(snaps)
+    await session.flush()
+    return market.slug
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_price_history_titlecase_yes_label_returns_points(
+    async_session: AsyncSession,
+) -> None:
+    """IN-01 regression: a Polymarket-style market whose YES outcome is stored
+    TITLE-CASE ("Yes") must still return a NON-empty price-history series.
+
+    Before the fix, ``price_history`` selected the YES leg with a case-sensitive
+    ``Outcome.label == "YES"`` filter, which matched house markets ("YES") but
+    silently returned NULL for Polymarket-mirrored markets ("Yes") — so their
+    detail-page chart rendered empty. This test FAILS without the case-insensitive
+    ``func.upper(Outcome.label) == "YES"`` selection and PASSES with it.
+    """
+    from app.markets.service import MarketService
+
+    slug = await _seed_polymarket_style_market_with_snapshots(
+        async_session, snapshot_count=6, yes_label="Yes", no_label="No"
+    )
+
+    resp = await MarketService.price_history(async_session, slug, "7d")
+    assert resp.window == "7d"
+    # The series is non-empty — the title-case YES leg was selected (IN-01 fixed).
+    assert len(resp.points) == 6
+    # Probabilities still serialize to JSON strings on the wire (SP-1) — unchanged.
+    dumped = json.loads(resp.model_dump_json())
+    assert all(isinstance(p["probability"], str) for p in dumped["points"])
+    # Ordered ascending by ts (raw 7d window — no bucketing).
+    assert [p.ts for p in resp.points] == sorted(p.ts for p in resp.points)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_price_history_uppercase_house_label_still_returns_points(
+    async_session: AsyncSession,
+) -> None:
+    """IN-01 must NOT regress house markets: a market whose YES outcome is the
+    canonical upper-case "YES" still returns its full series (case-insensitive
+    selection preserves exact behavior for existing house markets)."""
+    from app.markets.service import MarketService
+
+    slug = await _seed_market_with_snapshots(async_session, snapshot_count=4)
+    resp = await MarketService.price_history(async_session, slug, "7d")
+    assert len(resp.points) == 4
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_update_market_titlecase_yes_targets_yes_leg(
+    async_session: AsyncSession,
+) -> None:
+    """IN-01 (service.py:160): an admin ``odds_yes`` edit on a Polymarket-style
+    market whose YES leg is title-case "Yes" must update THAT leg, not silently
+    assign ``odds_no`` to both. Before the fix the case-sensitive ``== "YES"``
+    missed the "Yes" leg, so both outcomes received ``1 - odds_yes``.
+    """
+    from app.auth.models import User
+    from app.markets.enums import MarketSourceEnum, MarketStatus
+    from app.markets.models import Market, Outcome, generate_slug
+    from app.markets.schemas import MarketUpdate
+    from app.markets.service import MarketService
+
+    admin = User(
+        email="in01-admin@test.com",
+        hashed_password="not-a-real-hash",
+        is_active=True,
+        is_superuser=True,
+        is_verified=True,
+        display_name="IN-01 Admin",
+    )
+    async_session.add(admin)
+    await async_session.flush()
+
+    market = Market(
+        question="Title-case admin-edit market?",
+        slug=generate_slug("Title-case admin-edit market"),
+        resolution_criteria="resolves via Polymarket UMA oracle",
+        category="test",
+        source=MarketSourceEnum.POLYMARKET.value,
+        status=MarketStatus.OPEN.value,
+        deadline=datetime.now(UTC) + timedelta(days=2),
+    )
+    async_session.add(market)
+    await async_session.flush()
+    yes = Outcome(
+        market_id=market.id,
+        label="Yes",
+        initial_odds=Decimal("0.500000"),
+        current_odds=Decimal("0.500000"),
+    )
+    no = Outcome(
+        market_id=market.id,
+        label="No",
+        initial_odds=Decimal("0.500000"),
+        current_odds=Decimal("0.500000"),
+    )
+    async_session.add_all([yes, no])
+    await async_session.flush()
+
+    await MarketService.update_market(
+        async_session,
+        market,
+        MarketUpdate(odds_yes=Decimal("0.700000")),
+        admin,
+    )
+    await async_session.refresh(yes)
+    await async_session.refresh(no)
+    # The title-case YES leg got the new odds; NO got the complement (1 - 0.7).
+    assert yes.current_odds == Decimal("0.700000")
+    assert no.current_odds == Decimal("0.300000")
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio(loop_scope="session")
 async def test_price_history_7d_returns_raw_yes_points_as_strings(

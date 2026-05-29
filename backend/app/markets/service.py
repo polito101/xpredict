@@ -157,7 +157,12 @@ class MarketService:
             stmt = select(Outcome).where(Outcome.market_id == market.id)
             result = await session.execute(stmt)
             for outcome in result.scalars():
-                if outcome.label == "YES":
+                # Case-insensitive YES match (IN-01): house markets store "YES",
+                # but the Polymarket adapter stores the Gamma title-case "Yes"
+                # verbatim. An admin odds_yes edit on a Polymarket-mirrored market
+                # must still target the YES leg — a case-sensitive ``== "YES"`` would
+                # miss it and assign odds_no to BOTH outcomes.
+                if outcome.label.upper() == "YES":
                     outcome.current_odds = body.odds_yes
                 else:
                     outcome.current_odds = odds_no
@@ -344,10 +349,14 @@ class MarketService:
             raise HTTPException(status_code=404, detail="Market not found")
         market_id = market_row.id
 
-        # The YES outcome for this market.
+        # The YES outcome for this market. Compare case-insensitively (IN-01):
+        # house markets seed the label as "YES", but the Polymarket adapter stores
+        # the Gamma API's title-case "Yes" verbatim (adapter.py: label[:50], never
+        # normalized). A case-sensitive ``== "YES"`` silently returned NULL for
+        # Polymarket-mirrored markets, so their price-history chart rendered empty.
         yes_stmt = select(Outcome.id).where(
             Outcome.market_id == market_id,
-            Outcome.label == "YES",
+            func.upper(Outcome.label) == "YES",
         )
         yes_outcome_id = (await session.execute(yes_stmt)).scalar_one_or_none()
         if yes_outcome_id is None:
