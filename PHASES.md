@@ -14,7 +14,7 @@
 | 6 | Polymarket Sync | Pol | ✅ Done | `gsd/phase-06-polymarket-sync-catalog-replication` | [#7](https://github.com/polito101/xpredict/pull/7) |
 | 7 | Polymarket Auto-Resolution | Agustin | 👀 In review | `gsd/phase-07-polymarket-auto-resolution` | [#10](https://github.com/polito101/xpredict/pull/10) |
 | 8 | Admin CRM | — | ⬜ Not started | — | — |
-| 9 | User App UX Polish & Real-Time | Agustin | 🔄 In progress | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | — |
+| 9 | User App UX Polish & Real-Time | Agustin | 👀 In review | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | [#13](https://github.com/polito101/xpredict/pull/13) |
 | 10 | Admin KPI Dashboard & Branding | — | ⬜ Not started | — | — |
 | 11 | Hardening & Operator-Demo Gate | — | ⬜ Not started | — | — |
 
