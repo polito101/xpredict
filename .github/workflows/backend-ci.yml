@@ -23,6 +23,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # gitleaks-action (scan diff) resolves the PR commit range BASE^..HEAD,
+          # which the default shallow clone lacks → git "unknown revision" and the
+          # step fails. Full history (fetch-depth: 0) lets the diff scan resolve.
+          fetch-depth: 0
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5

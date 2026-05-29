@@ -258,7 +258,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         Uses a CAS (check-and-set) WHERE clause to avoid a lost-update race
         with the fastapi-users request session that concurrently writes
         hashed_password.  If token_version was already bumped by a concurrent
-        request (rowcount == 0), we log a warning and continue — the DB row
+        request (zero rows updated), we log a warning and continue — the DB row
         already has the correct post-bump value.
         """
         from datetime import UTC, datetime
@@ -277,7 +277,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
                 .values(token_version=User.token_version + 1)
                 .returning(User.token_version)
             )
-            if result.rowcount == 0:  # type: ignore[attr-defined]
+            if result.first() is None:
                 # Concurrent reset already bumped the version — the DB is in
                 # the correct state; log for observability but do not re-bump.
                 logger.warning(
