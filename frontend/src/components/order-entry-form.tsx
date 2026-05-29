@@ -31,7 +31,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { placeBetAction } from "@/lib/bet-actions";
-import { BetSchema, type BetValues, type ActionState } from "@/lib/bet-schemas";
+import {
+  BetSchema,
+  BET_MAX_STAKE,
+  BET_MIN_STAKE,
+  type BetValues,
+  type ActionState,
+} from "@/lib/bet-schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -76,11 +82,23 @@ function toPct(odds: string | undefined): number {
 /**
  * Expected payout = stake / current_odds_of_chosen (RESEARCH Pattern 7).
  * Display-only string math: returns a 2-dp string, or "—" when not computable.
+ *
+ * Gated on the SAME tenant min/max the zod schema enforces (WR-08) so the
+ * preview and the submit gate agree — a sub-BET_MIN_STAKE (or over-max) stake
+ * shows "—" rather than a plausible payout for a bet the form will then reject.
+ * Display-only: this never feeds storage math (SP-1).
  */
 function expectedPayout(stake: string, odds: string | undefined): string {
   const s = parseFloat(stake);
   const p = odds ? parseFloat(odds) : NaN;
-  if (Number.isNaN(s) || Number.isNaN(p) || p <= 0 || s <= 0) return "—";
+  if (
+    Number.isNaN(s) ||
+    Number.isNaN(p) ||
+    p <= 0 ||
+    s < BET_MIN_STAKE ||
+    s > BET_MAX_STAKE
+  )
+    return "—";
   return (s / p).toFixed(2);
 }
 
