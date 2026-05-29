@@ -33,6 +33,7 @@ from app.integrations.polymarket.client import GammaClient
 from app.integrations.polymarket.schemas import GammaMarket
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, OddsSnapshot
+from app.realtime.publisher import publish_odds_change_async
 
 log = structlog.get_logger()
 
@@ -95,6 +96,18 @@ async def _run_poll_sync(
             market_count = await adapter.sync_top25(session, raw_markets)
             await session.commit()
             log.info("poll_complete", market_count=market_count)
+            # Real-time publish (MKT-04 / producer site #2): POST-COMMIT, per-market,
+            # on-change only (adapter.changed_markets holds only committed changes).
+            # A Redis hiccup must never fail the poll — log and swallow per market.
+            for market_id, deltas in adapter.changed_markets:
+                try:
+                    await publish_odds_change_async(redis, market_id, deltas)
+                except Exception as pub_exc:
+                    log.warning(
+                        "realtime.publish_failed",
+                        market_id=market_id,
+                        error=str(pub_exc),
+                    )
         finally:
             if session_override is None:
                 await session.close()

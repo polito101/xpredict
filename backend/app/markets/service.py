@@ -13,6 +13,7 @@ from app.core.audit.service import AuditService
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, OddsSnapshot, Outcome, generate_slug
 from app.markets.schemas import MarketCreate, MarketUpdate
+from app.realtime.publisher import format_odds
 
 
 class MarketService:
@@ -94,7 +95,14 @@ class MarketService:
         body: MarketUpdate,
         admin_user: User,
         ip: str | None = None,
-    ) -> Market:
+    ) -> tuple[Market, list[dict[str, str]]]:
+        """Update a market in place; return ``(market, odds_deltas)``.
+
+        ``odds_deltas`` is the list of ``{"outcome_id", "odds"}`` changed by an
+        ``odds_yes`` edit (empty otherwise). The caller (router) publishes them
+        POST-COMMIT for the real-time stream (MKT-04 / Pitfall 3) — this method
+        only flush()es, never commits, and never publishes inside the transaction.
+        """
         if market.status != MarketStatus.OPEN.value:
             raise HTTPException(
                 status_code=409,
@@ -113,6 +121,10 @@ class MarketService:
             )
 
         changed_fields: list[str] = []
+        # Odds-change deltas returned for the router's POST-COMMIT publish (MKT-04 /
+        # Pitfall 3 / T-09-03) — never published inside this transaction. Empty when
+        # the PATCH carries no odds_yes.
+        odds_deltas: list[dict[str, str]] = []
 
         if body.resolution_criteria is not None:
             market.resolution_criteria = body.resolution_criteria
@@ -139,6 +151,12 @@ class MarketService:
                         probability=outcome.current_odds,
                     ),
                 )
+                odds_deltas.append(
+                    {
+                        "outcome_id": str(outcome.id),
+                        "odds": format_odds(outcome.current_odds),
+                    },
+                )
             changed_fields.append("odds")
 
         if changed_fields:
@@ -153,7 +171,7 @@ class MarketService:
                 ip=ip,
             )
         await session.flush()
-        return market
+        return market, odds_deltas
 
     @staticmethod
     async def close_market(

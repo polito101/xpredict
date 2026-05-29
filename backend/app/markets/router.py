@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,9 @@ from app.markets.schemas import (
     paginated_response,
 )
 from app.markets.service import MarketService
+from app.realtime.publisher import publish_odds_change
+
+log = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
 # Admin market router — requires Bearer JWT (AUTH-07)
@@ -95,9 +99,19 @@ async def update_market(
     if not market:
         raise HTTPException(status_code=404, detail="Market not found")
     ip = request.client.host if request.client else None
-    updated = await MarketService.update_market(session, market, body, admin, ip=ip)
+    updated, odds_deltas = await MarketService.update_market(session, market, body, admin, ip=ip)
+    # Publish the odds-change deltas AFTER commit (Pitfall 3 / T-09-03) — clients
+    # must never render a rolled-back price.
+    updated_id = updated.id
     await session.commit()
-    refreshed = await MarketService.get_market_by_id(session, updated.id)
+    # Real-time publish (MKT-04), POST-COMMIT and only when odds actually changed.
+    # A Redis hiccup must never 500 a successful admin edit — log and swallow.
+    if odds_deltas:
+        try:
+            publish_odds_change(updated_id, odds_deltas)
+        except Exception:
+            log.warning("realtime.publish_failed", market_id=str(updated_id), exc_info=True)
+    refreshed = await MarketService.get_market_by_id(session, updated_id)
     return MarketRead.model_validate(refreshed)
 
 
