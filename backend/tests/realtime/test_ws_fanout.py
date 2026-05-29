@@ -66,12 +66,16 @@ async def _wait_for_listener(
 
     Confirms the in-process subscriber's psubscribe('prices:*') is live before the
     real delta is sent, removing a connect/subscribe race without a fixed sleep.
+
+    Warms up against a dedicated sentinel market id (NOT ``market_id``) so the
+    throwaway frame is never broadcast to the client under test — the pattern
+    subscriber matches every ``prices:*`` channel, so any matching publish proves
+    the subscriber is registered.
     """
     import asyncio
 
     for _ in range(100):
-        # A pattern subscriber counts as a listener on every matching channel.
-        if publish_delta(market_id, {"type": "warmup"}) >= 1:
+        if publish_delta(f"__warmup__{market_id}", {"type": "warmup"}) >= 1:
             return
         await asyncio.sleep(0.05)
     raise AssertionError("subscriber never registered as a listener for the channel")

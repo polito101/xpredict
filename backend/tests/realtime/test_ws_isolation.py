@@ -55,8 +55,10 @@ async def _wait_for_listener(
     publish_delta: Callable[[str, dict], int],
     market_id: str,
 ) -> None:
+    """Warm up against a sentinel channel (never the market under test) until the
+    psubscribe('prices:*') subscriber registers as a listener."""
     for _ in range(100):
-        if publish_delta(market_id, {"type": "warmup"}) >= 1:
+        if publish_delta(f"__warmup__{market_id}", {"type": "warmup"}) >= 1:
             return
         await asyncio.sleep(0.05)
     raise AssertionError("subscriber never registered as a listener for the channel")
