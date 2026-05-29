@@ -21,7 +21,8 @@ from decimal import Decimal
 
 import httpx
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 # ---------------------------------------------------------------------------
 # Unit — schema serialization (no DB, satisfies the -m "not integration" gate)
@@ -258,3 +259,163 @@ async def test_price_history_endpoint_defaults_to_7d_and_rejects_bad_window() ->
         # an unknown slug, NOT a 422). Proves the default is a valid allowlist value.
         default = await c.get("/api/v1/markets/unknown-slug-default/price-history")
         assert default.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Integration — live HTTP endpoint over a COMMITTED 30-day backfill (ROADMAP SC#2)
+# ---------------------------------------------------------------------------
+#
+# The ASGITransport client uses the app's OWN db session (committed rows), not the
+# rolled-back ``async_session`` fixture — so these tests seed via the ``engine`` and
+# clean up in a finally block, mirroring ``test_public_router.py``.
+
+
+async def _engine_seed_backfill(
+    engine: AsyncEngine,
+    *,
+    snapshot_count: int,
+    interval_minutes: int = 5,
+) -> tuple[str, str]:
+    """COMMIT one OPEN house market (YES/NO) + ``snapshot_count`` YES OddsSnapshot
+    rows at ``interval_minutes`` spacing. Returns ``(market_id, slug)``."""
+    from app.markets.models import generate_slug
+
+    slug = generate_slug("HTTP backfill market")
+    span_start = datetime.now(UTC) - timedelta(minutes=interval_minutes * snapshot_count)
+    async with engine.connect() as conn:
+        market_id = (
+            await conn.execute(
+                text(
+                    "INSERT INTO markets (question, slug, resolution_criteria, category,"
+                    " source, status, deadline) VALUES "
+                    "('HTTP backfill?', :slug, 'resolves', 'test', 'HOUSE', 'OPEN', :dl)"
+                    " RETURNING id"
+                ),
+                {"slug": slug, "dl": datetime.now(UTC) + timedelta(days=2)},
+            )
+        ).scalar_one()
+        yes_id = (
+            await conn.execute(
+                text(
+                    "INSERT INTO outcomes (market_id, label, initial_odds, current_odds)"
+                    " VALUES (:mid, 'YES', 0.5, 0.5) RETURNING id"
+                ),
+                {"mid": market_id},
+            )
+        ).scalar_one()
+        await conn.execute(
+            text(
+                "INSERT INTO outcomes (market_id, label, initial_odds, current_odds)"
+                " VALUES (:mid, 'NO', 0.5, 0.5)"
+            ),
+            {"mid": market_id},
+        )
+        for i in range(snapshot_count):
+            await conn.execute(
+                text(
+                    "INSERT INTO odds_snapshots (market_id, outcome_id, probability,"
+                    " snapshot_at) VALUES (:mid, :oid, 0.5, :ts)"
+                ),
+                {
+                    "mid": market_id,
+                    "oid": yes_id,
+                    "ts": span_start + timedelta(minutes=interval_minutes * i),
+                },
+            )
+        await conn.commit()
+    return str(market_id), slug
+
+
+async def _engine_delete_market(engine: AsyncEngine, market_id: str) -> None:
+    async with engine.connect() as conn:
+        await conn.execute(
+            text("DELETE FROM odds_snapshots WHERE market_id = CAST(:mid AS uuid)"),
+            {"mid": market_id},
+        )
+        await conn.execute(
+            text("DELETE FROM outcomes WHERE market_id = CAST(:mid AS uuid)"),
+            {"mid": market_id},
+        )
+        await conn.execute(
+            text("DELETE FROM markets WHERE id = CAST(:mid AS uuid)"),
+            {"mid": market_id},
+        )
+        await conn.commit()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_endpoint_30d_backfill_is_downsampled_below_raw_count(
+    engine: AsyncEngine,
+) -> None:
+    """ROADMAP SC#2: a dense 30-day-style 5-min backfill, fetched via the live
+    ``?window=30d`` endpoint, returns hourly-bucketed points STRICTLY FEWER than the
+    raw 5-min count — proving server-side downsampling fired on the real HTTP path.
+    """
+    # 24 hours of 5-min snapshots = 288 raw rows over 24 distinct hour-buckets.
+    # (A representative dense window keeps the test fast while still proving the
+    # bucketed count << raw count; the same SQL handles the full 30-day span.)
+    raw_count = 288
+    market_id, slug = await _engine_seed_backfill(engine, snapshot_count=raw_count)
+    try:
+        async with await _public_client() as c:
+            resp = await c.get(f"/api/v1/markets/{slug}/price-history?window=30d")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["window"] == "30d"
+        points = body["points"]
+        # Strictly fewer than the raw 5-min count (downsampling actually reduced it).
+        assert len(points) < raw_count
+        # ~hourly buckets for a 24h span (allow boundary buckets).
+        assert 23 <= len(points) <= 26
+        # Each probability is a STRING on the wire (SP-1), never a JSON float.
+        assert all(isinstance(p["probability"], str) for p in points)
+        # Hourly-spaced: distinct hour-truncated timestamps, ascending.
+        ts_list = [datetime.fromisoformat(p["ts"]) for p in points]
+        assert ts_list == sorted(ts_list)
+        hours = {t.replace(minute=0, second=0, microsecond=0) for t in ts_list}
+        assert len(hours) == len(points)
+    finally:
+        await _engine_delete_market(engine, market_id)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_endpoint_7d_default_returns_raw_points(engine: AsyncEngine) -> None:
+    """GET without a window defaults to 7d and returns raw 5-min points (not bucketed)."""
+    market_id, slug = await _engine_seed_backfill(engine, snapshot_count=10)
+    try:
+        async with await _public_client() as c:
+            resp = await c.get(f"/api/v1/markets/{slug}/price-history")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["window"] == "7d"
+        # 7d serves RAW rows — all 10 recent 5-min snapshots survive (no bucketing).
+        assert len(body["points"]) == 10
+    finally:
+        await _engine_delete_market(engine, market_id)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_endpoint_unknown_slug_returns_404(engine: AsyncEngine) -> None:
+    async with await _public_client() as c:
+        resp = await c.get("/api/v1/markets/definitely-not-a-real-slug/price-history?window=7d")
+    assert resp.status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_bare_slug_route_still_resolves(engine: AsyncEngine) -> None:
+    """No route-shadowing regression: GET /{slug} still resolves the bare market
+    after adding the /{slug}/price-history + /{slug}/activity sibling routes."""
+    market_id, slug = await _engine_seed_backfill(engine, snapshot_count=2)
+    try:
+        async with await _public_client() as c:
+            resp = await c.get(f"/api/v1/markets/{slug}")
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["slug"] == slug
+        assert len(body["outcomes"]) == 2
+    finally:
+        await _engine_delete_market(engine, market_id)
