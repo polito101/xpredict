@@ -251,7 +251,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Wave 2** *(02 blocked on 01 — shared markets/ files; 03 blocked on 01 — needs the WS endpoint)*
 
 - [x] 09-02-PLAN.md — Backend read surface: GET /{slug}/price-history (server-side 30d downsampling) + GET /{slug}/activity (anonymized last-20) + schemas (MKT-03) [W2]
-- [ ] 09-03-PLAN.md — Frontend foundation: install Recharts + react-is pin/pnpm-override + Radix dialog/select, PriceHistoryChart, use-market-socket hook (Live/Stale/Reconnecting), LiveIndicator, api.ts fetchers — NOT autonomous (blocking package-legitimacy checkpoint) (MKT-03, MKT-04) [W2]
+- [x] 09-03-PLAN.md — Frontend foundation: install Recharts + react-is pin/pnpm-override + Radix dialog/select, PriceHistoryChart, use-market-socket hook (Live/Stale/Reconnecting), LiveIndicator, api.ts fetchers — NOT autonomous (blocking package-legitimacy checkpoint) (MKT-03, MKT-04) [W2] — **shipped 2026-05-29, ~33 min, 3 atomic commits; react-is collapsed to a single version + chart-not-blank smoke test green; chart 4 + hook 4 tests pass; pnpm build clean. Pre-existing orphan middleware.test.ts breaks repo-wide typecheck/full-suite (logged to deferred-items.md, out of scope)**
 
 **Wave 3** *(blocked on 02 + 03)*
 
