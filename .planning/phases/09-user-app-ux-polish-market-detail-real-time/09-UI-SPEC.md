@@ -84,8 +84,9 @@ ONLY where the existing primitives already use it (`button.tsx` `font-medium`, `
 **Numeric/odds emphasis:** odds percentages render `text-sm font-normal` in the semantic
 color (matches `odds-display.tsx` exactly: `text-emerald-700 dark:text-emerald-400` for YES,
 `text-rose-700 dark:text-rose-400` for NO). The large "current YES probability" readout on the
-detail page may scale up to `text-2xl`/`text-3xl` for the live price, but reuse the same color
-tokens — do not add a new accent.
+detail page uses `text-3xl` (already in the declared scale) for the live price, reusing the same
+color tokens — do not add a new accent. (Resolves the UI-checker Dimension-4 FLAG: `text-2xl` is
+NOT used; the type scale stays at exactly 4 sizes — 30/18/14/12.)
 
 ---
 
