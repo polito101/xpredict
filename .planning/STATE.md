@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-05-29T17:03:04.000Z"
+status: verifying
+last_updated: "2026-05-29T17:19:33.931Z"
 last_activity: 2026-05-29
 progress:
   total_phases: 11
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 27
-  completed_plans: 23
-  percent: 47
+  completed_plans: 24
+  percent: 55
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 Phase: 9 (User App UX Polish (Market Detail & Real-Time)) — EXECUTING
 Plan: 4 of 4
-Status: 09-03 complete — ready to execute 09-04 (market-detail page + order form)
+Status: Phase complete — ready for verification
 Last activity: 2026-05-29
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -72,6 +72,7 @@ Progress: [█████████░] 85%
 | Phase 09-user-app-ux-polish-market-detail-real-time P01 | ~30min | 3 tasks | 18 files |
 | Phase 09-user-app-ux-polish-market-detail-real-time P02 | 6min | 2 tasks | 5 files |
 | Phase 09-user-app-ux-polish-market-detail-real-time P03 | ~33min | 3 tasks | 12 files |
+| Phase 09-user-app-ux-polish-market-detail-real-time P04 | 8min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 2026-05-29 (Plan 09-01): Real-time WS price-broadcast backend (MKT-04) shipped — spike-003 pipeline (ConnectionManager + redis.asyncio psubscribe(prices:*) subscriber + public /ws/markets/{market_id}) lifted verbatim into app/realtime/ and wired into the app/main.py lifespan (one subscriber task per worker -> multi-worker correct). Two producer hooks publish a lean string-odds delta {type,market_id,outcomes:[{outcome_id,odds}],ts} to prices:{market_id} POST-COMMIT only (Pitfall 3): admin odds edit publishes in the router after session.commit(); the Polymarket poll publishes via its held AioRedis after commit, per-market, on-change only (Pitfall 4). MarketService.update_market now returns (market, odds_deltas) so the router owns the post-commit publish; format_odds quantizes to Numeric(8,6) so the socket string == the REST OutcomeRead string. ZERO new backend deps; NO new Celery Beat entry. All automated checks green (4 producer, 127 non-integration, 100 realtime+markets+polymarket; ruff/mypy/money-lint clean). Browser round-trip is documented manual-verify (Plan 09-03 builds the frontend socket).
 - [Phase ?]: 2026-05-29 (Plan 09-03): Frontend real-time slice + Recharts foundation (MKT-03/04) shipped — the single highest-risk phase item (Recharts blank on React 19) is NEUTRALIZED: react-is pinned to the exact installed React (19.2.6) + a pnpm.overrides.react-is="$react-is" block collapses ALL transitive react-is (was 16.13.1 + 17.0.2 in dev tooling) to one version — `pnpm why react-is` reports a SINGLE version, gated by a chart-not-blank smoke test that asserts a real Recharts path.recharts-line-curve renders under jsdom (ResizeObserver + getBoundingClientRect stubbed; the react-is sentinel). Shipped: PriceHistoryChart ("use client" emerald-600 YES line + zinc grid + h-64 sized parent + 24h/7d/30d toggle defaulting 7d + <2-snapshot empty state); useMarketSocket (ports spike 003 — connects ${NEXT_PUBLIC_WS_URL}/ws/markets/{id}, Live→Stale(>30s, KEEPS odds — Pitfall 5)→Reconnecting with exponential backoff capped 30s+jitter, periodic ping, ignores non-price_update, full unmount cleanup; proven by a fake-timers + stub-WebSocket state-machine test); LiveIndicator (dot+label per ConnState, aria-live=polite); lib/api.ts fetchMarket/fetchPriceHistory/fetchActivity + MarketDetail/PriceHistoryResponse/ActivityItem/PricePoint/PriceWindow + MarketNotFound (money/odds as strings, SP-1); hand-copied shadcn dialog+select (new-york) wrapping @radix-ui/react-dialog@1.1.15 + react-select@2.2.6. NEXT_PUBLIC_WS_URL documented in the single root .env.example + docker-compose frontend env. pnpm driven via `corepack pnpm` (not on PATH in this Windows worktree). 3 atomic feat commits; chart 4 + hook 4 tests green; pnpm build clean. KNOWN PRE-EXISTING (out-of-scope, logged to deferred-items.md): src/__tests__/middleware.test.ts imports ../middleware but the file was renamed ../proxy in 02-05 — breaks repo-wide `pnpm typecheck` (1 error) + the full `pnpm test` (1 suite fails to LOAD; all 45 actual tests still pass). Every 09-03 source file is type-clean; next build (app-graph typecheck) exits 0. The market-detail PAGE that composes these pieces + the order form is Plan 09-04.
 - [Phase ?]: 2026-05-29 (Plan 09-02): Market-detail backend READ surface (MKT-03) shipped — two public endpoints on public_market_router. GET /{slug}/price-history?window=24h|7d|30d returns raw 5-min OddsSnapshot YES points for 24h/7d and a 30d series DOWNSAMPLED server-side via Postgres DISTINCT ON (date_trunc('hour', snapshot_at)) ORDER BY bucket, snapshot_at DESC — latest snapshot per hour bucket, then a Python re-sort ascending for the chart — so the browser never receives ~8640 raw points (T-09-07). The window is a FastAPI Literal[24h,7d,30d] so an out-of-allowlist value 422s before the service runs, and the cutoff is derived from _WINDOW_CUTOFFS, never SQL-interpolated (T-09-08). GET /{slug}/activity returns the last-20 bets anonymized SERVER-SIDE with two independent guards: the SELECT projects only (stake, created_at, outcome.label) and ActivityItem has no user_id/email/display_name field (T-09-05); tests assert both the schema field set AND the raw HTTP JSON body. Money/odds serialize as strings via field_serializer (SP-1). The two routes are siblings of /{slug}/bet-check so they do not shadow bare GET /{slug}. Verified against real testcontainer Postgres: full tests/markets/ 86 passed. ZERO new deps, ZERO migrations (read-only over existing models).
+- [Phase ?]: 2026-05-29 (Plan 09-04): Player market-detail page /markets/[slug] + order entry shipped (MKT-03) — Phase 9 COMPLETE (4/4). Async Server Component SSR-fetches market+price-history+activity in parallel (Promise.allSettled: market read is the 404 gate, history/activity degrade to empty), two-column grid grid-cols-1 lg:grid-cols-3 with always-visible Resolution criteria + sticky lg:top-8 order panel. OrderEntryForm (rhf+zod) -> BetConfirmDialog -> placeBetAction cookie-forward POST /bets; each backend status (402/409/403/422/401) maps to its SPECIFIC inline role=alert copy, NO toast (T-09-12/13). 403 disambiguates banned vs unverified on the FastAPI detail text. Composed Plan 03 pieces (chart/socket/LiveIndicator/dialog/select) + Plan 02 endpoints via two thin client wrappers (MarketDetailLiveOdds, PriceHistorySection) bridging the SSR page to client-only hooks (SP-5). Anonymized RecentActivityFeed (no user-id field — T-09-14) + MarketDetailSkeleton + portfolio loading.tsx (no layout shift). ZERO new deps. 7 order-form tests + 52/52 suite green; pnpm build exits 0. Only repo-wide failure is the pre-existing DEF-FE-01 orphan middleware.test.ts (out of scope, in deferred-items.md).
 
 ### Pending Todos
 
@@ -136,6 +138,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-29T17:03:04.000Z
-Stopped at: Completed 09-03-PLAN.md (frontend real-time slice + Recharts foundation)
+Last session: 2026-05-29T17:19:33.923Z
+Stopped at: Completed 09-04-PLAN.md (market-detail page + order entry) — Phase 9 COMPLETE (4/4), ready for verification
 Resume file: None
