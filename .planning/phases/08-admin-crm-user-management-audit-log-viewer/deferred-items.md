@@ -74,3 +74,24 @@ the executor SCOPE BOUNDARY); logged for the PM / a future hardening pass.
   async load that makes this stack "CI-Linux-only, won't true-green on Windows"
   (see 08-01 note above + STATE.md). 08-02 changes are read-only (export queries +
   audit viewer) and touch NONE of the wallet concurrency write path.
+
+## 08-03 (Admin CRM frontend)
+
+- **Pre-existing frontend typecheck error: `frontend/src/__tests__/middleware.test.ts`
+  (NOT introduced here).** `pnpm typecheck` (`tsc --noEmit`) reports
+  `src/__tests__/middleware.test.ts(32,28): error TS2307: Cannot find module
+  '../middleware' or its corresponding type declarations.` The test imports
+  `{ middleware } from "../middleware"`, but NO `frontend/src/middleware.ts`
+  (or `.tsx`) is tracked anywhere in the repo (`git ls-files | grep -i middleware`
+  returns only the test file). Confirmed at the pristine plan-start HEAD `35f9263`
+  via `git show HEAD:frontend/src/__tests__/middleware.test.ts` — the broken import
+  predates Phase 8 Plan 03 and is unrelated to the admin CRM work. The Edge
+  middleware was evidently removed (or never committed) in a prior phase, orphaning
+  this test. **Impact:** `tsc --noEmit` exits non-zero project-wide solely because
+  of this one file; the Next.js production build (`pnpm build`) does NOT typecheck
+  test files and is unaffected (build passes). All Phase 8 admin CRM source files
+  (`src/components/admin/*`, `src/app/admin/*`, `src/lib/admin-api.ts`, the 9 new
+  `src/components/ui/*`) are themselves type-clean — `tsc` reports zero errors
+  referencing any of them. NOT fixed (out of scope: the orphaned test / missing
+  middleware belong to the auth/middleware surface, not this plan). The orphaned
+  test should be deleted or the middleware restored by that surface's owner.
