@@ -47,7 +47,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 - [ ] **MKT-01**: Player sees market list on home page: top-25 active Polymarket-mirrored markets + all open house markets, sorted by 24h volume
 - [ ] **MKT-02**: Each market card displays question, current YES/NO odds, deadline, total volume, and source badge ("Synced from Polymarket" with link to source, or "House market")
-- [ ] **MKT-03**: Player can open market detail page with question, resolution criteria, price history chart, order entry form, and recent activity feed
+- [x] **MKT-03**: Player can open market detail page with question, resolution criteria, price history chart, order entry form, and recent activity feed
 - [x] **MKT-04**: Market prices update in real time via WebSocket (mirrored prices update on each poll; house market prices update when admin edits)
 - [ ] **MKT-05**: System polls Polymarket Gamma API every 30 seconds for top-25 active markets via Celery Beat; deduped with Redis distributed lock to prevent overlapping runs
 - [ ] **MKT-06**: System snapshots odds for all open markets every 5 minutes for price history chart
@@ -199,7 +199,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | WAL-09 | Phase 3 | Complete |
 | MKT-01 | Phase 6 | Pending |
 | MKT-02 | Phase 6 | Pending |
-| MKT-03 | Phase 9 | Pending |
+| MKT-03 | Phase 9 | Complete |
 | MKT-04 | Phase 9 | Complete |
 | MKT-05 | Phase 6 | Pending |
 | MKT-06 | Phase 6 | Pending |
