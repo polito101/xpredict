@@ -149,6 +149,54 @@ class MarketListItem(BaseModel):
         return self
 
 
+class PricePoint(BaseModel):
+    """One point on the YES-probability price-history series (MKT-03).
+
+    ``probability`` is the YES outcome's odds at ``ts`` (an ``OddsSnapshot`` row, or
+    the hourly-bucket representative for the 30d window). Serialized as a JSON STRING
+    (SP-1) — never a lossy float; ``ts`` is tz-aware ISO-8601 (SP-2).
+    """
+
+    ts: datetime
+    probability: Decimal
+
+    @field_serializer("probability")
+    @classmethod
+    def serialize_decimal(cls, v: Decimal) -> str:
+        return str(v)
+
+
+class PriceHistoryResponse(BaseModel):
+    """The price-history payload for one window (24h / 7d / 30d).
+
+    ``points`` is empty or single-element for a low-data market (<2 snapshots), which
+    the frontend renders as the friendly 'not enough history yet' placeholder.
+    """
+
+    window: str
+    points: list[PricePoint]
+
+
+class ActivityItem(BaseModel):
+    """One anonymized recent-activity row (MKT-03, T-09-05).
+
+    ANONYMIZED SERVER-SIDE: this schema intentionally has NO ``user_id`` / ``email`` /
+    ``display_name`` / ``user`` field — only the chosen outcome label, the stake
+    amount (string on the wire, SP-1), and the tz-aware timestamp. The browser must
+    never receive a user identity (CONTEXT Area 1, 09-RESEARCH Pattern 8). Do NOT add
+    a user-identity field here.
+    """
+
+    outcome: str
+    amount: Decimal
+    created_at: datetime
+
+    @field_serializer("amount")
+    @classmethod
+    def serialize_decimal(cls, v: Decimal) -> str:
+        return str(v)
+
+
 def paginated_response(
     items: list[T],
     total: int,
