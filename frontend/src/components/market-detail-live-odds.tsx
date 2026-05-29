@@ -44,11 +44,18 @@ export function MarketDetailLiveOdds({
   const { odds, state } = useMarketSocket(marketId, initialOdds);
 
   // Derive YES/NO percentages from the live odds map (falls back to the SSR
-  // seed before the first socket message). NO is the complement when only YES
-  // is present, but we render the explicit NO odds when the backend supplies it.
+  // seed before the first socket message). Render the EXPLICIT NO odds whenever
+  // the backend supplies the NO key — the complement (100 - yesPct) is only the
+  // fallback when the NO key is genuinely ABSENT (WR-06). The previous `> 0`
+  // guard conflated "NO odds missing" with "NO odds round to 0%", discarding a
+  // legitimately tiny NO probability (e.g. "0.004") and silently substituting
+  // the binary complement — wrong for any non-binary / non-complementary market.
   const yesPct = useMemo(() => toPct(odds[yesOutcomeId]), [odds, yesOutcomeId]);
-  const noPctRaw = toPct(odds[noOutcomeId]);
-  const noPct = noPctRaw > 0 ? noPctRaw : 100 - yesPct;
+  const noPct = useMemo(
+    () =>
+      odds[noOutcomeId] !== undefined ? toPct(odds[noOutcomeId]) : 100 - yesPct,
+    [odds, noOutcomeId, yesPct],
+  );
 
   return (
     <div className="flex flex-col gap-2 transition-colors">
