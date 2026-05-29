@@ -52,7 +52,7 @@ function MarketNotFoundState() {
         className="flex flex-col items-center justify-center py-24 text-center"
         role="status"
       >
-        <h1 className="text-lg font-semibold">Market not found</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Market not found</h1>
         <p className="mt-2 text-sm text-zinc-500">
           This market doesn&apos;t exist or is no longer available.
         </p>
@@ -72,7 +72,7 @@ function MarketErrorState() {
         className="flex flex-col items-center justify-center py-24 text-center"
         role="status"
       >
-        <h1 className="text-lg font-semibold text-rose-700">
+        <h1 className="text-3xl font-semibold tracking-tight text-rose-700">
           Unable to load this market
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
@@ -192,7 +192,7 @@ async function MarketDetailBody({ slug }: { slug: string }) {
         <div className="lg:col-span-1">
           <Card className="lg:sticky lg:top-8">
             <CardHeader>
-              <CardTitle className="text-lg font-semibold">Place a bet</CardTitle>
+              <CardTitle className="text-lg font-semibold">Order entry</CardTitle>
             </CardHeader>
             <CardContent>
               <OrderEntryForm

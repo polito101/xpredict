@@ -12,9 +12,13 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Mirrors the resolved page shell (`page.tsx` PAGE_SHELL) so the `<main>`
+// landmark is present during the Suspense window and there is no layout shift.
+const PAGE_SHELL = "w-full max-w-6xl mx-auto px-4 sm:px-6 py-12";
+
 export function MarketDetailSkeleton() {
   return (
-    <div aria-busy="true">
+    <main className={PAGE_SHELL} aria-busy="true">
       {/* Header: question + source/live cluster */}
       <div className="mb-8 flex flex-col gap-3">
         <Skeleton className="h-9 w-3/4" aria-hidden="true" />
@@ -69,6 +73,6 @@ export function MarketDetailSkeleton() {
           </Card>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

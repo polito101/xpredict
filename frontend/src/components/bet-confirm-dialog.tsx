@@ -67,17 +67,17 @@ export function BetConfirmDialog({
 
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
           <dt className="text-zinc-500">Stake</dt>
-          <dd className="text-right font-medium">
+          <dd className="text-right font-normal">
             {stake} {CURRENCY}
           </dd>
 
           <dt className="text-zinc-500">Current odds</dt>
-          <dd className="text-right font-medium">
+          <dd className="text-right font-normal">
             {yesPct}% YES / {noPct}% NO
           </dd>
 
           <dt className="text-zinc-500">Expected payout</dt>
-          <dd className="text-right font-medium">
+          <dd className="text-right font-normal">
             {payout} {CURRENCY}
           </dd>
         </dl>

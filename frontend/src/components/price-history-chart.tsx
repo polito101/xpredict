@@ -62,7 +62,9 @@ function WindowToggle({
             variant={active ? "secondary" : "ghost"}
             aria-pressed={active}
             onClick={() => onWindowChange(w)}
-            className={cn(active && "font-semibold")}
+            // ≥44px mobile touch target (UI-SPEC §Spacing) — `h-11` overrides
+            // the `size="sm"` h-9 (36px) while keeping the compact px-3 width.
+            className={cn("h-11", active && "font-semibold")}
           >
             {w}
           </Button>

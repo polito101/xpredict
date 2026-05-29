@@ -237,7 +237,7 @@ export function OrderEntryForm({
 
           <p className="flex items-center justify-between text-sm text-zinc-500">
             <span>Expected payout</span>
-            <span className="font-medium text-zinc-950 dark:text-zinc-50">
+            <span className="font-normal text-zinc-950 dark:text-zinc-50">
               {payout} {CURRENCY}
             </span>
           </p>
@@ -245,7 +245,7 @@ export function OrderEntryForm({
           {isClosed && (
             <p
               role="alert"
-              className="text-sm font-medium text-rose-700 dark:text-rose-400"
+              className="text-sm font-semibold text-rose-700 dark:text-rose-400"
               data-testid="market-closed"
             >
               This market is closed and no longer accepting bets.
@@ -255,7 +255,7 @@ export function OrderEntryForm({
           {formError && (
             <div
               role="alert"
-              className="text-sm font-medium text-red-500"
+              className="text-sm font-semibold text-red-500"
               data-testid="bet-error"
             >
               {formError}
@@ -274,7 +274,7 @@ export function OrderEntryForm({
           {success && (
             <p
               role="status"
-              className="text-sm font-medium text-emerald-600"
+              className="text-sm font-semibold text-emerald-600"
               data-testid="bet-success"
             >
               {success}
