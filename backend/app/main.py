@@ -28,6 +28,7 @@ import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -84,6 +85,26 @@ class RequestIdMiddleware:
             structlog.contextvars.clear_contextvars()
 
 
+def _subscriber_done_callback(task: asyncio.Task[None]) -> None:
+    """Surface an UNEXPECTED subscriber exit to logs + Sentry (WR-03).
+
+    ``redis_subscriber`` reconnects internally, so the only expected way it ends
+    is cancellation on shutdown. Any other completion (a bug, or an exception the
+    reconnect loop didn't catch) means live updates have silently stopped for
+    this worker — make that loud instead of invisible. Guarded against the normal
+    cancelled-on-shutdown path.
+    """
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        log = structlog.get_logger()
+        log.error("realtime.subscriber_exited", exc_info=exc)
+        sentry_sdk.capture_exception(exc)
+    else:
+        structlog.get_logger().error("realtime.subscriber_exited_unexpectedly")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Configure logging + Sentry at startup; run the WS price subscriber.
@@ -91,7 +112,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     Phase 9 (MKT-04): a single ``redis_subscriber`` task per worker process is
     started here (lifespan runs once per uvicorn worker → per-worker subscriber,
     which is what makes multi-worker correct) and cancelled in ``finally`` so it
-    never leaks on reload (09-RESEARCH Pitfall 4).
+    never leaks on reload (09-RESEARCH Pitfall 4). A done-callback surfaces an
+    unexpected exit to Sentry/logs (WR-03) — the task itself reconnects on a
+    Redis blip, so a completion that is NOT a shutdown cancellation is a defect.
     """
     configure_logging(settings)
     init_sentry(
@@ -100,6 +123,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         integrations=[FastApiIntegration(), SqlalchemyIntegration()],
     )
     task = asyncio.create_task(redis_subscriber(manager, str(settings.REDIS_URL)))
+    task.add_done_callback(_subscriber_done_callback)
     try:
         yield
     finally:
