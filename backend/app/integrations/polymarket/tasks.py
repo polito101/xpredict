@@ -292,20 +292,20 @@ async def _run_detect_resolutions(
                 log.error("detect_settle_failed", error=str(exc), market_id=str(market.id))
                 sentry_sdk.capture_exception(exc)
 
-        if session_override is None:
-            with contextlib.suppress(Exception):
-                await session.close()
-
     except Exception as exc:
         log.error("detect_failed", error=str(exc))
         sentry_sdk.capture_exception(exc)
         if session is not None:
             with contextlib.suppress(Exception):
                 await session.rollback()
+    finally:
+        # Close the session exactly once on every path (WR-04) — matches
+        # _run_poll_sync / _run_snapshot_odds, which both close in a single
+        # finally. The previous in-try + in-except closes were duplicated and
+        # asymmetric; a reader could not prove a single close.
         if session is not None and session_override is None:
             with contextlib.suppress(Exception):
                 await session.close()
-    finally:
         await redis.delete(DETECT_LOCK_KEY)
         if redis_override is None:
             await redis.aclose()
