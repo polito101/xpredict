@@ -80,9 +80,7 @@ async def _cleanup_user(email: str) -> None:
     """
     session_maker = _get_session_maker()
     async with session_maker() as s, s.begin():
-        user_id = (
-            await s.execute(select(User.id).where(User.email == email))
-        ).scalar_one_or_none()
+        user_id = (await s.execute(select(User.id).where(User.email == email))).scalar_one_or_none()
         if user_id is not None:
             await s.execute(
                 text(
@@ -210,9 +208,7 @@ async def test_wallet_creation_failure_rolls_back_user(
             assert resp.status_code != 201
 
         # Atomicity (SC#1): NEITHER the user NOR a wallet was committed.
-        assert not await _user_exists(email), (
-            "user leaked despite wallet fault (no rollback)"
-        )
+        assert not await _user_exists(email), "user leaked despite wallet fault (no rollback)"
         wallets_after = await _user_wallet_count()
         assert wallets_after == wallets_before, (
             f"a wallet committed despite the user rollback "
@@ -241,8 +237,6 @@ async def test_no_duplicate_wallet() -> None:
             user_id = resp.json()["id"]
 
         wallets = await _wallets_for_user(user_id)
-        assert len(wallets) == 1, (
-            f"expected a single wallet for the user, got {len(wallets)}"
-        )
+        assert len(wallets) == 1, f"expected a single wallet for the user, got {len(wallets)}"
     finally:
         await _cleanup_user(email)

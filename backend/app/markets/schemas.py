@@ -143,9 +143,7 @@ class MarketListItem(BaseModel):
         source_market_id is not a valid Polymarket event URL segment.
         """
         if self.source == "POLYMARKET" and self.polymarket_slug:
-            self.source_url = (
-                f"https://polymarket.com/event/{self.polymarket_slug}"
-            )
+            self.source_url = f"https://polymarket.com/event/{self.polymarket_slug}"
         else:
             self.source_url = None
         return self

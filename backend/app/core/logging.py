@@ -48,8 +48,7 @@ def _scrub_recursive(obj: Any) -> Any:
     """
     if isinstance(obj, dict):
         return {
-            k: "***" if k.lower() in SCRUB_KEYS else _scrub_recursive(v)
-            for k, v in obj.items()
+            k: "***" if k.lower() in SCRUB_KEYS else _scrub_recursive(v) for k, v in obj.items()
         }
     if isinstance(obj, list):
         return [_scrub_recursive(item) for item in obj]

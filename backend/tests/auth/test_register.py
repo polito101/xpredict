@@ -21,9 +21,7 @@ pytestmark = [
 async def _cleanup_user(engine: "AsyncEngine", email: str) -> None:
     """Best-effort delete by email so re-runs don't fail with unique violations."""
     async with engine.connect() as conn:
-        await conn.execute(
-            text("DELETE FROM users WHERE email = :em"), {"em": email}
-        )
+        await conn.execute(text("DELETE FROM users WHERE email = :em"), {"em": email})
         await conn.commit()
 
 
@@ -53,9 +51,7 @@ async def test_register_success(engine: "AsyncEngine") -> None:
 
     # The user row exists with a hashed password (not the plaintext).
     async with engine.connect() as conn:
-        row = (
-            await conn.execute(select(User).where(User.email == email))
-        ).first()
+        row = (await conn.execute(select(User).where(User.email == email))).first()
         assert row is not None
         assert row.hashed_password != "Valid-Pass-1234"
         # pwdlib default = Argon2id → hash starts with $argon2id$ (or $2b$ bcrypt fallback).
@@ -83,9 +79,7 @@ async def test_weak_password_rejected(engine: "AsyncEngine") -> None:
             assert "12 characters" in detail.get("reason", "")
         # No user row.
         async with engine.connect() as conn:
-            row = (
-                await conn.execute(select(User).where(User.email == email))
-            ).first()
+            row = (await conn.execute(select(User).where(User.email == email))).first()
             assert row is None
 
 

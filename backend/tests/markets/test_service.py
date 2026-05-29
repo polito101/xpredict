@@ -111,24 +111,36 @@ class TestMarketServiceUpdate:
             deadline=datetime.now(UTC) + timedelta(days=30),
         )
         updated = await MarketService.update_market(
-            async_session, sample_market, body, admin_user,
+            async_session,
+            sample_market,
+            body,
+            admin_user,
         )
         assert updated.resolution_criteria == "Updated criteria"
 
     async def test_update_locks_criteria_with_bets(
-        self, async_session, admin_user, market_with_bets,
+        self,
+        async_session,
+        admin_user,
+        market_with_bets,
     ):
         body = MarketUpdate(resolution_criteria="Try to change")
         with pytest.raises(HTTPException) as exc_info:
             await MarketService.update_market(
-                async_session, market_with_bets, body, admin_user,
+                async_session,
+                market_with_bets,
+                body,
+                admin_user,
             )
         assert exc_info.value.status_code == 423
 
     async def test_update_allows_odds_with_bets(self, async_session, admin_user, market_with_bets):
         body = MarketUpdate(odds_yes=Decimal("0.7"))
         updated = await MarketService.update_market(
-            async_session, market_with_bets, body, admin_user,
+            async_session,
+            market_with_bets,
+            body,
+            admin_user,
         )
         assert updated is not None
 
@@ -138,7 +150,10 @@ class TestMarketServiceUpdate:
         body = MarketUpdate(odds_yes=Decimal("0.6"))
         with pytest.raises(HTTPException) as exc_info:
             await MarketService.update_market(
-                async_session, sample_market, body, admin_user,
+                async_session,
+                sample_market,
+                body,
+                admin_user,
             )
         assert exc_info.value.status_code == 409
 
@@ -167,13 +182,15 @@ class TestMarketServiceList:
 
     async def test_list_markets_filter_by_source(self, async_session, sample_market):
         items, total = await MarketService.list_markets(
-            async_session, source="HOUSE",
+            async_session,
+            source="HOUSE",
         )
         assert total >= 1
 
     async def test_list_markets_filter_by_status(self, async_session, sample_market):
         items, total = await MarketService.list_markets(
-            async_session, status="OPEN",
+            async_session,
+            status="OPEN",
         )
         assert all(m.status == "OPEN" for m in items)
 

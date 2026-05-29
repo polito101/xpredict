@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -123,10 +123,7 @@ def test_beat_schedule_entries() -> None:
 
     assert "snapshot-odds" in schedule
     assert schedule["snapshot-odds"]["schedule"] == 300.0
-    assert (
-        schedule["snapshot-odds"]["task"]
-        == "app.integrations.polymarket.tasks.snapshot_odds"
-    )
+    assert schedule["snapshot-odds"]["task"] == "app.integrations.polymarket.tasks.snapshot_odds"
 
 
 # ---------------------------------------------------------------------------

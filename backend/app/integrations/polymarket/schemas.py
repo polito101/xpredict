@@ -112,7 +112,8 @@ class GammaMarket(BaseModel):
     volume_24hr: float | None = Field(alias="volume24hr", default=None)
     closed: bool = False
     uma_resolution_status: str | None = Field(
-        alias="umaResolutionStatus", default=None,
+        alias="umaResolutionStatus",
+        default=None,
     )
     end_date_raw: str | None = Field(alias="endDate", default=None)
     description: str = ""
@@ -121,7 +122,9 @@ class GammaMarket(BaseModel):
     internal_status: MarketStatus = MarketStatus.OPEN
 
     @field_validator(
-        "outcomes_raw", "outcome_prices_raw", "clob_token_ids",
+        "outcomes_raw",
+        "outcome_prices_raw",
+        "clob_token_ids",
         mode="before",
     )
     @classmethod

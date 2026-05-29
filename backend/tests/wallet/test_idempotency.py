@@ -172,9 +172,7 @@ async def test_concurrent_same_key_one_applied() -> None:
     key = f"idem-concurrent-{uuid4()}"
     k = 10
 
-    transfer_ids = await asyncio.gather(
-        *(_one_recharge(user_id, key) for _ in range(k))
-    )
+    transfer_ids = await asyncio.gather(*(_one_recharge(user_id, key) for _ in range(k)))
 
     # Every concurrent caller returns the SAME single applied transfer id.
     assert len(set(transfer_ids)) == 1, (
@@ -201,9 +199,5 @@ async def _transfers_for_key(key: str) -> list:
     session_maker = _get_session_maker()
     async with session_maker() as s:
         return list(
-            (
-                await s.execute(
-                    select(Transfer).where(Transfer.idempotency_key == key)
-                )
-            ).scalars()
+            (await s.execute(select(Transfer).where(Transfer.idempotency_key == key))).scalars()
         )

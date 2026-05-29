@@ -246,7 +246,8 @@ class MarketService:
 
     @staticmethod
     async def get_market_by_id(
-        session: AsyncSession, market_id: UUID,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> Market | None:
         stmt = (
             select(Market)
@@ -261,7 +262,8 @@ class MarketService:
 
     @staticmethod
     async def get_market_by_slug(
-        session: AsyncSession, slug: str,
+        session: AsyncSession,
+        slug: str,
     ) -> Market | None:
         stmt = (
             select(Market)

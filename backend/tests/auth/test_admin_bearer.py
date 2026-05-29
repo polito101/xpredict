@@ -252,9 +252,7 @@ async def test_admin_login_failure_does_not_leak_existence(
             )
         assert unknown.status_code == 401
         assert wrong.status_code == 401
-        assert (
-            unknown.json() == wrong.json() == {"detail": "Invalid credentials"}
-        )
+        assert unknown.json() == wrong.json() == {"detail": "Invalid credentials"}
     finally:
         await _cleanup(engine, _TEST_ADMIN_EMAIL)
 
@@ -353,16 +351,11 @@ async def test_admin_bearer_revocation(engine: AsyncEngine) -> None:
         async with engine.connect() as conn:
             row = (
                 await conn.execute(
-                    text(
-                        "SELECT revoked_at FROM refresh_tokens "
-                        "WHERE token_hash = :th"
-                    ),
+                    text("SELECT revoked_at FROM refresh_tokens " "WHERE token_hash = :th"),
                     {"th": token_hash},
                 )
             ).first()
             assert row is not None, "refresh_tokens row should exist after admin login"
-            assert row.revoked_at is not None, (
-                "Bearer should be revoked after /admin/auth/logout"
-            )
+            assert row.revoked_at is not None, "Bearer should be revoked after /admin/auth/logout"
     finally:
         await _cleanup(engine, _TEST_ADMIN_EMAIL)

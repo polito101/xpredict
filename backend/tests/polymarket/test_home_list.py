@@ -127,9 +127,9 @@ async def test_polymarket_sorted_by_volume(async_session: AsyncSession) -> None:
         markets = await MarketService.list_home_markets(async_session)
 
         pm_markets = [
-            m for m in markets
-            if m.source == MarketSourceEnum.POLYMARKET.value
-            and m.id in (pm_low.id, pm_high.id)
+            m
+            for m in markets
+            if m.source == MarketSourceEnum.POLYMARKET.value and m.id in (pm_low.id, pm_high.id)
         ]
         assert len(pm_markets) >= 2
         # Higher volume should be first
@@ -200,10 +200,12 @@ async def test_public_endpoint_returns_mixed_list(engine: AsyncEngine) -> None:
 
         # Find our test markets
         house_item = next(
-            (item for item in body if item["id"] == str(house.id)), None,
+            (item for item in body if item["id"] == str(house.id)),
+            None,
         )
         pm_item = next(
-            (item for item in body if item["id"] == str(pm.id)), None,
+            (item for item in body if item["id"] == str(pm.id)),
+            None,
         )
 
         assert house_item is not None, "House market must be in response"

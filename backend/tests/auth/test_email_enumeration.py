@@ -76,11 +76,9 @@ async def test_login_does_not_leak_email_existence(engine: "AsyncEngine") -> Non
             "/auth/login",
             data={"username": known_email, "password": "Wrong-Pass-9999"},
         )
-        assert r_unknown.status_code == r_known.status_code, (
-            "status codes diverge — enumeration leak"
-        )
+        assert (
+            r_unknown.status_code == r_known.status_code
+        ), "status codes diverge — enumeration leak"
         # Detail body shape MUST match.
-        assert r_unknown.json() == r_known.json(), (
-            "response bodies diverge — enumeration leak"
-        )
+        assert r_unknown.json() == r_known.json(), "response bodies diverge — enumeration leak"
     await _cleanup_user(engine, known_email)

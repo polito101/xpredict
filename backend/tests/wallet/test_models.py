@@ -86,9 +86,7 @@ async def test_accounts_table_shape(async_session: AsyncSession) -> None:
     assert row.version == 0
 
     # Cleanup (mutable table — plain DELETE allowed).
-    await async_session.execute(
-        text("DELETE FROM accounts WHERE id = :id"), {"id": account_id}
-    )
+    await async_session.execute(text("DELETE FROM accounts WHERE id = :id"), {"id": account_id})
 
 
 # ---------------------------------------------------------------------------
@@ -104,9 +102,7 @@ async def test_system_accounts_seeded(async_session: AsyncSession) -> None:
     """
     promo = (
         await async_session.execute(
-            text(
-                "SELECT owner_type, kind, currency, balance FROM accounts WHERE id = :id"
-            ),
+            text("SELECT owner_type, kind, currency, balance FROM accounts WHERE id = :id"),
             {"id": HOUSE_PROMO_ACCOUNT_ID},
         )
     ).one()
@@ -117,9 +113,7 @@ async def test_system_accounts_seeded(async_session: AsyncSession) -> None:
 
     revenue = (
         await async_session.execute(
-            text(
-                "SELECT owner_type, kind, currency, balance FROM accounts WHERE id = :id"
-            ),
+            text("SELECT owner_type, kind, currency, balance FROM accounts WHERE id = :id"),
             {"id": HOUSE_REVENUE_ACCOUNT_ID},
         )
     ).one()

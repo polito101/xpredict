@@ -204,9 +204,7 @@ async def _measure(wallet_id: UUID, tags: list[str]) -> _Outcome:
     session_maker = _get_session_maker()
     async with session_maker() as s:
         final_balance = (
-            await s.execute(
-                text("SELECT balance FROM accounts WHERE id = :id"), {"id": wallet_id}
-            )
+            await s.execute(text("SELECT balance FROM accounts WHERE id = :id"), {"id": wallet_id})
         ).scalar_one()
         ledger_balance = (
             await s.execute(
