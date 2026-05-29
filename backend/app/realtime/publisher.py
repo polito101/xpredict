@@ -24,6 +24,7 @@ import time
 from decimal import Decimal
 from uuid import UUID
 
+import anyio.to_thread
 import redis
 from redis.asyncio import Redis as AioRedis
 
@@ -62,8 +63,11 @@ def build_price_update_payload(
 def publish_odds_change(market_id: str | UUID, deltas: list[dict[str, str]]) -> None:
     """Publish a lean odds-change delta to ``prices:{market_id}`` (sync client).
 
-    Used by the admin-edit producer site. A short-lived sync ``redis`` client keeps
-    the request-context call simple; the connection is closed after publishing.
+    The synchronous core: opens a short-lived sync ``redis`` client, PUBLISHes,
+    and closes it. This BLOCKS on the Redis socket round-trip, so it must NOT be
+    called directly on the asyncio event loop (WR-02) — async callers in a
+    request context use ``publish_odds_change_threadsafe`` which offloads it to a
+    worker thread. Kept callable directly for sync (non-async) contexts and tests.
     """
     payload = build_price_update_payload(market_id, deltas)
     # redis.from_url (sync module fn) is untyped in the stubs — the async classmethod
@@ -73,6 +77,23 @@ def publish_odds_change(market_id: str | UUID, deltas: list[dict[str, str]]) -> 
         client.publish(f"prices:{market_id}", json.dumps(payload))
     finally:
         client.close()
+
+
+async def publish_odds_change_threadsafe(
+    market_id: str | UUID, deltas: list[dict[str, str]]
+) -> None:
+    """Run the blocking sync publish in a worker thread — safe inside an event loop.
+
+    The admin-edit producer (``app/markets/router.py::update_market``) is an
+    ``async`` handler, so calling the blocking sync ``publish_odds_change``
+    directly would stall the worker's entire event loop for the duration of the
+    Redis connect + PUBLISH + close — every concurrent request on that worker
+    would block, not just the admin edit (WR-02). ``anyio.to_thread.run_sync``
+    offloads the blocking call to a thread so the loop stays responsive. The poll
+    path keeps using the fully-async ``publish_odds_change_async`` (it already
+    holds an ``AioRedis``); this wrapper is only for the request-context sync site.
+    """
+    await anyio.to_thread.run_sync(publish_odds_change, market_id, deltas)
 
 
 async def publish_odds_change_async(

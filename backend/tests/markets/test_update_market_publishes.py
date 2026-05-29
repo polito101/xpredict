@@ -1,8 +1,10 @@
 """Producer hook #1 (MKT-04): admin odds edit publishes a lean delta POST-COMMIT.
 
 T-09-03: the PATCH /api/v1/admin/markets/{id} odds branch must call
-publish_odds_change exactly once AFTER session.commit(), with string odds for both
-YES and NO outcomes — and must NOT publish when the PATCH body carries no odds_yes.
+publish_odds_change_threadsafe exactly once AFTER session.commit(), with string
+odds for both YES and NO outcomes — and must NOT publish when the PATCH body
+carries no odds_yes. (The route awaits the threadsafe wrapper — WR-02 — which
+offloads the blocking sync publish to a worker thread; the same call contract.)
 """
 
 from __future__ import annotations
@@ -49,7 +51,9 @@ async def test_odds_edit_publishes_once_post_commit(engine: AsyncEngine) -> None
             )
             market_id = create_resp.json()["id"]
 
-            with patch("app.markets.router.publish_odds_change") as mock_publish:
+            with patch(
+                "app.markets.router.publish_odds_change_threadsafe"
+            ) as mock_publish:
                 resp = await c.patch(
                     f"/api/v1/admin/markets/{market_id}",
                     json={"odds_yes": "0.7"},
@@ -58,8 +62,9 @@ async def test_odds_edit_publishes_once_post_commit(engine: AsyncEngine) -> None
 
         assert resp.status_code == 200, resp.text
 
-        # Published exactly once.
-        mock_publish.assert_called_once()
+        # Published (awaited) exactly once — patching an async def yields an
+        # AsyncMock, so assert on the await.
+        mock_publish.assert_awaited_once()
         call_args = mock_publish.call_args
         published_market_id = call_args.args[0]
         deltas = call_args.args[1]
@@ -107,7 +112,9 @@ async def test_non_odds_patch_does_not_publish(engine: AsyncEngine) -> None:
             )
             market_id = create_resp.json()["id"]
 
-            with patch("app.markets.router.publish_odds_change") as mock_publish:
+            with patch(
+                "app.markets.router.publish_odds_change_threadsafe"
+            ) as mock_publish:
                 resp = await c.patch(
                     f"/api/v1/admin/markets/{market_id}",
                     json={"resolution_criteria": "Updated criteria only"},
@@ -115,6 +122,6 @@ async def test_non_odds_patch_does_not_publish(engine: AsyncEngine) -> None:
                 )
 
         assert resp.status_code == 200, resp.text
-        mock_publish.assert_not_called()
+        mock_publish.assert_not_awaited()
     finally:
         await _cleanup_user(engine, _ADMIN_EMAIL)

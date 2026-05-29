@@ -21,7 +21,7 @@ from app.markets.schemas import (
     paginated_response,
 )
 from app.markets.service import MarketService
-from app.realtime.publisher import publish_odds_change
+from app.realtime.publisher import publish_odds_change_threadsafe
 
 log = structlog.get_logger()
 
@@ -107,10 +107,12 @@ async def update_market(
     updated_id = updated.id
     await session.commit()
     # Real-time publish (MKT-04), POST-COMMIT and only when odds actually changed.
-    # A Redis hiccup must never 500 a successful admin edit — log and swallow.
+    # Offloaded to a worker thread (WR-02) so the blocking sync Redis publish never
+    # stalls the event loop. A Redis hiccup must never 500 a successful admin edit —
+    # log and swallow.
     if odds_deltas:
         try:
-            publish_odds_change(updated_id, odds_deltas)
+            await publish_odds_change_threadsafe(updated_id, odds_deltas)
         except Exception:
             log.warning("realtime.publish_failed", market_id=str(updated_id), exc_info=True)
     refreshed = await MarketService.get_market_by_id(session, updated_id)
