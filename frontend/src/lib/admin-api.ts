@@ -200,7 +200,7 @@ export async function rechargeWallet(
   reason: string,
   idempotencyKey: string,
 ): Promise<unknown> {
-  return adminApiFetch(`/api/v1/admin/wallets/${userId}/recharge`, {
+  return adminApiFetch(`/admin/wallets/${userId}/recharge`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
