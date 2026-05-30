@@ -29,7 +29,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [ ] **Phase 5: Bets, Settlement & First End-to-End Demo (House Markets Only)** - Place-bet flow (ACID-wrapped, idempotent), portfolio with P&L, sign-up bonus on email verify, admin two-step resolve with mandatory justification, idempotent SettlementService, reversal path. **First demoable happy path lands here.**
 - [x] **Phase 6: Polymarket Sync (Catalog Replication)** - Custom httpx + tenacity Gamma client, PolymarketAdapter implements `MarketSource`, Celery Beat 30s top-25 poll + 5min odds snapshot, Redis distributed lock for dedupe, `closed` vs `resolved` distinction enforced. (completed 2026-05-28)
 - [ ] **Phase 7: Polymarket Auto-Resolution & Admin Override** - `detect_resolutions` Beat task (60s) with UMA dispute-window + internal grace, reuses Phase 5 SettlementService, admin force-settle override for stuck mirrored markets.
-- [ ] **Phase 8: Admin CRM (User Management & Audit Log Viewer)** - Paginated user list with search/filters, user detail page (profile + balance + history + bets), ban/unban state machine with frozen-balance semantics, CSV export, immutable audit-log viewer.
+- [x] **Phase 8: Admin CRM (User Management & Audit Log Viewer)** - Paginated user list with search/filters, user detail page (profile + balance + history + bets), ban/unban state machine with frozen-balance semantics, CSV export, immutable audit-log viewer. (completed 2026-05-30)
 - [ ] **Phase 9: User App UX Polish (Market Detail & Real-Time)** - Market detail page with resolution criteria + price-history chart + activity feed, real-time WebSocket price updates for mirrored polls + house edits.
 - [ ] **Phase 10: Admin KPI Dashboard & Configurable Branding** - Admin landing dashboard (24h volume, DAU, active markets, pending resolutions, house P&L) with Recharts, TenantConfig CRUD (brand name/logo/palette), runtime branding consumption in player UI.
 - [ ] **Phase 11: Hardening & Operator-Demo Gate** - Mobile responsiveness validation (≥360px), Sentry alert rule tuning, rate-limit tuning, "Looks Done But Isn't" checklist execution, prod-migration dry-run, security scan (gitleaks/bandit/npm audit/OWASP ZAP). **Final gate before any operator demo.**
@@ -226,7 +226,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Plan list**:
 - [x] 08-01-PLAN.md — Backend API core: user list, detail, ban/unban with 3 enforcement points + integration tests (ADU-01, ADU-02, ADU-04, ADU-05)
 - [x] 08-02-PLAN.md — CSV export with injection protection + audit log read endpoint + tests (ADU-06, ADD-04)
-- [ ] 08-03-PLAN.md — Frontend admin pages: user list, user detail with tabs, audit log viewer, TanStack Table + shadcn (ADU-01, ADU-02, ADU-04, ADU-05, ADU-06, ADD-04)
+- [x] 08-03-PLAN.md — Frontend admin pages: user list, user detail with tabs, audit log viewer, TanStack Table + shadcn (ADU-01, ADU-02, ADU-04, ADU-05, ADU-06, ADD-04)
 **Research/spike flags**: None — TanStack Table v8 + shadcn primitives are well-documented for admin tables.
 **Critical pitfalls covered**: PITFALL #6 (the audit log viewer makes the immutable trail visible to operators — the demo-trust signal), PITFALL #8 (admin auth surface separation re-verified).
 **UI hint**: yes
@@ -308,7 +308,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
 | 6. Polymarket Sync (Catalog Replication) | 3/3 | Complete   | 2026-05-28 |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
-| 8. Admin CRM (User Management & Audit Log Viewer) | 2/3 | In Progress|  |
+| 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete   | 2026-05-30 |
 | 9. User App UX Polish (Market Detail & Real-Time) | 0/TBD | Not started | - |
 | 10. Admin KPI Dashboard & Configurable Branding | 0/TBD | Not started | - |
 | 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
