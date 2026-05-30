@@ -66,7 +66,7 @@ def _build_storage_uri() -> str:
 
 
 limiter = Limiter(
-    key_func=get_remote_address,                # per-IP default
+    key_func=get_remote_address,  # per-IP default
     storage_uri=_build_storage_uri(),
     default_limits=[],
     headers_enabled=True,

@@ -57,9 +57,9 @@ async def test_balance_check_rejects_negative(funded_wallet, async_session: Asyn
                 text("UPDATE accounts SET balance = balance - :amt WHERE id = :id"),
                 {"amt": 999999, "id": funded_wallet},
             )
-    assert _sqlstate(exc_info.value) == "23514", (
-        f"expected CHECK violation 23514, got {_sqlstate(exc_info.value)}"
-    )
+    assert (
+        _sqlstate(exc_info.value) == "23514"
+    ), f"expected CHECK violation 23514, got {_sqlstate(exc_info.value)}"
 
 
 # ---------------------------------------------------------------------------
@@ -179,9 +179,7 @@ async def test_idempotency_key_unique(async_session: AsyncSession) -> None:
     key = f"test-idem-{uuid4()}"
     async with async_session.begin_nested():
         await async_session.execute(
-            text(
-                "INSERT INTO transfers (id, kind, idempotency_key) VALUES (:id, 'recharge', :k)"
-            ),
+            text("INSERT INTO transfers (id, kind, idempotency_key) VALUES (:id, 'recharge', :k)"),
             {"id": uuid4(), "k": key},
         )
 
@@ -193,6 +191,6 @@ async def test_idempotency_key_unique(async_session: AsyncSession) -> None:
                 ),
                 {"id": uuid4(), "k": key},
             )
-    assert _sqlstate(exc_info.value) == "23505", (
-        f"expected unique violation 23505, got {_sqlstate(exc_info.value)}"
-    )
+    assert (
+        _sqlstate(exc_info.value) == "23505"
+    ), f"expected unique violation 23505, got {_sqlstate(exc_info.value)}"

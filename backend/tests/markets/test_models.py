@@ -47,9 +47,21 @@ class TestMarketColumns:
     def test_market_has_expected_columns(self):
         columns = {c.name for c in Market.__table__.columns}
         expected = {
-            "id", "question", "slug", "resolution_criteria", "category",
-            "source", "source_market_id", "condition_id", "status", "deadline",
-            "bet_count", "created_at", "updated_at", "closed_at", "resolved_at",
+            "id",
+            "question",
+            "slug",
+            "resolution_criteria",
+            "category",
+            "source",
+            "source_market_id",
+            "condition_id",
+            "status",
+            "deadline",
+            "bet_count",
+            "created_at",
+            "updated_at",
+            "closed_at",
+            "resolved_at",
             "tenant_id",
         }
         assert expected.issubset(columns)
@@ -57,14 +69,24 @@ class TestMarketColumns:
     def test_outcome_has_expected_columns(self):
         columns = {c.name for c in Outcome.__table__.columns}
         expected = {
-            "id", "market_id", "label", "initial_odds", "current_odds", "tenant_id",
+            "id",
+            "market_id",
+            "label",
+            "initial_odds",
+            "current_odds",
+            "tenant_id",
         }
         assert expected.issubset(columns)
 
     def test_odds_snapshot_has_expected_columns(self):
         columns = {c.name for c in OddsSnapshot.__table__.columns}
         expected = {
-            "id", "market_id", "outcome_id", "probability", "snapshot_at", "tenant_id",
+            "id",
+            "market_id",
+            "outcome_id",
+            "probability",
+            "snapshot_at",
+            "tenant_id",
         }
         assert expected.issubset(columns)
 

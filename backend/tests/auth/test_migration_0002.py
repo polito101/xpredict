@@ -118,15 +118,11 @@ async def test_users_tenant_id_default(engine: AsyncEngine) -> None:
             )
         )
         result = await conn.execute(
-            text(
-                "SELECT tenant_id FROM users WHERE email = 'tenantdefault-test@example.com'"
-            )
+            text("SELECT tenant_id FROM users WHERE email = 'tenantdefault-test@example.com'")
         )
         tenant_id = result.scalar_one()
         # Cleanup so this test stays idempotent across reruns
-        await conn.execute(
-            text("DELETE FROM users WHERE email = 'tenantdefault-test@example.com'")
-        )
+        await conn.execute(text("DELETE FROM users WHERE email = 'tenantdefault-test@example.com'"))
         await conn.commit()
 
     assert str(tenant_id) == "00000000-0000-0000-0000-000000000001"
@@ -191,9 +187,7 @@ async def test_refresh_tokens_user_id_fk_cascade(engine: AsyncEngine) -> None:
     async with engine.connect() as conn:
         fks = await conn.run_sync(_get_fks)
 
-    user_fk = next(
-        (fk for fk in fks if "user_id" in fk.get("constrained_columns", [])), None
-    )
+    user_fk = next((fk for fk in fks if "user_id" in fk.get("constrained_columns", [])), None)
     assert user_fk is not None, f"refresh_tokens.user_id FK missing; fks={fks}"
     assert user_fk["referred_table"] == "users"
     assert user_fk["referred_columns"] == ["id"]

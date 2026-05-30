@@ -86,10 +86,14 @@ async def sample_market(async_session: AsyncSession) -> AsyncGenerator[Market, N
     await async_session.flush()
 
     snap_yes = OddsSnapshot(
-        market_id=market.id, outcome_id=yes.id, probability=Decimal("0.500000"),
+        market_id=market.id,
+        outcome_id=yes.id,
+        probability=Decimal("0.500000"),
     )
     snap_no = OddsSnapshot(
-        market_id=market.id, outcome_id=no.id, probability=Decimal("0.500000"),
+        market_id=market.id,
+        outcome_id=no.id,
+        probability=Decimal("0.500000"),
     )
     async_session.add_all([snap_yes, snap_no])
     await async_session.flush()
@@ -111,7 +115,8 @@ async def sample_market(async_session: AsyncSession) -> AsyncGenerator[Market, N
 
 @pytest_asyncio.fixture(loop_scope="session")
 async def market_with_bets(
-    async_session: AsyncSession, sample_market: Market,
+    async_session: AsyncSession,
+    sample_market: Market,
 ) -> AsyncGenerator[Market, None]:
     from sqlalchemy import update
 

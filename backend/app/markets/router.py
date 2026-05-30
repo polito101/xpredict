@@ -1,7 +1,8 @@
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,14 +11,19 @@ from app.auth.models import User
 from app.db.session import get_async_session
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.schemas import (
+    ActivityItem,
     MarketCreate,
     MarketListItem,
     MarketRead,
     MarketUpdate,
     PaginatedResponse,
+    PriceHistoryResponse,
     paginated_response,
 )
 from app.markets.service import MarketService
+from app.realtime.publisher import publish_odds_change_threadsafe
+
+log = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
 # Admin market router — requires Bearer JWT (AUTH-07)
@@ -95,9 +101,21 @@ async def update_market(
     if not market:
         raise HTTPException(status_code=404, detail="Market not found")
     ip = request.client.host if request.client else None
-    updated = await MarketService.update_market(session, market, body, admin, ip=ip)
+    updated, odds_deltas = await MarketService.update_market(session, market, body, admin, ip=ip)
+    # Publish the odds-change deltas AFTER commit (Pitfall 3 / T-09-03) — clients
+    # must never render a rolled-back price.
+    updated_id = updated.id
     await session.commit()
-    refreshed = await MarketService.get_market_by_id(session, updated.id)
+    # Real-time publish (MKT-04), POST-COMMIT and only when odds actually changed.
+    # Offloaded to a worker thread (WR-02) so the blocking sync Redis publish never
+    # stalls the event loop. A Redis hiccup must never 500 a successful admin edit —
+    # log and swallow.
+    if odds_deltas:
+        try:
+            await publish_odds_change_threadsafe(updated_id, odds_deltas)
+        except Exception:
+            log.warning("realtime.publish_failed", market_id=str(updated_id), exc_info=True)
+    refreshed = await MarketService.get_market_by_id(session, updated_id)
     return MarketRead.model_validate(refreshed)
 
 
@@ -146,6 +164,36 @@ async def get_market_public(
     if not market or market.status not in (MarketStatus.OPEN.value, MarketStatus.CLOSED.value):
         raise HTTPException(status_code=404, detail="Market not found")
     return MarketRead.model_validate(market)
+
+
+@public_market_router.get("/{slug}/price-history", response_model=PriceHistoryResponse)
+async def get_price_history(
+    slug: str,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    window: Annotated[Literal["24h", "7d", "30d"], Query()] = "7d",
+) -> PriceHistoryResponse:
+    """Public YES-line price history (MKT-03).
+
+    ``window`` is constrained to the allowlist {24h, 7d, 30d} (T-09-08) — FastAPI
+    returns 422 for anything else BEFORE the service runs. 24h/7d serve raw 5-min
+    snapshots; 30d is downsampled server-side to hourly buckets (T-09-07). 404 on an
+    unknown / non-public market. The ``/price-history`` suffix disambiguates from the
+    bare ``GET /{slug}`` route (no shadowing — same pattern as ``/{slug}/bet-check``).
+    """
+    return await MarketService.price_history(session, slug, window)
+
+
+@public_market_router.get("/{slug}/activity", response_model=list[ActivityItem])
+async def get_activity(
+    slug: str,
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> list[ActivityItem]:
+    """Public anonymized recent-activity feed — last 20 bets (MKT-03, T-09-05).
+
+    Anonymized server-side: no user_id/email/display_name reaches the client. 404 on
+    an unknown / non-public market.
+    """
+    return await MarketService.recent_activity(session, slug, 20)
 
 
 @public_market_router.get("/{slug}/bet-check")

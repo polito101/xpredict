@@ -65,14 +65,15 @@ class Account(Base):
     id: Mapped[PyUUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
-        default=uuid4,                          # WR-05: Python-side default
+        default=uuid4,  # WR-05: Python-side default
         server_default=func.gen_random_uuid(),  # raw SQL inserts
     )
     owner_type: Mapped[str] = mapped_column(Text, nullable=False)
     """``system`` | ``user`` | ``market`` — see ``constants.OWNER_*``."""
 
     owner_id: Mapped[PyUUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
+        UUID(as_uuid=True),
+        nullable=True,
     )
     """The user/market this account belongs to; NULL for system singletons."""
 
@@ -80,14 +81,21 @@ class Account(Base):
     """``user_wallet`` | ``house_promo`` | ``house_revenue`` — see ``constants.KIND_*``."""
 
     currency: Mapped[str] = mapped_column(
-        Text, nullable=False, server_default=PLAY_USD,
+        Text,
+        nullable=False,
+        server_default=PLAY_USD,
     )
     balance: Mapped[Money] = mapped_column(server_default="0")
     version: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0", default=0,
+        Integer,
+        nullable=False,
+        server_default="0",
+        default=0,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
     # tenant_id ghost (PLT-01 / D-22) — copied from app/core/audit/models.py.
     tenant_id: Mapped[PyUUID | None] = mapped_column(
@@ -98,7 +106,10 @@ class Account(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "owner_type", "owner_id", "kind", "currency",
+            "owner_type",
+            "owner_id",
+            "kind",
+            "currency",
             name="accounts_owner_kind_currency_key",
         ),
         CheckConstraint("balance >= 0", name="balance_non_negative"),
@@ -126,20 +137,28 @@ class Transfer(Base):
     """``recharge`` | ``opening`` | ... — see ``constants.TRANSFER_*``."""
 
     idempotency_key: Mapped[str | None] = mapped_column(
-        Text, unique=True, nullable=True,
+        Text,
+        unique=True,
+        nullable=True,
     )
     actor_user_id: Mapped[PyUUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True,
+        UUID(as_uuid=True),
+        nullable=True,
     )
     """The human actor, if any; NULL for system-initiated transfers (RESEARCH OQ2)."""
 
     # ``metadata`` is reserved on SQLAlchemy Declarative classes, so the Python
     # attribute is ``transfer_metadata`` mapped to the DB column ``metadata``.
     transfer_metadata: Mapped[dict[str, Any]] = mapped_column(
-        "metadata", JSONB, nullable=False, server_default="{}",
+        "metadata",
+        JSONB,
+        nullable=False,
+        server_default="{}",
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
 
 
@@ -176,12 +195,15 @@ class Entry(Base):
 
     amount: Mapped[Money] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
     )
 
     __table_args__ = (
         CheckConstraint(
-            "direction IN ('debit','credit')", name="entries_direction_check",
+            "direction IN ('debit','credit')",
+            name="entries_direction_check",
         ),
         CheckConstraint("amount > 0", name="entries_amount_positive"),
         Index("entries_account_idx", "account_id"),

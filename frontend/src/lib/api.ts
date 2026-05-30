@@ -30,17 +30,77 @@ export interface MarketItem {
   outcomes: MarketOutcome[];
 }
 
+/**
+ * A single YES-probability snapshot for the price-history chart.
+ *
+ * `probability` is a string on the wire (backend `Numeric(8,6)` serialized as
+ * a string — the project's money/odds-as-string convention). Only round it
+ * for display; never store it as a float.
+ */
+export interface PricePoint {
+  ts: string;
+  probability: string;
+}
+
+/** Chart window options for the price-history chart (default `7d`). */
+export type PriceWindow = "24h" | "7d" | "30d";
+
+/**
+ * The market-detail payload (`GET /api/v1/markets/{slug}`). The backend
+ * `MarketRead` already returns `resolution_criteria` alongside the list fields.
+ */
+export interface MarketDetail extends MarketItem {
+  resolution_criteria: string;
+}
+
+/** The price-history endpoint response (`GET .../price-history?window=`). */
+export interface PriceHistoryResponse {
+  window: PriceWindow;
+  points: PricePoint[];
+}
+
+/**
+ * A single recent-activity row (`GET .../activity`). Fully anonymized
+ * server-side — there is intentionally NO user identity field. `amount` is a
+ * string on the wire (money is `Numeric(18,4)` serialized as a string — SP-1).
+ */
+export interface ActivityItem {
+  outcome: "YES" | "NO";
+  amount: string;
+  created_at: string;
+}
+
 // -- Fetch helpers -----------------------------------------------------------
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+/**
+ * Resolves the backend base URL for the current execution context.
+ *
+ * Server-side (SSR / Server Components) reaches the backend over the internal
+ * network — in Docker that is `BACKEND_URL` (e.g. `http://backend:8000`). The
+ * browser must use the public, host-reachable URL from `NEXT_PUBLIC_API_URL`
+ * (e.g. `http://localhost:8000`). Conflating the two left the client-side
+ * price-history re-fetch (and, mirrored in `use-market-socket`, the WS base)
+ * pointing at the unresolvable `backend` hostname under the dockerized
+ * `bin/dev` stack — the browser cannot resolve a Docker-internal hostname
+ * (Phase 9 closeout finding). Both fall back to localhost for host-run dev.
+ */
+function apiBase(): string {
+  if (typeof window === "undefined") {
+    return (
+      process.env.BACKEND_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:8000"
+    );
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+}
 
 /**
  * Fetches the public market list from the backend.
  * Uses `cache: "no-store"` for Server Component (fresh on every render).
  */
 export async function fetchMarkets(): Promise<MarketItem[]> {
-  const res = await fetch(`${API_BASE}/api/v1/markets`, {
+  const res = await fetch(`${apiBase()}/api/v1/markets`, {
     cache: "no-store",
   });
 
@@ -49,6 +109,77 @@ export async function fetchMarkets(): Promise<MarketItem[]> {
   }
 
   return res.json() as Promise<MarketItem[]>;
+}
+
+/**
+ * Thrown by `fetchMarket` when the backend returns 404, so the detail page can
+ * render the "Market not found" state distinctly from a generic fetch error
+ * (RESEARCH Pattern 6).
+ */
+export class MarketNotFound extends Error {
+  constructor(slug: string) {
+    super(`Market not found: ${slug}`);
+    this.name = "MarketNotFound";
+  }
+}
+
+/**
+ * Fetches a single market's detail payload by slug. Mirrors `fetchMarkets`
+ * (`cache: "no-store"` for the Server Component initial render). Throws a typed
+ * `MarketNotFound` on 404 so the page can branch to the not-found state.
+ */
+export async function fetchMarket(slug: string): Promise<MarketDetail> {
+  const res = await fetch(
+    `${apiBase()}/api/v1/markets/${encodeURIComponent(slug)}`,
+    { cache: "no-store" },
+  );
+
+  if (res.status === 404) {
+    throw new MarketNotFound(slug);
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to fetch market: ${res.status}`);
+  }
+
+  return res.json() as Promise<MarketDetail>;
+}
+
+/**
+ * Fetches downsampled YES price history for a market over the given window
+ * (`24h` | `7d` | `30d`, default `7d`). Server-side downsampling keeps the 30d
+ * view light (RESEARCH Pattern 5).
+ */
+export async function fetchPriceHistory(
+  slug: string,
+  window: PriceWindow = "7d",
+): Promise<PriceHistoryResponse> {
+  const res = await fetch(
+    `${apiBase()}/api/v1/markets/${encodeURIComponent(slug)}/price-history?window=${window}`,
+    { cache: "no-store" },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch price history: ${res.status}`);
+  }
+
+  return res.json() as Promise<PriceHistoryResponse>;
+}
+
+/**
+ * Fetches the anonymized recent-activity feed (last 20 bets) for a market.
+ * The backend strips all user identity server-side (RESEARCH Pattern 8).
+ */
+export async function fetchActivity(slug: string): Promise<ActivityItem[]> {
+  const res = await fetch(
+    `${apiBase()}/api/v1/markets/${encodeURIComponent(slug)}/activity`,
+    { cache: "no-store" },
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch activity: ${res.status}`);
+  }
+
+  return res.json() as Promise<ActivityItem[]>;
 }
 
 // -- Format helpers ----------------------------------------------------------

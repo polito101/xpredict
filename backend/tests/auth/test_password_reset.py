@@ -65,7 +65,7 @@ async def _request_reset_and_capture_token(
 
     captured: list[str] = []
 
-    async def _mock_send_reset(*, to: str, token: str) -> None:
+    async def _mock_send_reset(*_args: object, to: str, token: str) -> None:
         captured.append(token)
 
     monkeypatch.setattr(
@@ -148,9 +148,7 @@ async def test_reset_invalidates_sessions(
     await _cleanup_user(engine, email)
 
 
-async def test_audit_trail_on_reset(
-    engine: "AsyncEngine", monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_audit_trail_on_reset(engine: "AsyncEngine", monkeypatch: pytest.MonkeyPatch) -> None:
     """Both auth.password_reset_requested + auth.password_reset_completed audit rows exist."""
     email = "reset-audit@example.com"
     password = "Valid-Pass-1234"

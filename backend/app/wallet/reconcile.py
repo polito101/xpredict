@@ -47,10 +47,11 @@ from app.wallet.models import Account, Entry
 # + Sentry alert every single night and bury real drift under false positives
 # (alert fatigue defeats PLT-09). Every OTHER account — user wallets AND
 # house_revenue — is fully ledger-backed and IS reconciled.
-_RECONCILE_EXCLUDED_ACCOUNT_IDS: frozenset = frozenset({HOUSE_PROMO_ACCOUNT_ID})
+_RECONCILE_EXCLUDED_ACCOUNT_IDS: frozenset[UUID] = frozenset({HOUSE_PROMO_ACCOUNT_ID})
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -144,7 +145,7 @@ async def _reconcile_with_session(session: AsyncSession) -> dict[str, int]:
     return {"accounts_checked": accounts_checked, "drift_count": len(drifts)}
 
 
-@celery_app.task(name="app.wallet.reconcile.reconcile_wallets")
+@celery_app.task(name="app.wallet.reconcile.reconcile_wallets")  # type: ignore[untyped-decorator]
 def reconcile_wallets() -> dict[str, int]:
     """Nightly Celery task — reconcile every account's cached balance vs its ledger.
 

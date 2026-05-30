@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -31,27 +31,44 @@ pytestmark_unit = [pytest.mark.unit]
 
 @pytest.mark.unit
 async def test_acquire_poll_lock_calls_setnx() -> None:
-    """acquire_poll_lock uses SETNX with TTL."""
+    """acquire_poll_lock uses SETNX with TTL and returns an ownership token (WR-05)."""
     redis = AsyncMock()
     redis.set = AsyncMock(return_value=True)
 
     result = await acquire_poll_lock(redis)
 
-    assert result is True
+    # A non-empty token string is returned on success (no longer a bool).
+    assert isinstance(result, str) and result
     redis.set.assert_called_once()
-    call_kwargs = redis.set.call_args
-    assert call_kwargs.kwargs.get("nx") is True or call_kwargs[1].get("nx") is True
+    call = redis.set.call_args
+    assert call.kwargs.get("nx") is True or call[1].get("nx") is True
+    # The lock VALUE is the unique token, not a constant "1".
+    assert call.args[1] == result
 
 
 @pytest.mark.unit
-async def test_release_poll_lock_deletes_key() -> None:
-    """release_poll_lock calls redis.delete with the lock key."""
+async def test_acquire_poll_lock_returns_none_when_held() -> None:
+    """When SETNX fails (lock held), acquire returns None (WR-05)."""
     redis = AsyncMock()
-    redis.delete = AsyncMock()
+    redis.set = AsyncMock(return_value=None)
 
-    await release_poll_lock(redis)
+    assert await acquire_poll_lock(redis) is None
 
-    redis.delete.assert_called_once_with(LOCK_KEY)
+
+@pytest.mark.unit
+async def test_release_poll_lock_compare_and_deletes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """release_poll_lock uses a compare-and-delete eval keyed on the owning token (WR-05)."""
+    redis = AsyncMock()
+    redis.eval = AsyncMock()
+
+    await release_poll_lock(redis, "tok-123")
+
+    # Owner-checked release: eval(script, numkeys=1, LOCK_KEY, token).
+    redis.eval.assert_called_once()
+    call = redis.eval.call_args
+    assert call.args[1] == 1
+    assert call.args[2] == LOCK_KEY
+    assert call.args[3] == "tok-123"
 
 
 @pytest.mark.unit
@@ -69,10 +86,10 @@ async def test_poll_skipped_when_lock_held() -> None:
 
 @pytest.mark.unit
 async def test_poll_acquires_and_releases_lock() -> None:
-    """Poll acquires lock before sync and releases after."""
+    """Poll acquires lock before sync and releases after (owner-checked — WR-05)."""
     redis = AsyncMock()
     redis.set = AsyncMock(return_value=True)
-    redis.delete = AsyncMock()
+    redis.eval = AsyncMock()
     redis.aclose = AsyncMock()
 
     mock_client = AsyncMock()
@@ -103,8 +120,9 @@ async def test_poll_acquires_and_releases_lock() -> None:
 
     # Lock was acquired (set with nx=True)
     redis.set.assert_called_once()
-    # Lock was released
-    redis.delete.assert_called_once_with(LOCK_KEY)
+    # Lock was released via the owner-checked compare-and-delete eval (WR-05).
+    redis.eval.assert_called_once()
+    assert redis.eval.call_args.args[2] == LOCK_KEY
 
 
 @pytest.mark.unit
@@ -123,10 +141,7 @@ def test_beat_schedule_entries() -> None:
 
     assert "snapshot-odds" in schedule
     assert schedule["snapshot-odds"]["schedule"] == 300.0
-    assert (
-        schedule["snapshot-odds"]["task"]
-        == "app.integrations.polymarket.tasks.snapshot_odds"
-    )
+    assert schedule["snapshot-odds"]["task"] == "app.integrations.polymarket.tasks.snapshot_odds"
 
 
 # ---------------------------------------------------------------------------

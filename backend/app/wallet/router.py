@@ -62,9 +62,7 @@ async def read_balance(
     cross-user read is impossible (T-03-18). Money serializes as a JSON string.
     """
     try:
-        balance: Decimal = await WalletService.get_balance(
-            session, user_id=player.id
-        )
+        balance: Decimal = await WalletService.get_balance(session, user_id=player.id)
     except NoResultFound:
         # Defensive: registration co-creates the wallet (SC#1), so this should
         # not happen; surface a zero balance rather than a 500.

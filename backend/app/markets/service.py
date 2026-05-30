@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -9,10 +9,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.models import User
+from app.bets.models import Bet
 from app.core.audit.service import AuditService
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, OddsSnapshot, Outcome, generate_slug
-from app.markets.schemas import MarketCreate, MarketUpdate
+from app.markets.schemas import (
+    ActivityItem,
+    MarketCreate,
+    MarketUpdate,
+    PriceHistoryResponse,
+    PricePoint,
+)
+from app.realtime.publisher import format_odds
+
+# Price-history window allowlist (T-09-08). The cutoff is derived from these
+# validated values — never from a raw interval string interpolated into SQL.
+_WINDOW_CUTOFFS: dict[str, timedelta] = {
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+    "30d": timedelta(days=30),
+}
+# Windows that ship RAW 5-min snapshots; everything else (30d) is downsampled.
+_RAW_WINDOWS = frozenset({"24h", "7d"})
 
 
 class MarketService:
@@ -94,7 +112,14 @@ class MarketService:
         body: MarketUpdate,
         admin_user: User,
         ip: str | None = None,
-    ) -> Market:
+    ) -> tuple[Market, list[dict[str, str]]]:
+        """Update a market in place; return ``(market, odds_deltas)``.
+
+        ``odds_deltas`` is the list of ``{"outcome_id", "odds"}`` changed by an
+        ``odds_yes`` edit (empty otherwise). The caller (router) publishes them
+        POST-COMMIT for the real-time stream (MKT-04 / Pitfall 3) — this method
+        only flush()es, never commits, and never publishes inside the transaction.
+        """
         if market.status != MarketStatus.OPEN.value:
             raise HTTPException(
                 status_code=409,
@@ -113,6 +138,10 @@ class MarketService:
             )
 
         changed_fields: list[str] = []
+        # Odds-change deltas returned for the router's POST-COMMIT publish (MKT-04 /
+        # Pitfall 3 / T-09-03) — never published inside this transaction. Empty when
+        # the PATCH carries no odds_yes.
+        odds_deltas: list[dict[str, str]] = []
 
         if body.resolution_criteria is not None:
             market.resolution_criteria = body.resolution_criteria
@@ -128,7 +157,12 @@ class MarketService:
             stmt = select(Outcome).where(Outcome.market_id == market.id)
             result = await session.execute(stmt)
             for outcome in result.scalars():
-                if outcome.label == "YES":
+                # Case-insensitive YES match (IN-01): house markets store "YES",
+                # but the Polymarket adapter stores the Gamma title-case "Yes"
+                # verbatim. An admin odds_yes edit on a Polymarket-mirrored market
+                # must still target the YES leg — a case-sensitive ``== "YES"`` would
+                # miss it and assign odds_no to BOTH outcomes.
+                if outcome.label.upper() == "YES":
                     outcome.current_odds = body.odds_yes
                 else:
                     outcome.current_odds = odds_no
@@ -138,6 +172,12 @@ class MarketService:
                         outcome_id=outcome.id,
                         probability=outcome.current_odds,
                     ),
+                )
+                odds_deltas.append(
+                    {
+                        "outcome_id": str(outcome.id),
+                        "odds": format_odds(outcome.current_odds),
+                    },
                 )
             changed_fields.append("odds")
 
@@ -153,7 +193,7 @@ class MarketService:
                 ip=ip,
             )
         await session.flush()
-        return market
+        return market, odds_deltas
 
     @staticmethod
     async def close_market(
@@ -246,7 +286,8 @@ class MarketService:
 
     @staticmethod
     async def get_market_by_id(
-        session: AsyncSession, market_id: UUID,
+        session: AsyncSession,
+        market_id: UUID,
     ) -> Market | None:
         stmt = (
             select(Market)
@@ -261,7 +302,8 @@ class MarketService:
 
     @staticmethod
     async def get_market_by_slug(
-        session: AsyncSession, slug: str,
+        session: AsyncSession,
+        slug: str,
     ) -> Market | None:
         stmt = (
             select(Market)
@@ -273,3 +315,118 @@ class MarketService:
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
+
+    @staticmethod
+    async def price_history(
+        session: AsyncSession,
+        slug: str,
+        window: str,
+    ) -> PriceHistoryResponse:
+        """Return the YES outcome's price-history series for ``window`` (MKT-03).
+
+        24h / 7d → RAW ``OddsSnapshot`` rows (5-min cadence) for the YES outcome,
+        ascending by ``snapshot_at``. 30d → DOWNSAMPLED server-side to ~hourly
+        buckets (T-09-07): one representative snapshot per ``date_trunc('hour', …)``
+        bucket (the latest in each), so the browser never receives ~8640 raw points.
+
+        ``window`` is the validated allowlist value (the caller / router enforces the
+        allowlist, T-09-08); the cutoff is derived from it, never interpolated.
+        Raises ``HTTPException(404)`` for an unknown / non-public market.
+
+        A market with <2 snapshots in-window yields an empty / single-point payload
+        the frontend renders as the friendly 'not enough history' placeholder.
+        """
+        cutoff = datetime.now(UTC) - _WINDOW_CUTOFFS[window]
+
+        # Resolve market by slug (mirror get_market_by_slug; only the id + status are
+        # needed here so no eager-load of relationships).
+        market_stmt = select(Market.id, Market.status).where(Market.slug == slug)
+        market_row = (await session.execute(market_stmt)).first()
+        if market_row is None or market_row.status not in (
+            MarketStatus.OPEN.value,
+            MarketStatus.CLOSED.value,
+        ):
+            raise HTTPException(status_code=404, detail="Market not found")
+        market_id = market_row.id
+
+        # The YES outcome for this market. Compare case-insensitively (IN-01):
+        # house markets seed the label as "YES", but the Polymarket adapter stores
+        # the Gamma API's title-case "Yes" verbatim (adapter.py: label[:50], never
+        # normalized). A case-sensitive ``== "YES"`` silently returned NULL for
+        # Polymarket-mirrored markets, so their price-history chart rendered empty.
+        yes_stmt = select(Outcome.id).where(
+            Outcome.market_id == market_id,
+            func.upper(Outcome.label) == "YES",
+        )
+        yes_outcome_id = (await session.execute(yes_stmt)).scalar_one_or_none()
+        if yes_outcome_id is None:
+            return PriceHistoryResponse(window=window, points=[])
+
+        if window in _RAW_WINDOWS:
+            raw_stmt = (
+                select(OddsSnapshot.snapshot_at, OddsSnapshot.probability)
+                .where(OddsSnapshot.outcome_id == yes_outcome_id)
+                .where(OddsSnapshot.snapshot_at >= cutoff)
+                .order_by(OddsSnapshot.snapshot_at.asc())
+            )
+            rows = (await session.execute(raw_stmt)).all()
+            points = [PricePoint(ts=ts, probability=prob) for ts, prob in rows]
+            return PriceHistoryResponse(window=window, points=points)
+
+        # 30d → hourly downsample. DISTINCT ON (bucket) keeps the latest snapshot in
+        # each hour bucket (Postgres-native, 09-RESEARCH Pattern 5). The DISTINCT ON
+        # leading-column rule requires the ORDER BY to start with the bucket; a second
+        # ascending pass re-orders the kept points by time for the chart.
+        bucket = func.date_trunc("hour", OddsSnapshot.snapshot_at).label("bucket")
+        distinct_stmt = (
+            select(OddsSnapshot.snapshot_at, OddsSnapshot.probability, bucket)
+            .where(OddsSnapshot.outcome_id == yes_outcome_id)
+            .where(OddsSnapshot.snapshot_at >= cutoff)
+            .distinct(bucket)
+            .order_by(bucket, OddsSnapshot.snapshot_at.desc())
+        )
+        rows = (await session.execute(distinct_stmt)).all()
+        points = sorted(
+            (PricePoint(ts=ts, probability=prob) for ts, prob, _bucket in rows),
+            key=lambda p: p.ts,
+        )
+        return PriceHistoryResponse(window=window, points=points)
+
+    @staticmethod
+    async def recent_activity(
+        session: AsyncSession,
+        slug: str,
+        limit: int = 20,
+    ) -> list[ActivityItem]:
+        """Return the last ``limit`` bets on a market, ANONYMIZED (MKT-03, T-09-05).
+
+        The query selects ONLY ``Bet.stake`` / ``Bet.created_at`` and the chosen
+        outcome's ``label`` — joining ``outcomes`` on ``outcome_id``. It NEVER selects
+        ``user_id`` / email / ``display_name``; anonymization lives in the query +
+        the ``ActivityItem`` schema (which has no user field), not in the client
+        (CONTEXT Area 1, 09-RESEARCH Pattern 8). Newest-first, capped at ``limit``.
+
+        Raises ``HTTPException(404)`` for an unknown / non-public market.
+        """
+        market_stmt = select(Market.id, Market.status).where(Market.slug == slug)
+        market_row = (await session.execute(market_stmt)).first()
+        if market_row is None or market_row.status not in (
+            MarketStatus.OPEN.value,
+            MarketStatus.CLOSED.value,
+        ):
+            raise HTTPException(status_code=404, detail="Market not found")
+        market_id = market_row.id
+
+        # SELECT b.stake, b.created_at, o.label — NO user identity selected.
+        activity_stmt = (
+            select(Bet.stake, Bet.created_at, Outcome.label)
+            .join(Outcome, Outcome.id == Bet.outcome_id)
+            .where(Bet.market_id == market_id)
+            .order_by(Bet.created_at.desc())
+            .limit(limit)
+        )
+        rows = (await session.execute(activity_stmt)).all()
+        return [
+            ActivityItem(outcome=label, amount=stake, created_at=created_at)
+            for stake, created_at, label in rows
+        ]

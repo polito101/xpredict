@@ -1,8 +1,13 @@
 /**
- * shadcn/ui Select primitive (Radix `@radix-ui/react-select`).
- * Mirrors https://ui.shadcn.com/docs/components/select (verbatim except the
- * `@/lib/utils` import alias). Used for the status filter (user list) and the
- * event-type filter (audit log).
+ * shadcn/ui Select primitive — copied from the canonical shadcn registry
+ * (https://ui.shadcn.com/docs/components/select). Modified only to import
+ * `cn` from "@/lib/utils" matching the path alias in tsconfig.json.
+ *
+ * Visual style is the "new-york" default — neutral zinc palette + `dark:`
+ * variants to match the existing button.tsx / form.tsx / label.tsx tone.
+ *
+ * Wraps @radix-ui/react-select (added this phase). Used by the order-entry
+ * form outcome selector (YES / NO, Plan 04).
  */
 "use client";
 
@@ -25,7 +30,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:ring-zinc-300",
+      "flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 dark:border-zinc-800 dark:bg-zinc-950 dark:ring-offset-zinc-950 dark:placeholder:text-zinc-400 dark:focus:ring-zinc-300",
       className,
     )}
     {...props}

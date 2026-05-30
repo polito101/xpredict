@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import sentry_sdk
@@ -33,28 +34,49 @@ from app.integrations.polymarket.client import GammaClient
 from app.integrations.polymarket.schemas import GammaMarket
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, OddsSnapshot
+from app.realtime.publisher import publish_odds_change_async
 
 log = structlog.get_logger()
 
 LOCK_KEY = "xpredict:poll:polymarket:lock"
 DETECT_LOCK_KEY = "xpredict:detect:polymarket:lock"
 
+# Compare-and-delete: only delete the lock if WE still own it (WR-05). An
+# unconditional ``delete`` lets a slow task that has already lost the lock
+# (TTL expired → another task re-acquired) delete the NEW owner's lock, letting
+# two tasks overlap — exactly what the lock prevents. Releasing with the owning
+# token closes that race.
+_RELEASE_LOCK_LUA = (
+    "if redis.call('get', KEYS[1]) == ARGV[1] then "
+    "return redis.call('del', KEYS[1]) else return 0 end"
+)
 
-async def acquire_poll_lock(redis: AioRedis) -> bool:
+
+async def acquire_poll_lock(redis: AioRedis) -> str | None:
     """Acquire a Redis SETNX lock to prevent overlapping polls (T-06-05).
 
-    TTL is POLYMARKET_LOCK_TTL_SECONDS (default 25s < 30s poll interval),
-    so crashed tasks auto-release the lock before the next scheduled poll.
+    Returns a unique ownership TOKEN on success (pass it to ``release_poll_lock``
+    so only the owner can release — WR-05), or ``None`` if the lock is held.
+    TTL is POLYMARKET_LOCK_TTL_SECONDS (default 25s < 30s poll interval), so
+    crashed tasks auto-release the lock before the next scheduled poll.
     """
     settings = get_settings()
     ttl = settings.POLYMARKET_LOCK_TTL_SECONDS
-    acquired = await redis.set(LOCK_KEY, "1", nx=True, ex=ttl)
-    return bool(acquired)
+    token = uuid.uuid4().hex
+    acquired = await redis.set(LOCK_KEY, token, nx=True, ex=ttl)
+    return token if acquired else None
 
 
-async def release_poll_lock(redis: AioRedis) -> None:
-    """Release the poll lock after sync completes."""
-    await redis.delete(LOCK_KEY)
+async def release_poll_lock(redis: AioRedis, token: str) -> None:
+    """Release the poll lock — only if THIS task still owns it (WR-05).
+
+    Compare-and-delete via Lua so a task whose lock already expired (and was
+    re-acquired by another task) cannot delete the new owner's lock.
+    """
+    # redis-py's async ``eval`` is typed ``Awaitable[str] | str`` in the stubs
+    # (shared sync/async signature); the async client always returns an awaitable
+    # at runtime, so the await is correct — the union is a stub limitation.
+    await redis.eval(_RELEASE_LOCK_LUA, 1, LOCK_KEY, token)  # type: ignore[misc]
 
 
 async def _run_poll_sync(
@@ -72,7 +94,8 @@ async def _run_poll_sync(
     else:
         redis = AioRedis.from_url(str(settings.REDIS_URL))
 
-    if not await acquire_poll_lock(redis):
+    lock_token = await acquire_poll_lock(redis)
+    if lock_token is None:
         log.info("poll_skipped", reason="lock_held")
         return
 
@@ -95,6 +118,18 @@ async def _run_poll_sync(
             market_count = await adapter.sync_top25(session, raw_markets)
             await session.commit()
             log.info("poll_complete", market_count=market_count)
+            # Real-time publish (MKT-04 / producer site #2): POST-COMMIT, per-market,
+            # on-change only (adapter.changed_markets holds only committed changes).
+            # A Redis hiccup must never fail the poll — log and swallow per market.
+            for market_id, deltas in adapter.changed_markets:
+                try:
+                    await publish_odds_change_async(redis, market_id, deltas)
+                except Exception as pub_exc:
+                    log.warning(
+                        "realtime.publish_failed",
+                        market_id=market_id,
+                        error=str(pub_exc),
+                    )
         finally:
             if session_override is None:
                 await session.close()
@@ -105,7 +140,7 @@ async def _run_poll_sync(
             with contextlib.suppress(Exception):
                 await session.rollback()
     finally:
-        await release_poll_lock(redis)
+        await release_poll_lock(redis, lock_token)
         await client.close()
         if redis_override is None:
             await redis.aclose()
@@ -176,9 +211,12 @@ async def _run_detect_resolutions(
     else:
         redis = AioRedis.from_url(str(settings.REDIS_URL))
 
-    # Acquire a distinct lock — never reuse the poll lock (T-07-04).
+    # Acquire a distinct lock — never reuse the poll lock (T-07-04). Use a unique
+    # ownership token + compare-and-delete release (WR-05) so a slow task whose
+    # lock expired can't delete a newer owner's lock.
     lock_ttl = settings.POLYMARKET_LOCK_TTL_SECONDS + 35
-    acquired = await redis.set(DETECT_LOCK_KEY, "1", nx=True, ex=lock_ttl)
+    detect_token = uuid.uuid4().hex
+    acquired = await redis.set(DETECT_LOCK_KEY, detect_token, nx=True, ex=lock_ttl)
     if not acquired:
         log.info("detect_skipped", reason="lock_held")
         if redis_override is None:
@@ -279,38 +317,40 @@ async def _run_detect_resolutions(
                 log.error("detect_settle_failed", error=str(exc), market_id=str(market.id))
                 sentry_sdk.capture_exception(exc)
 
-        if session_override is None:
-            with contextlib.suppress(Exception):
-                await session.close()
-
     except Exception as exc:
         log.error("detect_failed", error=str(exc))
         sentry_sdk.capture_exception(exc)
         if session is not None:
             with contextlib.suppress(Exception):
                 await session.rollback()
+    finally:
+        # Close the session exactly once on every path (WR-04) — matches
+        # _run_poll_sync / _run_snapshot_odds, which both close in a single
+        # finally. The previous in-try + in-except closes were duplicated and
+        # asymmetric; a reader could not prove a single close.
         if session is not None and session_override is None:
             with contextlib.suppress(Exception):
                 await session.close()
-    finally:
-        await redis.delete(DETECT_LOCK_KEY)
+        # Owner-checked release (WR-05) — only delete the lock if we still own it.
+        # (See release_poll_lock for the eval stub-typing note.)
+        await redis.eval(_RELEASE_LOCK_LUA, 1, DETECT_LOCK_KEY, detect_token)  # type: ignore[misc]
         if redis_override is None:
             await redis.aclose()
 
 
-@celery_app.task(name="app.integrations.polymarket.tasks.poll_polymarket_top25")
+@celery_app.task(name="app.integrations.polymarket.tasks.poll_polymarket_top25")  # type: ignore[untyped-decorator]
 def poll_polymarket_top25() -> None:
     """Celery task wrapping _run_poll_sync in asyncio.run."""
     asyncio.run(_run_poll_sync())
 
 
-@celery_app.task(name="app.integrations.polymarket.tasks.snapshot_odds")
+@celery_app.task(name="app.integrations.polymarket.tasks.snapshot_odds")  # type: ignore[untyped-decorator]
 def snapshot_odds() -> None:
     """Celery task wrapping _run_snapshot_odds in asyncio.run."""
     asyncio.run(_run_snapshot_odds())
 
 
-@celery_app.task(name="app.integrations.polymarket.tasks.detect_polymarket_resolutions")
+@celery_app.task(name="app.integrations.polymarket.tasks.detect_polymarket_resolutions")  # type: ignore[untyped-decorator]
 def detect_polymarket_resolutions() -> None:
     """Beat task: check for UMA-resolved Polymarket markets every 60s (STL-01)."""
     asyncio.run(_run_detect_resolutions())

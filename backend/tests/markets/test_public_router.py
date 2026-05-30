@@ -47,7 +47,9 @@ async def _cleanup_admin(engine: AsyncEngine) -> None:
 
 
 async def _create_market(
-    client: httpx.AsyncClient, token: str, **overrides: object,
+    client: httpx.AsyncClient,
+    token: str,
+    **overrides: object,
 ) -> dict:
     base = {
         "question": "Public test market?",

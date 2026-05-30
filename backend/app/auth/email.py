@@ -28,14 +28,14 @@ from app.core.config import get_settings
 # splitting markup would obscure the rendered result.
 VERIFY_HTML = (
     "<!doctype html>"
-    "<html><body style=\"font-family:system-ui,sans-serif\">"
+    '<html><body style="font-family:system-ui,sans-serif">'
     "<h2>Verify your XPredict account</h2>"
     "<p>Click the link below to verify your email address. "
     "The link is single-use and expires in 1 hour.</p>"
-    "<p><a href=\"{verify_url}\" "
-    "style=\"background:#000;color:#fff;padding:10px 16px;text-decoration:none\">"
+    '<p><a href="{verify_url}" '
+    'style="background:#000;color:#fff;padding:10px 16px;text-decoration:none">'
     "Verify email</a></p>"
-    "<p style=\"color:#666;font-size:12px\">"
+    '<p style="color:#666;font-size:12px">'
     "If the button does not work, paste this URL into your browser: "
     "{verify_url}</p>"
     "</body></html>"
@@ -43,14 +43,14 @@ VERIFY_HTML = (
 
 RESET_HTML = (
     "<!doctype html>"
-    "<html><body style=\"font-family:system-ui,sans-serif\">"
+    '<html><body style="font-family:system-ui,sans-serif">'
     "<h2>Reset your XPredict password</h2>"
     "<p>Click the link below to choose a new password. "
     "The link is single-use and expires in 1 hour.</p>"
-    "<p><a href=\"{reset_url}\" "
-    "style=\"background:#000;color:#fff;padding:10px 16px;text-decoration:none\">"
+    '<p><a href="{reset_url}" '
+    'style="background:#000;color:#fff;padding:10px 16px;text-decoration:none">'
     "Reset password</a></p>"
-    "<p style=\"color:#666;font-size:12px\">"
+    '<p style="color:#666;font-size:12px">'
     "If you did not request this, you can safely ignore the email. "
     "URL: {reset_url}</p>"
     "</body></html>"

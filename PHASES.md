@@ -7,14 +7,14 @@
 | # | Phase | Owner | Status | Branch | PR |
 |---|-------|-------|--------|--------|----|
 | 1 | Scaffold & Foundations | Pol | ✅ Done | `gsd/phase-01-scaffold-foundations` | — |
-| 2 | Auth & Identity | Pol | 👀 In review | `gsd/phase-02-auth-identity` | [#5](https://github.com/polito101/xpredict/pull/5) |
+| 2 | Auth & Identity | Pol | ✅ Done | `gsd/phase-02-auth-identity` | [#5](https://github.com/polito101/xpredict/pull/5) |
 | 3 | Wallet & Double-Entry Ledger | Agustin | ✅ Done | `integration/phase-05-full` | [#8](https://github.com/polito101/xpredict/pull/8) |
-| 4 | Markets Domain & HouseAdapter | Pol | 👀 In review | `gsd/phase-04-markets-domain-houseadapter` | [#6](https://github.com/polito101/xpredict/pull/6) |
+| 4 | Markets Domain & HouseAdapter | Pol | ✅ Done | `gsd/phase-04-markets-domain-houseadapter` | [#6](https://github.com/polito101/xpredict/pull/6) |
 | 5 | Bets, Settlement & First E2E Demo | Agustin | ✅ Done | `integration/phase-05-full` | [#8](https://github.com/polito101/xpredict/pull/8) |
 | 6 | Polymarket Sync | Pol | ✅ Done | `gsd/phase-06-polymarket-sync-catalog-replication` | [#7](https://github.com/polito101/xpredict/pull/7) |
-| 7 | Polymarket Auto-Resolution | Agustin | 👀 In review | `gsd/phase-07-polymarket-auto-resolution` | [#10](https://github.com/polito101/xpredict/pull/10) |
+| 7 | Polymarket Auto-Resolution | Agustin | ✅ Done | `gsd/phase-07-polymarket-auto-resolution` | [#10](https://github.com/polito101/xpredict/pull/10) |
 | 8 | Admin CRM | Pol | 👀 In review | `gsd/phase-08-admin-crm-user-management-audit-log-viewer` | [#14](https://github.com/polito101/xpredict/pull/14) |
-| 9 | User App UX Polish & Real-Time | — | ⬜ Not started | — | — |
+| 9 | User App UX Polish & Real-Time | Agustin | ✅ Done | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | [#13](https://github.com/polito101/xpredict/pull/13) |
 | 10 | Admin KPI Dashboard & Branding | — | ⬜ Not started | — | — |
 | 11 | Hardening & Operator-Demo Gate | — | ⬜ Not started | — | — |
 
@@ -31,6 +31,28 @@
 ## Notes
 
 <!-- Add per-phase notes here if needed, e.g. blockers, spike results, handoff context -->
+
+### ⚠️ Tracker drift — needs Pol's reconciliation (flagged 2026-05-29, by Agustin)
+
+Git `main` shows **Phases 1–7 are ALL merged** (PRs #5, #6, #7, #8, #10) — backend modules `markets/`, `bets/`, `settlement/`, `integrations/polymarket/` are all present. But the trackers are stale and disagree:
+
+- **This file** still shows phases **2, 4, 7 as `👀 In review`** — they're merged → should be `✅ Done` (left untouched: marking Done is Pol's step).
+- **`.planning/ROADMAP.md`** progress table shows **4, 5, 7 as "Not started"**; ROADMAP checkboxes for 4/5/7 are unticked.
+- **`.planning/STATE.md`** says `completed_phases: 5`, focus "Phase 6" (stale).
+- **GSD `roadmap.analyze`** therefore sees 4 (checkbox unticked), 5 (no `.planning` artifacts committed — code landed via the bundled PR #8 but PLAN/SUMMARY/CONTEXT for phase 5 were not), and 7 (no SUMMARYs) as incomplete.
+
+**Risk:** running `/gsd-autonomous` **without a phase filter** would start discovery at Phase 4 and try to re-do already-merged phases. Phase 9 below is being run with `--only 9` to avoid this.
+
+**Recommended reconciliation (Pol):** tick ROADMAP boxes + mark `✅ Done` for 2/4/5/7, backfill phase-5 `.planning` artifacts (or mark intentionally-absent), and update STATE.md (`completed_phases: 7`).
+
+#### ✅ RESOLVED 2026-05-30 — reconciled into PR #14
+
+State advanced since Agustin's note (Phase 9 merged via PR #13; Phase 8 opened as PR #14). The reconciliation was applied **on the `gsd/phase-08` branch and folded into PR #14**, so it lands on `main` at merge — honouring the "never touch `main` directly" guardrail. Merge truth as of today: phases **1-7 + 9 merged**; **8 = PR #14 (this branch, in review)**; **10-11 not started**.
+
+- **PHASES.md** — phases **2, 4, 7** flipped `👀 In review → ✅ Done` (merged via #5/#6/#10); **9 → ✅ Done** (#13). **8 stays `👀 In review`** (#14, not yet merged — Pol still owns the final merge).
+- **`.planning/ROADMAP.md`** — checkboxes ticked for **4, 5, 7, 8, 9**; progress table set to Complete with merge dates.
+- **`.planning/STATE.md`** — `completed_phases: 9`, focus **Phase 10**, position + continuity refreshed.
+- **Phases 5 & 7 artifacts** — left **as-is** (no synthetic backfill). Their `.planning` is thin (Phase 5 has no committed PLAN/SUMMARY — code shipped via the bundled PR #8; Phase 7 has PLANs but no SUMMARYs), but the GSD SDK forces `disk_status: complete` whenever the ROADMAP checkbox is ticked (`init.cjs`: `if (roadmapComplete && diskStatus !== 'complete') diskStatus = 'complete'`). Ticking the boxes is therefore sufficient: `roadmap.analyze` now reports **phases 1-9 all complete, `next_phase: 10`**, so `/gsd-autonomous` **without a `--only` filter** resumes at **Phase 10** instead of re-discovering 5/7. Verified post-reconciliation.
 
 ### Phase 3 — Wallet & Double-Entry Ledger — HANDOFF for Pol (2026-05-27)
 

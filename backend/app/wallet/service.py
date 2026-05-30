@@ -254,9 +254,7 @@ class WalletService:
                 # on a fresh statement and return it (idempotent 200 — no re-apply).
                 existing = (
                     await session.execute(
-                        select(Transfer).where(
-                            Transfer.idempotency_key == idempotency_key
-                        )
+                        select(Transfer).where(Transfer.idempotency_key == idempotency_key)
                     )
                 ).scalar_one()
                 return existing
@@ -326,9 +324,7 @@ class WalletService:
                 # re-apply / no double-credit). Mirrors recharge's 23505 path.
                 existing = (
                     await session.execute(
-                        select(Transfer).where(
-                            Transfer.idempotency_key == idempotency_key
-                        )
+                        select(Transfer).where(Transfer.idempotency_key == idempotency_key)
                     )
                 ).scalar_one()
                 return existing
@@ -385,14 +381,11 @@ class WalletService:
             # overdraw with a domain error (not a raw 23514). The lock guarantees
             # no concurrent debit can race between this read and the write.
             debit_balance = (
-                await session.execute(
-                    select(Account.balance).where(Account.id == debit_account_id)
-                )
+                await session.execute(select(Account.balance).where(Account.id == debit_account_id))
             ).scalar_one()
             if debit_balance < amount:
                 raise InsufficientBalance(
-                    f"account {debit_account_id} balance {debit_balance} "
-                    f"< requested {amount}"
+                    f"account {debit_account_id} balance {debit_balance} " f"< requested {amount}"
                 )
 
             return await cls._post_transfer(
@@ -410,9 +403,7 @@ class WalletService:
     # Read helpers (minimal — full read shaping is Plan 03-05).
     # ------------------------------------------------------------------ #
     @staticmethod
-    async def _resolve_user_wallet_id(
-        session: AsyncSession, *, user_id: UUID
-    ) -> UUID:
+    async def _resolve_user_wallet_id(session: AsyncSession, *, user_id: UUID) -> UUID:
         """Return the ``user_wallet`` account id for ``user_id`` (read-only)."""
         return (
             await session.execute(
@@ -438,9 +429,7 @@ class WalletService:
         """
         wallet_id = await cls._resolve_user_wallet_id(session, user_id=user_id)
         return (
-            await session.execute(
-                select(Account.balance).where(Account.id == wallet_id)
-            )
+            await session.execute(select(Account.balance).where(Account.id == wallet_id))
         ).scalar_one()
 
     @classmethod
@@ -474,9 +463,7 @@ class WalletService:
 
         total = (
             await session.execute(
-                select(func.count())
-                .select_from(Entry)
-                .where(Entry.account_id == wallet_id)
+                select(func.count()).select_from(Entry).where(Entry.account_id == wallet_id)
             )
         ).scalar_one()
 
