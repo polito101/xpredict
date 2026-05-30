@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-05-30T06:22:21.534Z"
+status: ready_to_plan
+last_updated: 2026-05-30T06:32:04.387Z
 last_activity: 2026-05-28
 progress:
   total_phases: 11
   completed_phases: 5
   total_plans: 26
-  completed_plans: 22
+  completed_plans: 23
   percent: 45
+stopped_at: Phase 08 complete (3/3) — ready to discuss Phase 9
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 08 — admin-crm-user-management-audit-log-viewer
+**Current focus:** Phase 9 — user app ux polish (market detail & real time)
 
 ## Current Position
 
-Phase: 08 (admin-crm-user-management-audit-log-viewer) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-05-28
+Phase: 9
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-30
 
 Progress: [█████████░] 85%
 
@@ -35,7 +36,7 @@ Progress: [█████████░] 85%
 
 **Velocity:**
 
-- Total plans completed: 13
+- Total plans completed: 16
 - Average duration: ~21min
 - Total execution time: ~83min
 
@@ -56,6 +57,7 @@ Progress: [█████████░] 85%
 | 11. Hardening & Demo Gate | 0/TBD | — | — |
 | 01 | 4 | - | - |
 | 02 | 5 | - | - |
+| 08 | 3 | - | - |
 
 **Recent Trend:**
 

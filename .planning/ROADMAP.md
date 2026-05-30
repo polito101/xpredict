@@ -308,7 +308,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Bets, Settlement & First End-to-End Demo (House Markets Only) | 0/TBD | Not started | - |
 | 6. Polymarket Sync (Catalog Replication) | 3/3 | Complete   | 2026-05-28 |
 | 7. Polymarket Auto-Resolution & Admin Override | 0/TBD | Not started | - |
-| 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete   | 2026-05-30 |
+| 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete    | 2026-05-30 |
 | 9. User App UX Polish (Market Detail & Real-Time) | 0/TBD | Not started | - |
 | 10. Admin KPI Dashboard & Configurable Branding | 0/TBD | Not started | - |
 | 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
