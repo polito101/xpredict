@@ -20,7 +20,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { adminApiExport, buildUsersQuery } from "@/lib/admin-api";
+import { adminApiExport } from "@/lib/admin-api";
+import { buildUsersQuery } from "@/lib/admin-query";
 import type { UserListParams } from "@/lib/admin-types";
 
 type ExportKind = "users" | "transactions" | "bets";
@@ -41,7 +42,7 @@ export function ExportCsvButton({ filters }: { filters: UserListParams }) {
     try {
       // Export the current filtered view (page/size are list-only; the export
       // is the full filtered set, capped server-side at 10k rows — D-10).
-      const qs = await buildUsersQuery({
+      const qs = buildUsersQuery({
         search: filters.search,
         status: filters.status,
         signup_after: filters.signup_after,

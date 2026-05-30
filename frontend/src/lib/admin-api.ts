@@ -28,6 +28,7 @@ import type {
   UserListParams,
   AuditLogParams,
 } from "./admin-types";
+import { buildQuery, buildUsersQuery } from "./admin-query";
 
 function getBackendUrl(): string {
   return process.env.BACKEND_URL || "http://localhost:8000";
@@ -99,36 +100,12 @@ export async function adminApiExport(
 // Typed query builders + endpoint wrappers
 // ---------------------------------------------------------------------------
 
-function buildQuery(params: Record<string, unknown>): string {
-  const sp = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null || value === "") continue;
-    sp.set(key, String(value));
-  }
-  const qs = sp.toString();
-  return qs ? `?${qs}` : "";
-}
-
-/** Build the `/users` query string (shared by the list + the export). */
-export async function buildUsersQuery(
-  params: UserListParams,
-): Promise<string> {
-  return buildQuery({
-    page: params.page,
-    page_size: params.page_size,
-    search: params.search,
-    status: params.status,
-    signup_after: params.signup_after,
-    signup_before: params.signup_before,
-    sort_by: params.sort_by,
-    sort_order: params.sort_order,
-  });
-}
+// buildQuery + buildUsersQuery moved to ./admin-query (sync, client-usable — WR-02).
 
 export async function fetchUsers(
   params: UserListParams,
 ): Promise<PaginatedResponse<UserListItem>> {
-  const qs = await buildUsersQuery(params);
+  const qs = buildUsersQuery(params);
   return adminApiFetch<PaginatedResponse<UserListItem>>(
     `/api/v1/admin/users${qs}`,
   );

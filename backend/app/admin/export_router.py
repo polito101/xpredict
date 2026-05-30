@@ -46,7 +46,7 @@ def _csv_response(content: str, filename: str) -> Response:
     return Response(
         content=content,
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
