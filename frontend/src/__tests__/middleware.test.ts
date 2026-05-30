@@ -1,54 +1,22 @@
 /**
- * Plan 02-05 Task 1 — Edge middleware tests.
+ * Plan 02-05 Task 1 — Edge proxy tests.
  *
- * The Next.js Edge middleware at `frontend/src/middleware.ts` guards every
- * `/admin/*` route by verifying the `admin_jwt` HttpOnly cookie with
- * `jose.jwtVerify` against `ADMIN_JWT_PUBLIC_SECRET` (HS256 shared secret per
- * RESEARCH Assumption A8). This file asserts the SIX behaviours required by
- * the PLAN `<behavior>` block:
+ * The Next.js Edge proxy at `frontend/src/proxy.ts` optimistically gates
+ * every `/admin/*` route by checking for the presence of the `admin_jwt`
+ * HttpOnly cookie. JWT signature/expiry verification was removed; the
+ * authoritative gate is FastAPI's `current_active_admin` dependency on
+ * every `/admin/*` API call (RESEARCH §"Anti-Patterns" + Plan 02-03).
  *
+ * Behaviours asserted:
  *   1. redirects_unauthenticated_admin_request — no cookie → 307 to /admin/login
- *   2. passes_through_admin_login_route       — even without a cookie, /admin/login renders
- *   3. passes_through_non_admin_routes        — /, /login, /api/healthz pass-through
- *   4. passes_through_valid_admin_jwt         — HS256-signed token with the right secret
- *   5. redirects_on_invalid_jwt_signature     — token signed with a different secret
- *   6. redirects_on_expired_jwt               — token whose `exp` is in the past
- *
- * Runs under the `node` environment (vitest.config.ts environmentMatchGlobs
- * picks `.test.ts` for node). Next.js's `next/server` shim works in node
- * because `NextRequest` / `NextResponse` are thin wrappers around the Web
- * Request / Response APIs which Node 20+ exposes natively.
- *
- * NOTE on the "OPTIMISTIC" middleware contract (RESEARCH lines 913-914): this
- * file ONLY verifies signature + expiry. The authoritative `is_superuser`
- * check happens server-side via FastAPI's `current_active_admin` dependency.
- * A forged-but-correctly-signed JWT would pass middleware here — that is by
- * design; the backend rejects it on the actual `/admin/*` API call.
+ *   2. passes_through_admin_login_route        — /admin/login passes even without a cookie
+ *   3. passes_through_non_admin_routes         — /, /login, /api/healthz pass through
+ *   4. passes_through_admin_route_with_cookie  — any admin_jwt cookie value is accepted
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { NextRequest } from "next/server";
-import { SignJWT } from "jose";
 
-import { middleware } from "../middleware";
-
-const VALID_SECRET = "test-secret-32-chars-long-XXXX-AAAA";
-const WRONG_SECRET = "different-secret-32-chars-long-BBBB";
-
-async function makeAdminJwt(
-  secret: string,
-  options: { expiresIn?: string; expirationDate?: Date } = {},
-): Promise<string> {
-  const encodedSecret = new TextEncoder().encode(secret);
-  const builder = new SignJWT({ sub: "admin-id-test", is_superuser: true })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt();
-  if (options.expirationDate) {
-    builder.setExpirationTime(Math.floor(options.expirationDate.getTime() / 1000));
-  } else {
-    builder.setExpirationTime(options.expiresIn ?? "15m");
-  }
-  return builder.sign(encodedSecret);
-}
+import { proxy } from "../proxy";
 
 function buildRequest(
   path: string,
@@ -65,57 +33,34 @@ function buildRequest(
   return new NextRequest(url, { headers });
 }
 
-beforeEach(() => {
-  vi.stubEnv("ADMIN_JWT_PUBLIC_SECRET", VALID_SECRET);
-});
-
-describe("middleware()", () => {
-  it("redirects_unauthenticated_admin_request — no cookie → /admin/login", async () => {
+describe("proxy()", () => {
+  it("redirects_unauthenticated_admin_request — no cookie → /admin/login", () => {
     const req = buildRequest("/admin/users");
-    const res = await middleware(req);
+    const res = proxy(req);
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/admin/login");
   });
 
-  it("passes_through_admin_login_route — /admin/login itself never redirects", async () => {
+  it("passes_through_admin_login_route — /admin/login itself never redirects", () => {
     const req = buildRequest("/admin/login");
-    const res = await middleware(req);
-    // NextResponse.next() returns 200 with no Location header.
+    const res = proxy(req);
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
   });
 
-  it("passes_through_non_admin_routes — /, /login, /api/healthz", async () => {
+  it("passes_through_non_admin_routes — /, /login, /api/healthz", () => {
     for (const path of ["/", "/login", "/api/healthz", "/register"]) {
       const req = buildRequest(path);
-      const res = await middleware(req);
+      const res = proxy(req);
       expect(res.status).toBe(200);
       expect(res.headers.get("location")).toBeNull();
     }
   });
 
-  it("passes_through_valid_admin_jwt — HS256-signed with the right secret", async () => {
-    const token = await makeAdminJwt(VALID_SECRET, { expiresIn: "15m" });
-    const req = buildRequest("/admin/users", { cookies: { admin_jwt: token } });
-    const res = await middleware(req);
+  it("passes_through_admin_route_with_cookie — any admin_jwt cookie value is accepted", () => {
+    const req = buildRequest("/admin/users", { cookies: { admin_jwt: "any-token-value" } });
+    const res = proxy(req);
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
-  });
-
-  it("redirects_on_invalid_jwt_signature — token signed with a different secret", async () => {
-    const token = await makeAdminJwt(WRONG_SECRET, { expiresIn: "15m" });
-    const req = buildRequest("/admin/users", { cookies: { admin_jwt: token } });
-    const res = await middleware(req);
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/login");
-  });
-
-  it("redirects_on_expired_jwt — exp in the past", async () => {
-    const past = new Date(Date.now() - 60 * 1000); // 1 min ago
-    const token = await makeAdminJwt(VALID_SECRET, { expirationDate: past });
-    const req = buildRequest("/admin/users", { cookies: { admin_jwt: token } });
-    const res = await middleware(req);
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/admin/login");
   });
 });
