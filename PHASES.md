@@ -14,7 +14,7 @@
 | 6 | Polymarket Sync | Pol | ✅ Done | `gsd/phase-06-polymarket-sync-catalog-replication` | [#7](https://github.com/polito101/xpredict/pull/7) |
 | 7 | Polymarket Auto-Resolution | Agustin | 👀 In review | `gsd/phase-07-polymarket-auto-resolution` | [#10](https://github.com/polito101/xpredict/pull/10) |
 | 8 | Admin CRM | — | ⬜ Not started | — | — |
-| 9 | User App UX Polish & Real-Time | — | ⬜ Not started | — | — |
+| 9 | User App UX Polish & Real-Time | Agustin | 👀 In review | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | [#13](https://github.com/polito101/xpredict/pull/13) |
 | 10 | Admin KPI Dashboard & Branding | — | ⬜ Not started | — | — |
 | 11 | Hardening & Operator-Demo Gate | — | ⬜ Not started | — | — |
 
@@ -31,6 +31,19 @@
 ## Notes
 
 <!-- Add per-phase notes here if needed, e.g. blockers, spike results, handoff context -->
+
+### ⚠️ Tracker drift — needs Pol's reconciliation (flagged 2026-05-29, by Agustin)
+
+Git `main` shows **Phases 1–7 are ALL merged** (PRs #5, #6, #7, #8, #10) — backend modules `markets/`, `bets/`, `settlement/`, `integrations/polymarket/` are all present. But the trackers are stale and disagree:
+
+- **This file** still shows phases **2, 4, 7 as `👀 In review`** — they're merged → should be `✅ Done` (left untouched: marking Done is Pol's step).
+- **`.planning/ROADMAP.md`** progress table shows **4, 5, 7 as "Not started"**; ROADMAP checkboxes for 4/5/7 are unticked.
+- **`.planning/STATE.md`** says `completed_phases: 5`, focus "Phase 6" (stale).
+- **GSD `roadmap.analyze`** therefore sees 4 (checkbox unticked), 5 (no `.planning` artifacts committed — code landed via the bundled PR #8 but PLAN/SUMMARY/CONTEXT for phase 5 were not), and 7 (no SUMMARYs) as incomplete.
+
+**Risk:** running `/gsd-autonomous` **without a phase filter** would start discovery at Phase 4 and try to re-do already-merged phases. Phase 9 below is being run with `--only 9` to avoid this.
+
+**Recommended reconciliation (Pol):** tick ROADMAP boxes + mark `✅ Done` for 2/4/5/7, backfill phase-5 `.planning` artifacts (or mark intentionally-absent), and update STATE.md (`completed_phases: 7`).
 
 ### Phase 3 — Wallet & Double-Entry Ledger — HANDOFF for Pol (2026-05-27)
 

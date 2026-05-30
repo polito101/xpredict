@@ -29,6 +29,7 @@ from app.integrations.polymarket.client import GammaClient
 from app.integrations.polymarket.schemas import GammaMarket
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, Outcome, generate_slug
+from app.realtime.publisher import format_odds
 
 log = structlog.get_logger()
 
@@ -62,6 +63,15 @@ def _map_winning_outcome_id(
 
 class PolymarketAdapter:
     """Adapter implementing the MarketSource Protocol for Polymarket."""
+
+    def __init__(self) -> None:
+        # Per-sync record of markets whose outcome odds ACTUALLY changed, for the
+        # real-time publish (MKT-04 / producer site #2). Only markets whose
+        # per-market upsert committed (i.e. did NOT hit the IntegrityError
+        # rollback+continue) appear here. Read by _run_poll_sync to publish
+        # POST-COMMIT, on-change only (Pitfall 3 + 4). Each entry is
+        # ``(market_id_str, [{"outcome_id", "odds"}])``.
+        self.changed_markets: list[tuple[str, list[dict[str, str]]]] = []
 
     async def fetch_active_markets(
         self,
@@ -227,6 +237,10 @@ class PolymarketAdapter:
                     continue
 
                 # Upsert YES and NO outcomes with current odds.
+                # Track per-market odds CHANGES for the real-time publish: only an
+                # existing outcome whose current_odds actually differs from the
+                # synced price counts (Pitfall 4 — no publish on an unchanged tick).
+                market_deltas: list[dict[str, str]] = []
                 if parsed.outcomes_raw and parsed.outcome_prices_raw:
                     for idx, label in enumerate(parsed.outcomes_raw[:2]):
                         price = (
@@ -244,7 +258,14 @@ class PolymarketAdapter:
                         )
                         existing_outcome = existing.scalar_one_or_none()
                         if existing_outcome:
-                            existing_outcome.current_odds = price
+                            if existing_outcome.current_odds != price:
+                                existing_outcome.current_odds = price
+                                market_deltas.append(
+                                    {
+                                        "outcome_id": str(existing_outcome.id),
+                                        "odds": format_odds(price),
+                                    },
+                                )
                         else:
                             session.add(
                                 Outcome(
@@ -257,6 +278,11 @@ class PolymarketAdapter:
 
                 await session.flush()
                 synced += 1
+                # Record this market's deltas only AFTER a successful flush (a
+                # market that hits IntegrityError below rolls back + continues, so
+                # its deltas are never recorded — published state == committed state).
+                if market_deltas:
+                    self.changed_markets.append((str(market.id), market_deltas))
                 log.info(
                     "market.synced",
                     source_market_id=parsed.id,

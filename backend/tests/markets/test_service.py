@@ -110,13 +110,15 @@ class TestMarketServiceUpdate:
             resolution_criteria="Updated criteria",
             deadline=datetime.now(UTC) + timedelta(days=30),
         )
-        updated = await MarketService.update_market(
+        updated, odds_deltas = await MarketService.update_market(
             async_session,
             sample_market,
             body,
             admin_user,
         )
         assert updated.resolution_criteria == "Updated criteria"
+        # A criteria-only edit produces no odds deltas (nothing to publish).
+        assert odds_deltas == []
 
     async def test_update_locks_criteria_with_bets(
         self,
@@ -136,13 +138,15 @@ class TestMarketServiceUpdate:
 
     async def test_update_allows_odds_with_bets(self, async_session, admin_user, market_with_bets):
         body = MarketUpdate(odds_yes=Decimal("0.7"))
-        updated = await MarketService.update_market(
+        updated, odds_deltas = await MarketService.update_market(
             async_session,
             market_with_bets,
             body,
             admin_user,
         )
         assert updated is not None
+        # An odds edit yields one delta per outcome, string odds at 6dp (Numeric(8,6)).
+        assert {d["odds"] for d in odds_deltas} == {"0.700000", "0.300000"}
 
     async def test_update_rejects_non_open_market(self, async_session, admin_user, sample_market):
         sample_market.status = MarketStatus.CLOSED.value

@@ -150,4 +150,10 @@ filterwarnings = [
   "ignore::DeprecationWarning:sqlalchemy.*",
   # asyncpg + Python 3.13 transitional warnings — out of scope for Phase 1
   "ignore::DeprecationWarning:asyncio.*",
+  # uvicorn's WebSocket protocol layer (exercised by the Phase 9 realtime
+  # integration tests via the in-process server) still imports the deprecated
+  # `websockets.legacy` module; the transitional DeprecationWarning is a
+  # third-party concern, not a code defect — ignore like the entries above.
+  "ignore::DeprecationWarning:websockets.legacy.*",
+  "ignore::DeprecationWarning:uvicorn.protocols.websockets.*",
 ]

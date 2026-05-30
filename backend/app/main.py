@@ -22,10 +22,13 @@ Routes:
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import sentry_sdk
 import structlog
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +44,8 @@ from app.bets.router import bets_router
 from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
+from app.realtime.manager import manager
+from app.realtime.subscriber import redis_subscriber
 from app.routers import health
 from app.settlement.router import settlement_admin_router
 from app.wallet.admin_router import wallet_admin_router
@@ -80,16 +85,51 @@ class RequestIdMiddleware:
             structlog.contextvars.clear_contextvars()
 
 
+def _subscriber_done_callback(task: asyncio.Task[None]) -> None:
+    """Surface an UNEXPECTED subscriber exit to logs + Sentry (WR-03).
+
+    ``redis_subscriber`` reconnects internally, so the only expected way it ends
+    is cancellation on shutdown. Any other completion (a bug, or an exception the
+    reconnect loop didn't catch) means live updates have silently stopped for
+    this worker — make that loud instead of invisible. Guarded against the normal
+    cancelled-on-shutdown path.
+    """
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        log = structlog.get_logger()
+        log.error("realtime.subscriber_exited", exc_info=exc)
+        sentry_sdk.capture_exception(exc)
+    else:
+        structlog.get_logger().error("realtime.subscriber_exited_unexpectedly")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    """Configure logging + Sentry at startup; nothing to tear down in Phase 1."""
+    """Configure logging + Sentry at startup; run the WS price subscriber.
+
+    Phase 9 (MKT-04): a single ``redis_subscriber`` task per worker process is
+    started here (lifespan runs once per uvicorn worker → per-worker subscriber,
+    which is what makes multi-worker correct) and cancelled in ``finally`` so it
+    never leaks on reload (09-RESEARCH Pitfall 4). A done-callback surfaces an
+    unexpected exit to Sentry/logs (WR-03) — the task itself reconnects on a
+    Redis blip, so a completion that is NOT a shutdown cancellation is a defect.
+    """
     configure_logging(settings)
     init_sentry(
         service="api",
         settings=settings,
         integrations=[FastApiIntegration(), SqlalchemyIntegration()],
     )
-    yield
+    task = asyncio.create_task(redis_subscriber(manager, str(settings.REDIS_URL)))
+    task.add_done_callback(_subscriber_done_callback)
+    try:
+        yield
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
 
 
 app = FastAPI(lifespan=lifespan, title="XPredict API")
@@ -138,6 +178,7 @@ async def _rate_limit_exceeded_handler(  # type: ignore[no-untyped-def]
 # Routes
 # ---------------------------------------------------------------------------
 from app.markets.router import admin_market_router, public_market_router  # noqa: E402
+from app.realtime.router import realtime_router  # noqa: E402
 
 app.include_router(health.router)
 app.include_router(build_auth_routers())
@@ -147,6 +188,7 @@ app.include_router(wallet_admin_router)
 app.include_router(wallet_router)
 app.include_router(bets_router)
 app.include_router(settlement_admin_router)
+app.include_router(realtime_router)
 
 
 @app.api_route("/_sentry-test", methods=["GET", "HEAD"])
