@@ -1,7 +1,8 @@
 ---
 phase: 10
 slug: admin-kpi-dashboard-configurable-branding
-status: draft
+status: approved
+reviewed_at: 2026-05-31
 shadcn_initialized: true
 preset: "new-york (hand-copied registry components; no components.json in repo)"
 created: 2026-05-31
