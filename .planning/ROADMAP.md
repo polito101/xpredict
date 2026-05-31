@@ -291,7 +291,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Wave 2** *(all blocked on 10-01)*
 
 - [x] 10-02-PLAN.md — KPI backend: KpiService (corrected house P&L net-by-kind + DAU bets∪auth.session_started + pending/active/24h-volume + 30d buckets) + admin /dashboard/kpis?window= + 30-day synthetic seed (ADD-02, ADD-03) [W2, shares main.py with 10-01]
-- [ ] 10-03-PLAN.md — Branding admin UI: /admin/branding page + RHF/zod BrandingForm (ColorField swatch + LogoUploadField) + use-server Bearer-forwarding lib (ADD-05) [W2]
+- [x] 10-03-PLAN.md — Branding admin UI: /admin/branding page + RHF/zod BrandingForm (ColorField swatch + LogoUploadField) + use-server Bearer-forwarding lib (ADD-05) [W2]
 - [ ] 10-05-PLAN.md — Player runtime theming: globals.css --brand-* tokens + async root layout <style> injection (server-validated hex) + public branding fetch + BrandLogo header (ADD-06) [W2]
 
 **Wave 3** *(blocked on 10-02)*
