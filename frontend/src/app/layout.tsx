@@ -1,20 +1,62 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { BrandLogo } from "@/components/brand-logo";
+import {
+  fetchBrandingPublic,
+  DEFAULT_BRANDING,
+} from "@/lib/branding-public";
 
 export const metadata: Metadata = {
   title: "XPredict",
   description: "White-label prediction market platform.",
 };
 
-export default function RootLayout({
+/**
+ * Player root layout — runtime theming consumer (ADD-06 / D-10, Plan 10-05).
+ *
+ * Async Server Component: awaits the PUBLIC `GET /branding/current` on EVERY
+ * navigation (the helper uses `cache: "no-store"`), then injects a
+ * `<style>:root{--brand-primary;--brand-secondary}</style>` block from the
+ * server-validated hexes. So an operator palette change in /admin/branding
+ * re-skins the player on its next page navigation with NO rebuild/redeploy
+ * (SC#5/SC#6) — there is no static color inlining.
+ *
+ * Safe fallback: if the fetch fails, `DEFAULT_BRANDING` (+ the matching `:root`
+ * defaults in globals.css) apply, so the player UI is never unbranded-broken
+ * (UI-SPEC accessibility guardrail #3 / T-10-17).
+ *
+ * Security (T-10-01): the hexes are validated `^#[0-9a-fA-F]{6}$` server-side
+ * BEFORE persist AND before injection (Plan 10-01). A valid 6-digit hex cannot
+ * contain `<`, `>`, `}`, or quotes, so no `</style>` break-out is possible. The
+ * layout interpolates ONLY `b.primary_hex` / `b.secondary_hex` (validated
+ * opaque tokens) into the <style> block and NEVER concatenates any other
+ * untrusted string there.
+ */
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let b = DEFAULT_BRANDING;
+  try {
+    b = await fetchBrandingPublic();
+  } catch {
+    // /branding/current unreachable → keep DEFAULT_BRANDING (safe fallback).
+  }
+
   return (
     <html lang="en" className="h-full antialiased">
+      <head>
+        {/* Only the two validated opaque hex tokens are interpolated here. */}
+        <style>{`:root{--brand-primary:${b.primary_hex};--brand-secondary:${b.secondary_hex};}`}</style>
+      </head>
       <body className="min-h-full flex flex-col">
+        <header className="border-b border-zinc-200 bg-white">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center px-4 sm:px-6">
+            <BrandLogo brandName={b.brand_name} logoUrl={b.logo_url} />
+          </div>
+        </header>
         {children}
         <Toaster />
       </body>
