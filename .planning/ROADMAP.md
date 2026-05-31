@@ -101,7 +101,8 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   4. The player can fetch their current balance and a paginated transaction history showing every entry (kind, amount, timestamp, reason) with no money column ever exposed as a JSON float — all amounts are strings in the API response.
   5. No database path, REST endpoint, GraphQL resolver, or admin tool exists to transfer balance from one user to another; an automated negative test asserts every wallet-mutation API rejects a `dst_user_id` parameter, and the schema has no FK that would allow it.
   6. A disabled "Add funds" button is present in the player UI; `WalletService.recharge(payment_provider="stripe")` exists as a method signature that raises `NotImplementedError` (v2 wires it without refactor).
-  7. The nightly Celery `reconcile_wallets` task runs against seed data, computes `SUM(entries)` per account, compares to `accounts.balance`, and the reconciliation log shows zero drift; if a synthetic drift is injected, the task logs CRITICAL and a Sentry alert fires.**Plans**: 6 plans
+  7. The nightly Celery `reconcile_wallets` task runs against seed data, computes `SUM(entries)` per account, compares to `accounts.balance`, and the reconciliation log shows zero drift; if a synthetic drift is injected, the task logs CRITICAL and a Sentry alert fires.
+**Plans**: 6 plans
 
 **Wave 1**
 
@@ -280,7 +281,23 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   5. The player-facing UI reads branding config at runtime (Next.js Server Components `await` an API call to `/branding/current`); changing the palette in admin updates the player UI on next page navigation without any rebuild or redeploy step, verifiable by a manual test of swapping palette mid-session.
   6. A negative test confirms admin endpoints in this phase enforce `is_admin = true` (consistent with Phase 8); a player request to `/admin/tenant-config` returns 403.
 
-**Plans**: TBD
+**Plans**: 5 plans (3 waves)
+**Plan list**:
+
+**Wave 1**
+
+- [ ] 10-01-PLAN.md — Branding backend: TenantConfig model + migration 0009 (off 0008) + admin tenant-config CRUD (audited) + public /branding/current + /branding/logo + hex/logo validation + SC#6 403 test (ADD-05, ADD-06) [W1]
+
+**Wave 2** *(all blocked on 10-01)*
+
+- [ ] 10-02-PLAN.md — KPI backend: KpiService (corrected house P&L net-by-kind + DAU bets∪auth.session_started + pending/active/24h-volume + 30d buckets) + admin /dashboard/kpis?window= + 30-day synthetic seed (ADD-02, ADD-03) [W2, shares main.py with 10-01]
+- [ ] 10-03-PLAN.md — Branding admin UI: /admin/branding page + RHF/zod BrandingForm (ColorField swatch + LogoUploadField) + use-server Bearer-forwarding lib (ADD-05) [W2]
+- [ ] 10-05-PLAN.md — Player runtime theming: globals.css --brand-* tokens + async root layout <style> injection (server-validated hex) + public branding fetch + BrandLogo header (ADD-06) [W2]
+
+**Wave 3** *(blocked on 10-02)*
+
+- [ ] 10-04-PLAN.md — KPI dashboard UI: replace /admin landing with 5 KpiCards + Recharts AreaChart + 30d empty state + DAU 24h/7d/30d toggle + admin-nav Dashboard/Branding links + sessionStorage default-route flag (ADD-01, ADD-02, ADD-03) [W3]
+
 **Research/spike flags**: None — Recharts + CSS variables theming via shadcn/ui are well-documented.
 **Critical pitfalls covered**: Demo-trap branding (the trait that distinguishes "looks like a real product" from "another bootstrap demo" — see FEATURES.md trust signals).
 **UI hint**: yes
