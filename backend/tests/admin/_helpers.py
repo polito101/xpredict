@@ -8,6 +8,7 @@ that mints a Bearer, and an ``_auth`` header builder. Adds wallet + bet seeding
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
 
@@ -128,27 +129,99 @@ async def seed_bet(
     stake: Decimal,
     odds: Decimal = Decimal("0.500000"),
     status: str = "PENDING",
+    created_at: datetime | None = None,
 ) -> UUID:
-    """Raw-INSERT a bet for ``user_id`` (committed); return its id."""
+    """Raw-INSERT a bet for ``user_id`` (committed); return its id.
+
+    ``created_at`` lets a test backdate a bet so the 24h / 7d / 30d KPI windows
+    (volume + DAU + the 30-day chart buckets) can be exercised across days. When
+    ``None`` the DB ``server_default now()`` applies (a fresh "now" bet).
+    """
     bet_id = uuid4()
+    cols = "id, user_id, market_id, outcome_id, stake, odds_at_placement, status"
+    vals = ":id, :u, :m, :o, :st, :od, :status"
+    params: dict[str, object] = {
+        "id": bet_id,
+        "u": user_id,
+        "m": uuid4(),
+        "o": uuid4(),
+        "st": stake,
+        "od": odds,
+        "status": status,
+    }
+    if created_at is not None:
+        cols += ", created_at"
+        vals += ", :created_at"
+        params["created_at"] = created_at
+    async with engine.connect() as conn:
+        await conn.execute(text(f"INSERT INTO bets ({cols}) VALUES ({vals})"), params)
+        await conn.commit()
+    return bet_id
+
+
+async def seed_bet_span(
+    engine: AsyncEngine,
+    user_id: UUID,
+    *,
+    stake: Decimal,
+    days: int = 30,
+    per_day: int = 1,
+    now: datetime | None = None,
+) -> int:
+    """Seed ``per_day`` bets on each of the last ``days`` days for ``user_id``.
+
+    The 30-day synthetic fixture (CONTEXT D-06): drives the daily-volume chart
+    buckets AND the volume / DAU windows. Each bet is backdated to noon on its
+    day (``now - n days``) so it falls squarely inside the right ``date_trunc``
+    bucket regardless of the clock at run time. Returns the count of bets seeded.
+    """
+    anchor = now or datetime.now(UTC)
+    count = 0
+    for day_offset in range(days):
+        # Noon on the target day keeps the bet inside that UTC calendar day.
+        day = (anchor - timedelta(days=day_offset)).replace(
+            hour=12, minute=0, second=0, microsecond=0
+        )
+        for _ in range(per_day):
+            await seed_bet(engine, user_id, stake=stake, created_at=day)
+            count += 1
+    return count
+
+
+async def seed_market(
+    engine: AsyncEngine,
+    *,
+    status: str,
+    deadline: datetime,
+    question: str = "Will the KPI seam hold?",
+) -> UUID:
+    """Raw-INSERT a HOUSE market (committed) with a given ``status`` + ``deadline``.
+
+    Used to build the active-markets COUNT and the pending-resolutions
+    (deadline past/future) x (status) matrix. ``slug`` is uniquified per call so
+    the UNIQUE(slug) constraint never collides across tests on the shared
+    session-scoped container.
+    """
+    market_id = uuid4()
+    slug = f"kpi-seam-{market_id.hex[:12]}"
     async with engine.connect() as conn:
         await conn.execute(
             text(
-                "INSERT INTO bets (id, user_id, market_id, outcome_id, stake, "
-                "odds_at_placement, status) VALUES (:id, :u, :m, :o, :st, :od, :status)"
+                "INSERT INTO markets "
+                "(id, question, slug, resolution_criteria, source, status, deadline) "
+                "VALUES (:id, :q, :slug, :rc, 'HOUSE', :status, :deadline)"
             ),
             {
-                "id": bet_id,
-                "u": user_id,
-                "m": uuid4(),
-                "o": uuid4(),
-                "st": stake,
-                "od": odds,
+                "id": market_id,
+                "q": question,
+                "slug": slug,
+                "rc": "Resolves per the official source.",
                 "status": status,
+                "deadline": deadline,
             },
         )
         await conn.commit()
-    return bet_id
+    return market_id
 
 
 async def seed_audit(
