@@ -13,9 +13,9 @@
 | 5 | Bets, Settlement & First E2E Demo | Agustin | ✅ Done | `integration/phase-05-full` | [#8](https://github.com/polito101/xpredict/pull/8) |
 | 6 | Polymarket Sync | Pol | ✅ Done | `gsd/phase-06-polymarket-sync-catalog-replication` | [#7](https://github.com/polito101/xpredict/pull/7) |
 | 7 | Polymarket Auto-Resolution | Agustin | ✅ Done | `gsd/phase-07-polymarket-auto-resolution` | [#10](https://github.com/polito101/xpredict/pull/10) |
-| 8 | Admin CRM | Pol | 👀 In review | `gsd/phase-08-admin-crm-user-management-audit-log-viewer` | [#14](https://github.com/polito101/xpredict/pull/14) |
+| 8 | Admin CRM | Pol | ✅ Done | `gsd/phase-08-admin-crm-user-management-audit-log-viewer` | [#14](https://github.com/polito101/xpredict/pull/14) |
 | 9 | User App UX Polish & Real-Time | Agustin | ✅ Done | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | [#13](https://github.com/polito101/xpredict/pull/13) |
-| 10 | Admin KPI Dashboard & Branding | — | ⬜ Not started | — | — |
+| 10 | Admin KPI Dashboard & Branding | Pol | 🔄 In progress | `gsd/phase-10-admin-kpi-dashboard-configurable-branding` | — |
 | 11 | Hardening & Operator-Demo Gate | — | ⬜ Not started | — | — |
 
 ## Status legend
