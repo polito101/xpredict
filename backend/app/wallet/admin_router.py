@@ -75,6 +75,26 @@ async def recharge_wallet(
     # — IO outside the async greenlet → ``MissingGreenlet``. Read it once, up front.
     admin_id = admin.id
 
+    # Phase 8 D-02 — ban enforcement at recharge. Check the TARGET user (NOT the
+    # admin): a banned user's wallet is frozen (D-03), so an admin cannot credit
+    # it. 403 "Account suspended" before any money moves (T-08-02). This is an
+    # inline check on the target, not a dependency (the dependency gates the
+    # admin, this gates the path user).
+    target_banned_at = (
+        await session.execute(
+            # ``User.id`` is from the fastapi-users base table; mypy sees it as a
+            # plain UUID, not an InstrumentedAttribute (same ignore convention as
+            # ``app/auth/manager.py``).
+            select(User.banned_at).where(User.id == user_id)  # type: ignore[arg-type]
+        )
+    ).scalar_one_or_none()
+    if target_banned_at is not None:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account suspended. Cannot recharge a banned user.",
+        )
+
     # Detect a replay BEFORE the write so the response can flag it. The service
     # itself is the source of truth for dedup (23505 → return existing); this
     # read only shapes the ``idempotent_replay`` boolean.

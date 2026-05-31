@@ -127,6 +127,27 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         return user
 
     # ------------------------------------------------------------------
+    # Phase 8 D-02 — ban enforcement at login.
+    # ------------------------------------------------------------------
+    @staticmethod
+    def assert_not_banned(user: User) -> None:
+        """Raise 403 "Account suspended" when ``user.banned_at`` is set (D-02).
+
+        fastapi-users has NO ``on_after_login`` hook (see module docstring), so
+        the login proxies (player + admin) call this AFTER ``authenticate()``
+        succeeds. A ban returns 403 — not 401 — because the credentials ARE valid;
+        the account is suspended (D-02). Admins are never banned in v1, but the
+        check is harmless on the admin path.
+        """
+        if user.banned_at is not None:
+            from fastapi import HTTPException, status
+
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account suspended",
+            )
+
+    # ------------------------------------------------------------------
     # AUTH-01 — server-side password strength validation
     # ------------------------------------------------------------------
     async def validate_password(  # type: ignore[override]

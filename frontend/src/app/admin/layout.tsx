@@ -17,6 +17,8 @@
  */
 import Link from "next/link";
 
+import { AdminNav } from "@/components/admin/admin-nav";
+
 export default function AdminLayout({
   children,
 }: {
@@ -32,18 +34,8 @@ export default function AdminLayout({
           >
             XPredict Admin
           </Link>
-          <div className="flex items-center gap-4 text-sm">
-            {/* Phase 8 will replace these placeholders with real CRM links. */}
-            <span className="text-zinc-400">Users</span>
-            <span className="text-zinc-400">Markets</span>
-            <span className="text-zinc-400">Audit log</span>
-            <Link
-              href="/admin/logout"
-              className="text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
-            >
-              Log out
-            </Link>
-          </div>
+          {/* Phase 8: active CRM links (Users / Audit log) + Markets placeholder. */}
+          <AdminNav />
         </div>
       </nav>
       <main className="flex-1">{children}</main>

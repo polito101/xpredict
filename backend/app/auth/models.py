@@ -19,7 +19,7 @@ the user's current version.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID as PyUUID
 from uuid import uuid4
 
@@ -55,6 +55,18 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     banned_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+    # Phase 8 (Plan 08-01): signup timestamp. The fastapi-users base table has no
+    # created_at, but the admin CRM (ADU-01 / D-05) must sort + filter users by
+    # signup date. Additive, backward-compatible column (migration 0007): a
+    # ``server_default=now()`` backfills existing rows to migration time, and the
+    # Python-side default stamps new ORM-inserted users.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        default=lambda: datetime.now(UTC),
+        nullable=False,
     )
 
     # AUTH-06 / Pitfall 6: bump on password reset to invalidate every prior
