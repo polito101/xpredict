@@ -515,8 +515,6 @@ This phase is **additive greenfield within a brownfield repo** — it creates a 
 
 The planner's `<threat_model>` MUST cover: hex `<style>` injection, SVG/logo upload (content-type + size + magic bytes), and the admin/player access boundary on the new endpoints.
 
----
-
 ## State of the Art
 
 | Old (CONTEXT/ROADMAP assumption) | Reality in code | Impact |
@@ -545,18 +543,21 @@ The planner's `<threat_model>` MUST cover: hex `<style>` injection, SVG/logo upl
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Admin SSR fetch auth (A6).**
    - What we know: the admin surface is Bearer-gated; `lib/api.ts` (public) uses `cache:"no-store"`.
    - What's unclear: how the *admin* Server Components obtain/forward the admin Bearer for `GET /admin/dashboard/kpis`.
    - Recommendation: read `frontend/src/app/admin/users/*` (Phase 8 admin pages) before planning the KPI fetch; mirror whatever token-forwarding it uses.
+   - **RESOLVED:** the admin Server Components forward the `admin_jwt` HttpOnly cookie as an `Authorization: Bearer` header via the existing `adminApiFetch` pattern in `frontend/src/lib/admin-api.ts` (a `"use server"` module that reads the cookie via `cookies()` server-side and never exposes it to client JS). Plan 10-04 adds `fetchKpis(window)` to a sibling `frontend/src/lib/kpi-api.ts` that reuses this exact forwarding; the token never reaches client JS. (Plan 10-03's `branding-admin-api.ts` follows the same `adminApiFetch` pattern for the tenant-config CRUD.)
 
 2. **"Today" timezone (A1).**
    - Recommendation: default UTC `date_trunc('day', now())`; confirm against CONVENTIONS.md/STATE.md.
+   - **RESOLVED:** "today" uses UTC `date_trunc('day', now())` for the lower bound and `now()` for the upper bound — the documented project default (all `created_at`/`occurred_at` columns are `DateTime(timezone=True)`; there is no per-tenant display timezone). Locked in Plan 10-02 Task 2 `get_kpis` with an inline comment (A1).
 
 3. **Single-row enforcement mechanism (D-07).**
    - Recommendation: seed one row with a fixed UUID PK + `UNIQUE(tenant_id)` (the multi-tenant seam). Planner picks the exact constraint.
+   - **RESOLVED:** single-row enforced via a `UNIQUE(tenant_id)` constraint on `tenant_config` (`UniqueConstraint("tenant_id", name="tenant_config_tenant_id_key")`), seeded with one row at the `TENANT_ID_DEFAULT` constant via an idempotent `INSERT ... ON CONFLICT (tenant_id) DO NOTHING`. This is the single-tenant→multi-tenant ("one row per tenant") seam. Locked in Plan 10-01 Task 2 (model + migration 0009).
 
 ---
 
@@ -608,3 +609,5 @@ The planner's `<threat_model>` MUST cover: hex `<style>` injection, SVG/logo upl
 
 **Research date:** 2026-05-31
 **Valid until:** ~2026-06-30 (stable brownfield codebase; revalidate only if phases 1-9 are refactored)
+</content>
+</invoke>
