@@ -99,7 +99,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **ADD-02**: KPI dashboard shows: 24h volume, daily active users, total active markets, pending resolutions count, house P&L (today + cumulative)
 - [ ] **ADD-03**: KPI dashboard uses Recharts for volume-over-time visualization, with daily granularity for first 30 days
 - [x] **ADD-04**: Admin can view audit log: chronological, filterable by event_type and actor, immutable (read-only UI; underlying table has UPDATE/DELETE trigger block)
-- [ ] **ADD-05**: Admin can configure instance branding: brand name, logo image, primary/secondary palette colors — stored in single-row TenantConfig
+- [x] **ADD-05**: Admin can configure instance branding: brand name, logo image, primary/secondary palette colors — stored in single-row TenantConfig
 - [ ] **ADD-06**: Player-facing UI reads branding config at runtime; changes apply on next page navigation (no rebuild required)
 
 ### Platform — Cross-cutting (PLT)
@@ -236,7 +236,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADD-02 | Phase 10 | Pending |
 | ADD-03 | Phase 10 | Pending |
 | ADD-04 | Phase 8 | Complete |
-| ADD-05 | Phase 10 | Pending |
+| ADD-05 | Phase 10 | Complete |
 | ADD-06 | Phase 10 | Pending |
 | PLT-01 | Phase 1 | Done (01-03: audit_log + feature_flags both ship tenant_id UUID DEFAULT '00000000-0000-0000-0000-000000000001'; integration test test_tenant_id_default green) |
 | PLT-02 | Phase 1 | Done (01-03: audit_log immutability trigger + REVOKE UPDATE, DELETE FROM PUBLIC; integration tests test_audit_log_update_blocked + test_audit_log_delete_blocked green; AuditService.record atomic with caller's session) |

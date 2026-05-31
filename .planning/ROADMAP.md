@@ -286,7 +286,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Branding backend: TenantConfig model + migration 0009 (off 0008) + admin tenant-config CRUD (audited) + public /branding/current + /branding/logo + hex/logo validation + SC#6 403 test (ADD-05, ADD-06) [W1]
+- [x] 10-01-PLAN.md — Branding backend: TenantConfig model + migration 0009 (off 0008) + admin tenant-config CRUD (audited) + public /branding/current + /branding/logo + hex/logo validation + SC#6 403 test (ADD-05, ADD-06) [W1]
 
 **Wave 2** *(all blocked on 10-01)*
 
@@ -342,7 +342,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Polymarket Auto-Resolution & Admin Override | 3/3 | Complete   | 2026-05-28 |
 | 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete    | 2026-05-30 |
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
-| 10. Admin KPI Dashboard & Configurable Branding | 0/TBD | Not started | - |
+| 10. Admin KPI Dashboard & Configurable Branding | 1/5 | In Progress|  |
 | 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
 
 ## Coverage
