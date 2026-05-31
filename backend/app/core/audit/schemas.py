@@ -47,6 +47,7 @@ KNOWN_EVENT_TYPES: list[str] = [
     "settlement.reversed",
     "admin.user_banned",
     "admin.user_unbanned",
+    "admin.branding_updated",
 ]
 
 
