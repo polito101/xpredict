@@ -174,7 +174,11 @@ describe("<BrandingForm />", () => {
   });
 
   it("a wrong-type logo shows the allowlist inline copy (client pre-check)", async () => {
-    const user = userEvent.setup();
+    // applyAccept:false so user-event does NOT pre-filter the mismatched file
+    // by the input's `accept` allowlist — we are exercising the component's
+    // OWN defensive type pre-check (a file can still reach onChange via the
+    // "all files" picker / drag-drop), which is the behavior under test.
+    const user = userEvent.setup({ applyAccept: false });
     renderForm();
 
     const bad = new File(["%PDF"], "doc.pdf", { type: "application/pdf" });
