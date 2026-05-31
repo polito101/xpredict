@@ -31,7 +31,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [x] **Phase 7: Polymarket Auto-Resolution & Admin Override** - `detect_resolutions` Beat task (60s) with UMA dispute-window + internal grace, reuses Phase 5 SettlementService, admin force-settle override for stuck mirrored markets. (completed 2026-05-28, PR #10)
 - [x] **Phase 8: Admin CRM (User Management & Audit Log Viewer)** - Paginated user list with search/filters, user detail page (profile + balance + history + bets), ban/unban state machine with frozen-balance semantics, CSV export, immutable audit-log viewer. (completed 2026-05-30, PR #14)
 - [x] **Phase 9: User App UX Polish (Market Detail & Real-Time)** - Market detail page with resolution criteria + price-history chart + activity feed, real-time WebSocket price updates for mirrored polls + house edits. (completed 2026-05-29, PR #13)
-- [ ] **Phase 10: Admin KPI Dashboard & Configurable Branding** - Admin landing dashboard (24h volume, DAU, active markets, pending resolutions, house P&L) with Recharts, TenantConfig CRUD (brand name/logo/palette), runtime branding consumption in player UI.
+- [x] **Phase 10: Admin KPI Dashboard & Configurable Branding** - Admin landing dashboard (24h volume, DAU, active markets, pending resolutions, house P&L) with Recharts, TenantConfig CRUD (brand name/logo/palette), runtime branding consumption in player UI. (completed 2026-05-31)
 - [ ] **Phase 11: Hardening & Operator-Demo Gate** - Mobile responsiveness validation (≥360px), Sentry alert rule tuning, rate-limit tuning, "Looks Done But Isn't" checklist execution, prod-migration dry-run, security scan (gitleaks/bandit/npm audit/OWASP ZAP). **Final gate before any operator demo.**
 
 ## Phase Details
@@ -296,7 +296,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 3** *(blocked on 10-02)*
 
-- [ ] 10-04-PLAN.md — KPI dashboard UI: replace /admin landing with 5 KpiCards + Recharts AreaChart + 30d empty state + DAU 24h/7d/30d toggle + admin-nav Dashboard/Branding links + sessionStorage default-route flag (ADD-01, ADD-02, ADD-03) [W3]
+- [x] 10-04-PLAN.md — KPI dashboard UI: replace /admin landing with 5 KpiCards + Recharts AreaChart + 30d empty state + DAU 24h/7d/30d toggle + admin-nav Dashboard/Branding links + sessionStorage default-route flag (ADD-01, ADD-02, ADD-03) [W3]
 
 **Research/spike flags**: None — Recharts + CSS variables theming via shadcn/ui are well-documented.
 **Critical pitfalls covered**: Demo-trap branding (the trait that distinguishes "looks like a real product" from "another bootstrap demo" — see FEATURES.md trust signals).
@@ -342,7 +342,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Polymarket Auto-Resolution & Admin Override | 3/3 | Complete   | 2026-05-28 |
 | 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete    | 2026-05-30 |
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
-| 10. Admin KPI Dashboard & Configurable Branding | 4/5 | In Progress|  |
+| 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
 | 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
 
 ## Coverage

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-05-31T08:37:51.974Z"
+status: verifying
+last_updated: "2026-05-31T08:49:16.477Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 35
-  completed_plans: 31
-  percent: 64
+  completed_plans: 32
+  percent: 73
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 Phase: 10 (admin-kpi-dashboard-configurable-branding) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-31
 
-Progress: [█████████░] 89%
+Progress: [█████████░] 91%
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [█████████░] 89%
 | Phase 10 P10-02 | 16 min | 3 tasks | 6 files |
 | Phase 10 P10-03 | ~14 min | 3 tasks | 5 files |
 | Phase 10 P10-05 | 4min | 3 tasks | 5 files |
+| Phase 10 P04 | ~6 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,9 @@ Recent decisions affecting current work:
 - [Phase 10]: 2026-05-31 (Plan 10-01): Branding backend Slice A shipped. tenant_config single-row table (migration 0009 off head 0008) with UNIQUE(tenant_id) as the single-tenant->multi-tenant seam (D-07); idempotent ON CONFLICT singleton seed (XPredict/#4f46e5/#0ea5e9). Admin GET/PUT /api/v1/admin/tenant-config (current_active_admin-gated, audited admin.branding_updated, admin_id captured before commit). Multipart logo validated out-of-band: 256KB cap + content-type allowlist (PNG/JPEG/WebP/SVG) + leading magic-byte sniff (no Pillow/decode -- DoS-safe); SVG served via <img>+nosniff only (T-10-02). Server-side hex allowlist ^#[0-9a-fA-F]{6}$ via Field(pattern=) is the <style>-injection guard for Plan 10-05. Public GET /branding/current (4-field, no bytes -- Pitfall 7) + GET /branding/logo (bytes+Content-Type+nosniff). schemas.py + both routers omit the postponed-annotations future import. ADD-05 complete; ADD-06 backend half done (frontend consumption = Plan 10-05). 8/8 Wave-0 tests GREEN; single alembic head; ruff/mypy/money-lint clean.
 - [Phase 10]: 2026-05-31 (Plan 10-03): Branding admin form (Slice A frontend) shipped. /admin/branding Server Component (force-dynamic) pre-fetches the persisted config via a use-server Bearer-forwarding helper (branding-admin-api.ts mirrors admin-api.ts 1:1 — reads admin_jwt HttpOnly cookie server-side, token never reaches client JS, T-10-11); shared types split into branding-types.ts (Next use-server constraint). BrandingForm (RHF+zod) PUTs multipart/form-data (brand_name + 2 hexes + optional logo File, no manual Content-Type — fetch derives the boundary) to the 10-01 endpoint; status preserved in the thrown Error ("API error: 422") so a 422 maps to inline hex FormMessage (server authoritative — D-09). ColorField = FormControl-wrapped Input + sibling live swatch (swatch OUTSIDE FormControl so the Radix Slot id lands on the labellable input — the bug that broke getByLabelText). LogoUploadField = file input (PNG/JPEG/WebP/SVG) + <img> object-URL preview (revoked on unmount, T-10-13) + client allowlist→256KB pre-check surfacing exact UI-SPEC copy. Default-variant "Save branding" submit (non-destructive, A-SAVE) + Loader2. 10-UI-SPEC copy/spacing/color honored verbatim. ADD-05 (operator UI) complete. 7/7 vitest GREEN; pnpm build exit 0 (/admin/branding compiles as ƒ dynamic route); no new typecheck errors (only repo-wide error = pre-existing DEF-FE-01 orphan middleware.test.ts). NAV NOTE: ships the route only — the admin-nav Branding link lands in 10-04. Two Rule-1 fixes in Task 3 GREEN: swatch label association; test applyAccept:false to exercise the component's logo type pre-check.
 - [Phase 10]: 2026-05-31 (Plan 10-02): Admin KPI backend Slice C shipped. Read-only KpiService over bets/markets/entries+transfers/audit_log with the two CORRECTED formulas: house P&L = kind-filtered net flow settle_loss-settle_winnings (reverse_* netted, account-constrained to house_revenue credit/house_promo debit legs -- NO house_expense account exists), DAU = distinct UNION(bettors, auth.session_started logins) with admins excluded (bets emit no audit event so logins-only undercounts). Also active_markets (status==OPEN), pending_resolutions (deadline<now AND NOT IN RESOLVED/CANCELLED/DRAFT -- A3 excludes DRAFT), volume_24h (bets.stake not markets.volume), 30d date_trunc buckets. GET /api/v1/admin/dashboard/kpis?window=24h|7d|30d (current_active_admin-gated, Literal window -> 422 on bogus, structlog INFO timing). Money as MoneyStr (negative P&L valid). P&L test seam drives a REAL SettlementService.resolve+reverse; reversal-nets-to-zero is the correctness sentinel. 9/9 KPI tests GREEN; 121/121 admin+branding+settlement regression; single alembic head untouched (no migration). ADD-02+ADD-03 complete.
+- [Phase ?]: House P&L rendered as ONE KpiCard (HousePnlCard) showing Today + All-time, color-by-sign from string — keeps the dashboard grid at five cards (10-04)
+- [Phase ?]: VolumeChart stroke/fill = var(--brand-primary, #059669) so the chart re-skins live with operator branding; emerald fallback; react-is pnpm.overrides pin untouched (10-04)
+- [Phase ?]: sessionStorage admin_default_route flag is a UX hint only — written, never read by any auth/redirect path; landing stays adminLoginAction existing redirect to /admin (10-04)
 
 ### Pending Todos
 
@@ -153,6 +157,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-05-31T08:37:51.963Z
+Last session: 2026-05-31T08:48:36.578Z
 Stopped at: Completed 10-05-PLAN.md
 Resume file: None
