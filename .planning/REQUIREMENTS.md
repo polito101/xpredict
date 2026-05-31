@@ -96,8 +96,8 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 ### Admin — Dashboard & Branding (ADD)
 
 - [ ] **ADD-01**: Admin landing page after login is the KPI dashboard, not the user list
-- [ ] **ADD-02**: KPI dashboard shows: 24h volume, daily active users, total active markets, pending resolutions count, house P&L (today + cumulative)
-- [ ] **ADD-03**: KPI dashboard uses Recharts for volume-over-time visualization, with daily granularity for first 30 days
+- [x] **ADD-02**: KPI dashboard shows: 24h volume, daily active users, total active markets, pending resolutions count, house P&L (today + cumulative)
+- [x] **ADD-03**: KPI dashboard uses Recharts for volume-over-time visualization, with daily granularity for first 30 days
 - [x] **ADD-04**: Admin can view audit log: chronological, filterable by event_type and actor, immutable (read-only UI; underlying table has UPDATE/DELETE trigger block)
 - [x] **ADD-05**: Admin can configure instance branding: brand name, logo image, primary/secondary palette colors — stored in single-row TenantConfig
 - [ ] **ADD-06**: Player-facing UI reads branding config at runtime; changes apply on next page navigation (no rebuild required)
@@ -233,8 +233,8 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADM-06 | Phase 7 | Pending |
 | ADM-07 | Phase 4 | Pending |
 | ADD-01 | Phase 10 | Pending |
-| ADD-02 | Phase 10 | Pending |
-| ADD-03 | Phase 10 | Pending |
+| ADD-02 | Phase 10 | Complete |
+| ADD-03 | Phase 10 | Complete |
 | ADD-04 | Phase 8 | Complete |
 | ADD-05 | Phase 10 | Complete |
 | ADD-06 | Phase 10 | Pending |
