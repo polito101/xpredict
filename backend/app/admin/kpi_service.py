@@ -182,7 +182,12 @@ async def dau(session: AsyncSession, *, window_hours: int) -> int:
     ).where(
         AuditLog.event_type == AUTH_SESSION_STARTED,
         AuditLog.occurred_at >= lo,
-        AuditLog.actor.like("user:%"),
+        # Exact 'user:' + 36-char UUID form (WR-02). `LIKE 'user:%'` also matches a
+        # bare 'user:' (the % matches empty), and `split_part('user:', ':', 2)`
+        # yields '' → CAST('' AS uuid) raises and 500s the WHOLE KPI endpoint.
+        # `audit_log` is append-only, so one degenerate actor row could not be
+        # purged — gate the cast on a strict regex instead of an open prefix.
+        AuditLog.actor.op("~")(r"^user:[0-9a-fA-F-]{36}$"),
     )
     active = bettors.union(logins).subquery()
     return int((await session.execute(select(func.count()).select_from(active))).scalar_one())
