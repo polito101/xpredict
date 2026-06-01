@@ -27,12 +27,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import ValidationError
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import current_active_admin
 from app.auth.models import User
 from app.branding.models import TenantConfig
+from app.branding.repo import load_singleton, logo_url_for
 from app.branding.schemas import TenantConfigRead, TenantConfigUpdate
 from app.core.audit.service import AuditService
 from app.core.config import get_settings
@@ -50,27 +50,6 @@ _LOGO_ALLOWLIST = {"image/png", "image/jpeg", "image/webp", "image/svg+xml"}
 # check (accepted under the size cap + allowlist only; served via <img>, nosniff).
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _JPEG_MAGIC = b"\xff\xd8\xff"
-
-
-def _logo_url_for(row: TenantConfig) -> str | None:
-    """``/branding/logo`` when a logo is set, else ``None``."""
-    return "/branding/logo" if row.logo_bytes is not None else None
-
-
-async def _load_singleton(session: AsyncSession) -> TenantConfig | None:
-    """Load the single tenant_config row (or None on a fresh, unseeded DB).
-
-    Ordered by ``created_at`` so the read is deterministic even if the
-    single-row invariant is ever violated (``tenant_id`` is nullable, so
-    ``UNIQUE(tenant_id)`` permits multiple ``tenant_id IS NULL`` rows in
-    Postgres — WR-03). The admin editor and the public reader then always
-    resolve the SAME row.
-    """
-    return (
-        await session.execute(
-            select(TenantConfig).order_by(TenantConfig.created_at.asc()).limit(1)
-        )
-    ).scalar_one_or_none()
 
 
 def _validate_logo(content_type: str | None, data: bytes) -> str:
@@ -114,7 +93,7 @@ async def get_tenant_config(
     admin: Annotated[User, Depends(current_active_admin)],
 ) -> TenantConfigRead:
     """Return the current branding row (admin-only)."""
-    row = await _load_singleton(session)
+    row = await load_singleton(session)
     if row is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -124,7 +103,7 @@ async def get_tenant_config(
         brand_name=row.brand_name,
         primary_hex=row.primary_hex,
         secondary_hex=row.secondary_hex,
-        logo_url=_logo_url_for(row),
+        logo_url=logo_url_for(row),
     )
 
 
@@ -181,7 +160,7 @@ async def update_tenant_config(
             logo_bytes = data
 
     # Update the single row in place (seed if absent — never a duplicate insert).
-    row = await _load_singleton(session)
+    row = await load_singleton(session)
     if row is None:
         row = TenantConfig(
             brand_name=body.brand_name,
@@ -221,7 +200,7 @@ async def update_tenant_config(
         brand_name=body.brand_name,
         primary_hex=body.primary_hex,
         secondary_hex=body.secondary_hex,
-        logo_url="/branding/logo" if has_logo else None,
+        logo_url="/branding/logo" if has_logo else None,  # has_logo is a bool, not a row
     )
 
 

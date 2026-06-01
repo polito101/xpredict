@@ -17,25 +17,13 @@ Two PUBLIC (no auth) endpoints — the player UI is unauthenticated for branding
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.branding.models import TenantConfig
+from app.branding.repo import load_singleton, logo_url_for
 from app.branding.schemas import BrandingPublic
 from app.db.session import get_async_session
 
 branding_router = APIRouter(tags=["branding"])
-
-
-async def _load_singleton(session: AsyncSession) -> TenantConfig | None:
-    # Ordered by created_at so the public reader resolves the SAME row the admin
-    # editor does even if the single-row invariant is ever violated (tenant_id is
-    # nullable → UNIQUE(tenant_id) permits multiple NULL rows in Postgres — WR-03).
-    return (
-        await session.execute(
-            select(TenantConfig).order_by(TenantConfig.created_at.asc()).limit(1)
-        )
-    ).scalar_one_or_none()
 
 
 @branding_router.get("/branding/current", response_model=BrandingPublic)
@@ -43,7 +31,7 @@ async def get_branding_current(
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BrandingPublic:
     """Public branding payload — name + palette + a logo URL (no bytes)."""
-    row = await _load_singleton(session)
+    row = await load_singleton(session)
     if row is None:
         # Fresh, unseeded DB — safe defaults so the player UI never breaks.
         return BrandingPublic(
@@ -56,7 +44,7 @@ async def get_branding_current(
         brand_name=row.brand_name,
         primary_hex=row.primary_hex,
         secondary_hex=row.secondary_hex,
-        logo_url="/branding/logo" if row.logo_bytes is not None else None,
+        logo_url=logo_url_for(row),
     )
 
 
@@ -65,7 +53,7 @@ async def get_branding_logo(
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> Response:
     """Serve the stored logo bytes with the stored Content-Type + nosniff (T-10-02)."""
-    row = await _load_singleton(session)
+    row = await load_singleton(session)
     if row is None or row.logo_bytes is None:
         return Response(status_code=status.HTTP_404_NOT_FOUND)
     return Response(
