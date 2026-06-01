@@ -2,135 +2,80 @@
 phase: 10-admin-kpi-dashboard-configurable-branding
 fixed_at: 2026-06-01T00:00:00Z
 review_path: .planning/phases/10-admin-kpi-dashboard-configurable-branding/10-REVIEW.md
-iteration: 1
-fix_scope: critical_warning
-findings_in_scope: 4
-fixed: 4
+iteration: 2
+fix_scope: all
+findings_in_scope: 5
+fixed: 5
 skipped: 0
 status: all_fixed
 ---
 
-# Fase 10: Code Review Fix Report
+# Phase 10: Code Review Fix Report (Iteration 2)
 
 **Fixed at:** 2026-06-01
 **Source review:** `.planning/phases/10-admin-kpi-dashboard-configurable-branding/10-REVIEW.md`
-**Iteration:** 1
-**Scope:** `critical_warning` — Critical (0) + Warning (WR-01..WR-04). Info findings (IN-01..IN-05) out of scope, untouched.
+**Iteration:** 2
+**Scope:** `all` — Info findings IN-01..IN-05 (WR-01..WR-04 were fixed in iteration 1)
 
 **Summary:**
-- Findings in scope: 4
-- Fixed: 4
+- Findings in scope: 5
+- Fixed: 5
 - Skipped: 0
-- Status: all_fixed
 
 ## Fixed Issues
 
-### WR-01: Logo read entirely into memory before the 256 KB cap (memory DoS)
+### IN-01: Literal de evento de login obsoleto en `KNOWN_EVENT_TYPES`
 
-**Files modified:** `backend/app/branding/admin_router.py`
-**Commit:** `06d08f5`
-**Applied fix:** In `update_tenant_config`, replaced the unbounded `data = await logo.read()`
-with a bounded `data = await logo.read(_MAX_LOGO_BYTES + 1)` followed by an explicit
-`len(data) > _MAX_LOGO_BYTES` → 422 reject BEFORE any further processing. This caps the
-buffered body at 256 KB + 1 byte, so an authenticated admin can no longer exhaust worker
-memory with a multi-GB multipart. The existing `len(data) > _MAX_LOGO_BYTES` guard inside
-`_validate_logo` was left in place as harmless defense-in-depth (and because the function's
-docstring documents it as validating size); with the upstream bounded read it can never be
-reached with oversized input.
-**Verification:** ruff clean on the changed file (the only ruff findings in the backend tree
-are 3 pre-existing RUF002 ambiguous-MINUS-SIGN warnings in `kpi_service.py` docstrings, present
-at HEAD and unrelated to this change).
+**Files modified:** `backend/app/core/audit/schemas.py`
+**Commit:** `7577528`
+**Applied fix:** Removed `"auth.login_started"` and `"auth.login_failed"` from `KNOWN_EVENT_TYPES` and replaced them with `"auth.session_started"` (the real event emitted since Phase 2 per `auth/router.py:175`). Added a comment explaining the rename so the intent is clear to future editors.
 
-### WR-02: `split_part(actor, ':', 2)` cast to UUID with no guard — a malformed actor 500s the whole KPI endpoint
+---
 
-**Files modified:** `backend/app/admin/kpi_service.py`
-**Commit:** `0d840ab`
-**Applied fix:** In `dau()`, replaced the open-prefix guard `AuditLog.actor.like("user:%")`
-with the exact-form regex `AuditLog.actor.op("~")(r"^user:[0-9a-fA-F-]{36}$")`. `LIKE 'user:%'`
-matched a bare `'user:'` (the `%` matches the empty string), whose `split_part('user:', ':', 2)`
-returns `''`, and `CAST('' AS uuid)` raises `invalid input syntax for type uuid`, taking down the
-entire KPI endpoint (500) — not just the DAU card. Since `audit_log` is append-only, such a
-degenerate row could not be deleted. The regex gates the cast so only a `user:` + 36-char UUID
-actor reaches it. The `cast(...)` is unchanged (still correct for well-formed actors).
-**Verification:** ruff clean on the new lines (the new explanatory comment, including its `→`
-arrow, produced no RUF002/RUF003 finding). Logic verified by reasoning: the regex is strictly
-narrower than the previous `LIKE`, and every real `auth.session_started` actor (`user:{uuid}`)
-still matches; not run against Postgres locally (no local DB) — the change is a filter
-tightening, semantically safe.
+### IN-02: `_load_singleton` y helper de logo-url duplicados entre routers
 
-### WR-03: `_load_singleton` `LIMIT 1` without `ORDER BY` is non-deterministic
+**Files modified:** `backend/app/branding/repo.py` (new file), `backend/app/branding/admin_router.py`, `backend/app/branding/router.py`
+**Commit:** `0061372`
+**Applied fix:** Created `backend/app/branding/repo.py` exporting `load_singleton` (the ordered `SELECT … ORDER BY created_at ASC LIMIT 1` read, preserving the WR-03 fix from iteration 1) and `logo_url_for`. Both `admin_router.py` and `router.py` now import from `repo.py` — their local `_load_singleton` and `_logo_url_for` definitions were removed, along with the now-unused `from sqlalchemy import select` in `router.py`. The inline `/branding/logo` string in the PUT response's `has_logo` branch was kept (operates on a bool, not a row) with a clarifying comment.
 
-**Files modified:** `backend/app/branding/admin_router.py`, `backend/app/branding/router.py`
-**Commit:** `e4c248c`
-**Applied fix:** Added `.order_by(TenantConfig.created_at.asc())` before `.limit(1)` in BOTH
-`_load_singleton` implementations (admin router + public router). `tenant_id` is nullable, so the
-`UNIQUE(tenant_id)` constraint permits multiple `tenant_id IS NULL` rows in Postgres; without an
-ORDER BY the admin editor and the public reader could resolve different rows. Ordering by
-`created_at asc` makes both deterministically resolve the same (oldest) row. The model has a
-`created_at` column (`server_default=func.now()`), so the ordering is well-defined.
-**Verification:** ruff clean on both changed files.
-**Note (deferred, out of scope):** The review also suggested making `tenant_id NOT NULL` (or a
-partial unique index) so the `UNIQUE` actually enforces the documented single-row invariant.
-That is a schema/migration change beyond the deterministic-read fix and is left for a follow-up
-(it would touch `models.py` + a new Alembic migration; not a warning-level code fix).
+---
 
-### WR-04: Frontend loses the real HTTP status and degrades 401/403 to "invalid fields"
+### IN-03: Magic numbers en validación de logo y en el chart
 
-**Files modified:** `frontend/src/lib/branding-admin-api.ts`, `frontend/src/lib/branding-types.ts`,
-`frontend/src/components/admin/branding-form.tsx`
-**Commit:** `7299f1e`
+**Files modified:** `frontend/src/components/admin/branding-form.tsx`, `frontend/src/components/admin/volume-chart.tsx`
+**Commit:** `82b66e1`
 **Applied fix:**
-- `branding-admin-api.ts` (`"use server"`): `fetchTenantConfig` / `updateTenantConfig` now throw a
-  structured error built by a new `buildApiError(res)` helper instead of the flat
-  `Error("API error: <status>")`. For a 422 it parses FastAPI's structured `detail` (the
-  `exc.errors()` array with `loc`) via a new `parseFieldErrors()` into a `{field: message}` map
-  keyed to the actual offending form field (`brand_name` / `primary_hex` / `secondary_hex`). The
-  thrown `Error.message` is a JSON payload `{kind, status, fieldErrors}` so the structured info
-  survives the Server-Action → client boundary (Error objects are otherwise opaque across it).
-- `branding-types.ts`: added the `BrandingApiError` type and a pure `parseBrandingApiError(err)`
-  decoder (placed here because a `"use server"` file may only export async functions). It JSON-
-  decodes the thrown message and falls back to extracting a 3-digit status from the legacy string
-  form, so an unexpected error never crashes the handler.
-- `branding-form.tsx`: the submit `catch` now decodes `{status, fieldErrors}` and branches:
-  401/403 → a session-expired toast (no longer "check the fields"); 422 → maps each server field
-  error to the field that actually failed (`brand_name` gets its real message; the hex fields get
-  the friendlier `HEX_MESSAGE`) instead of blanket-setting both color fields; any other failure
-  (5xx / network) → a "server problem, try again" toast.
-**Verification:** `pnpm typecheck` passes clean across the whole frontend; the 7 existing
-`branding-form.test.tsx` behavior-contract tests still pass (success path, invalid-hex blocking,
-logo pre-checks intact). ESLint could not be run in isolation (this repo is on Next 16 — `next lint`
-was removed, and invoking the flat-config eslint directly hits a plugin-compat crash unrelated to
-this change); the TypeScript typecheck is the authoritative static gate and is green.
+- `branding-form.tsx`: Added a 3-line comment above `LOGO_MAX_BYTES = 256 * 1024` explicitly documenting that it mirrors `backend/_MAX_LOGO_BYTES = 262144` and that the frontend cannot import the Python constant directly — kept in sync by convention, backend is the gate.
+- `volume-chart.tsx`: Added a 3-line comment on the `Math.round(parseFloat(b.volume) * 100) / 100` expression explaining that the `÷100` factor rounds to 2 decimal places for Y-axis display intentionally, and that kpi-card.tsx still shows the full 4 dp.
 
-> **Requires human verification (logic/behavior):** WR-04 is a UI behavior change whose
-> correctness is only partially covered by the existing tests (they assert the success path and
-> client pre-checks, not the new 401/403/422-field-mapping branches). Two things warrant a human
-> confirming at runtime:
-> 1. The 422 field-mapping and 401/403 session-toast branches behave as intended against a live
->    backend (e.g. submit an over-long `brand_name`, or an expired session).
-> 2. The cross-boundary error propagation: Next.js scrubs **uncaught** Server-Action error
->    messages to an opaque digest in **production** builds. In dev the JSON message passes through
->    (and the tests mock the action, so they're unaffected). If production builds turn out to
->    strip the message, the decoder degrades gracefully to `status: null` → the generic
->    "server problem" toast (no worse than before, and never a misleading per-field error). A
->    fully production-robust alternative is to change the action to *return* a discriminated-union
->    result rather than throw — deliberately not done here because it would change the action's
->    return contract and break the existing "resolves → success" test assumptions. Flagging for a
->    human to decide whether the dev-correct + prod-graceful-degradation behavior is acceptable, or
->    whether to follow up with the return-result refactor.
+---
+
+### IN-04: SVG servido sin headers de defensa en profundidad
+
+**Files modified:** `backend/app/branding/router.py`
+**Commit:** `14d4dbf`
+**Applied fix:** Extended the `Response` headers in `get_branding_logo` to include `Content-Disposition: inline` and `Content-Security-Policy: default-src 'none'; sandbox` alongside the existing `X-Content-Type-Options: nosniff`. Added a comment explaining the defense-in-depth rationale: the current `<img>`-only usage is safe regardless, but these headers remove any script execution surface if the URL is ever navigated to directly or embedded via `<object>`/`<embed>`.
+
+---
+
+### IN-05: `formatMoney("")` produce `$0.0000` silenciosamente
+
+**Files modified:** `frontend/src/components/admin/kpi-card.tsx`
+**Commit:** `ce3dcab`
+**Applied fix:** Added an early guard in `formatMoney` that returns `"$—"` (em-dash placeholder) when the trimmed input is empty or does not match a valid signed decimal number (`/^[+-]?\d+(\.\d+)?$/`). A real `"0"` from the backend still passes the guard and renders as `"$0.0000"` per UI-SPEC A-ZERO. The docblock was updated to document the guard and the distinction from the real-zero case.
+
+---
 
 ## Skipped Issues
 
-None — all four in-scope warnings were fixed.
+None — all five in-scope Info findings were fixed.
 
-## Out-of-scope (not attempted)
+## Reference: Iteration 1 (WR-01..WR-04, scope=critical_warning)
 
-The five Info findings (IN-01 stale `auth.login_*` event literal, IN-02 `_load_singleton`/logo-url
-duplication, IN-03 magic numbers, IN-04 SVG CSP defense-in-depth, IN-05 `formatMoney` non-numeric
-guard) are below the `critical_warning` fix scope and were intentionally left untouched.
+Iteration 1 fixed all four warnings. See git log for commits `06d08f5` (WR-01), `0d840ab` (WR-02), `e4c248c` (WR-03), `7299f1e` (WR-04).
 
 ---
 
 _Fixed: 2026-06-01_
 _Fixer: Claude (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
