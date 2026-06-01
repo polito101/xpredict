@@ -28,9 +28,20 @@ import type { KpiResponse } from "@/lib/kpi-types";
  * prefixes "$". Pure string manipulation; no `parseFloat`/`Number()` (the
  * stored value stays a string). A leading "+" is dropped; a leading "-" is
  * preserved as "-$x".
+ *
+ * Guard (IN-05): empty or non-numeric input (e.g. the backend sends null/""
+ * on a schema change) returns "$—" instead of the misleading "$0.0000" or
+ * "$abc.0000". A real "0" from the backend still renders as "$0.0000" per
+ * UI-SPEC A-ZERO — a zero is meaningful and must never be an em-dash.
  */
 export function formatMoney(raw: string): string {
   const trimmed = raw.trim();
+  // Reject empty strings and values that are not a valid signed decimal number.
+  // A valid money string is an optional sign followed by digits, optionally
+  // with a decimal point and more digits — nothing else (no letters, no spaces).
+  if (trimmed === "" || !/^[+-]?\d+(\.\d+)?$/.test(trimmed)) {
+    return "$—"; // em-dash placeholder: "$—"
+  }
   const negative = trimmed.startsWith("-");
   const unsigned = trimmed.replace(/^[+-]/, "");
   const [intPart, fracPartRaw = ""] = unsigned.split(".");
