@@ -65,7 +65,10 @@ export function VolumeChart({ buckets }: { buckets: VolumeBucket[] }) {
             <AreaChart
               data={buckets.map((b) => ({
                 day: b.day,
-                // string -> display number only (money-as-string); never stored
+                // string -> display number only (money-as-string); never stored.
+                // Rounds to 2 decimal places for Y-axis display (÷100 = 2 dp).
+                // The wire value has 4 dp; the axis uses 2 dp intentionally for
+                // readability — kpi-card.tsx still shows full 4 dp in the cards.
                 volume: Math.round(parseFloat(b.volume) * 100) / 100,
               }))}
             >

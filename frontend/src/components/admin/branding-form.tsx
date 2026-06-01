@@ -54,6 +54,9 @@ const HEX_MESSAGE = "Enter a valid hex color, e.g. #4F46E5.";
 
 // Logo client pre-check constants (UI-SPEC A-LOGO — drives the helper + error
 // copy). The backend (Plan 10-01) is authoritative: 256 KB cap + allowlist.
+// LOGO_MAX_BYTES mirrors backend _MAX_LOGO_BYTES = 262144 (256 * 1024).
+// The frontend cannot import the Python constant directly, so this is kept
+// in sync by convention — the backend is the gate and re-validates on upload.
 const LOGO_MAX_BYTES = 256 * 1024;
 const LOGO_ALLOWED_TYPES = [
   "image/png",
