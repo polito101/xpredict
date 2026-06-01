@@ -28,7 +28,14 @@ branding_router = APIRouter(tags=["branding"])
 
 
 async def _load_singleton(session: AsyncSession) -> TenantConfig | None:
-    return (await session.execute(select(TenantConfig).limit(1))).scalar_one_or_none()
+    # Ordered by created_at so the public reader resolves the SAME row the admin
+    # editor does even if the single-row invariant is ever violated (tenant_id is
+    # nullable → UNIQUE(tenant_id) permits multiple NULL rows in Postgres — WR-03).
+    return (
+        await session.execute(
+            select(TenantConfig).order_by(TenantConfig.created_at.asc()).limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 @branding_router.get("/branding/current", response_model=BrandingPublic)

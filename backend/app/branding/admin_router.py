@@ -58,8 +58,19 @@ def _logo_url_for(row: TenantConfig) -> str | None:
 
 
 async def _load_singleton(session: AsyncSession) -> TenantConfig | None:
-    """Load the single tenant_config row (or None on a fresh, unseeded DB)."""
-    return (await session.execute(select(TenantConfig).limit(1))).scalar_one_or_none()
+    """Load the single tenant_config row (or None on a fresh, unseeded DB).
+
+    Ordered by ``created_at`` so the read is deterministic even if the
+    single-row invariant is ever violated (``tenant_id`` is nullable, so
+    ``UNIQUE(tenant_id)`` permits multiple ``tenant_id IS NULL`` rows in
+    Postgres — WR-03). The admin editor and the public reader then always
+    resolve the SAME row.
+    """
+    return (
+        await session.execute(
+            select(TenantConfig).order_by(TenantConfig.created_at.asc()).limit(1)
+        )
+    ).scalar_one_or_none()
 
 
 def _validate_logo(content_type: str | None, data: bytes) -> str:
