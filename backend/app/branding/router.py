@@ -59,7 +59,16 @@ async def get_branding_logo(
     return Response(
         content=row.logo_bytes,
         media_type=row.logo_content_type or "application/octet-stream",
-        headers={"X-Content-Type-Options": "nosniff"},
+        headers={
+            "X-Content-Type-Options": "nosniff",
+            # Defense-in-depth (IN-04): prevent a hypothetical future
+            # <object>/<embed> mis-use from executing script in an SVG.
+            # An SVG served via <img> cannot run script regardless, but if
+            # the URL is ever navigated to directly or embedded, the CSP
+            # sandbox + inline disposition remove any script execution surface.
+            "Content-Disposition": "inline",
+            "Content-Security-Policy": "default-src 'none'; sandbox",
+        },
     )
 
 
