@@ -156,7 +156,15 @@ async def update_tenant_config(
     logo_bytes: bytes | None = None
     logo_content_type: str | None = None
     if logo is not None:
-        data = await logo.read()
+        # Hard size cap BEFORE buffering the whole upload (WR-01 / DoS): read at
+        # most one byte past the cap and reject if the body exceeds it, so a
+        # multi-GB multipart can never be buffered entirely into worker memory.
+        data = await logo.read(_MAX_LOGO_BYTES + 1)
+        if len(data) > _MAX_LOGO_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Logo must be 256 KB or smaller.",
+            )
         if data:  # an empty file part means "no logo provided" — ignore it
             logo_content_type = _validate_logo(logo.content_type, data)
             logo_bytes = data
