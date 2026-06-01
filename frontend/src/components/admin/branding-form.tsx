@@ -43,7 +43,10 @@ import {
 } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
 import { updateTenantConfig } from "@/lib/branding-admin-api";
-import type { TenantConfigRead } from "@/lib/branding-types";
+import {
+  parseBrandingApiError,
+  type TenantConfigRead,
+} from "@/lib/branding-types";
 
 // Server-mirrored hex allowlist (D-09). UX-only — the server re-validates.
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -197,18 +200,36 @@ export function BrandingForm({ initial }: { initial: TenantConfigRead }) {
         "Branding updated. Players see it on their next page load.",
       );
     } catch (err) {
-      // The server is authoritative (D-09). A 422 means a field-level
-      // validation rejection — surface it inline on the hex fields (the only
-      // server field-level 422 for this endpoint). Everything else → toast.
-      const status = err instanceof Error ? err.message : "";
-      if (status.includes("422")) {
-        form.setError("primary_hex", { type: "server", message: HEX_MESSAGE });
-        form.setError("secondary_hex", {
-          type: "server",
-          message: HEX_MESSAGE,
-        });
+      // The server is authoritative (D-09). Decode the real backend status +
+      // structured field errors (WR-04) instead of degrading every failure to
+      // "invalid fields".
+      const { status, fieldErrors } = parseBrandingApiError(err);
+
+      if (status === 401 || status === 403) {
+        // Session expired / not an admin — this is NOT a field problem.
+        toast.error("Your session expired. Please sign in again.");
+      } else if (status === 422) {
+        // Field-level validation rejection — map each server error to the
+        // field that actually failed (brand_name vs a hex), not blanket onto
+        // the colors. The server message for a hex mismatch is generic, so we
+        // surface the friendlier HEX_MESSAGE on the color fields.
+        const entries = Object.entries(fieldErrors);
+        if (entries.length > 0) {
+          for (const [field, message] of entries) {
+            if (field === "primary_hex" || field === "secondary_hex") {
+              form.setError(field, { type: "server", message: HEX_MESSAGE });
+            } else if (field === "brand_name") {
+              form.setError("brand_name", { type: "server", message });
+            }
+          }
+        } else {
+          // 422 with no recognizable field loc — surface a generic message
+          // rather than blaming a specific (possibly valid) field.
+          toast.error("Couldn't save branding. Check the fields and try again.");
+        }
       } else {
-        toast.error("Couldn't save branding. Check the fields and try again.");
+        // 5xx / network / unknown — a server-side problem, not the user's input.
+        toast.error("Couldn't save branding. Please try again in a moment.");
       }
     } finally {
       setSubmitting(false);

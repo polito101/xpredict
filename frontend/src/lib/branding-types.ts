@@ -34,3 +34,49 @@ export interface BrandingUpdateInput {
   /** Optional new logo file; omitted = no logo change. */
   logo?: File;
 }
+
+/**
+ * The decoded shape of a non-2xx thrown by the branding Server Actions
+ * (`branding-admin-api.ts`). `status` is the real backend HTTP status;
+ * `fieldErrors` maps a form field (`brand_name` | `primary_hex` |
+ * `secondary_hex`) to its server validation message for a 422 (WR-04).
+ */
+export interface BrandingApiError {
+  status: number | null;
+  fieldErrors: Record<string, string>;
+}
+
+/**
+ * Decode a thrown branding error back into its `{status, fieldErrors}` shape.
+ *
+ * The Server Action throws an Error whose `message` is JSON
+ * (`{kind:"branding_api_error", status, fieldErrors}`). This pure helper lives
+ * here (not in the `"use server"` file, which may only export async functions)
+ * so the client form can recover the structured info. Falls back to parsing the
+ * legacy `"API error: <status>"` string, then to a null/empty result, so an
+ * unexpected error never crashes the handler.
+ */
+export function parseBrandingApiError(err: unknown): BrandingApiError {
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  try {
+    const parsed = JSON.parse(message) as Partial<BrandingApiError> & {
+      kind?: string;
+    };
+    if (parsed && parsed.kind === "branding_api_error") {
+      return {
+        status: typeof parsed.status === "number" ? parsed.status : null,
+        fieldErrors:
+          parsed.fieldErrors && typeof parsed.fieldErrors === "object"
+            ? parsed.fieldErrors
+            : {},
+      };
+    }
+  } catch {
+    // Not JSON — fall through to the legacy string form.
+  }
+  const legacy = /(\d{3})/.exec(message);
+  return {
+    status: legacy ? Number(legacy[1]) : null,
+    fieldErrors: {},
+  };
+}
