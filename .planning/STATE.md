@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-06-02T12:56:46Z"
-last_activity: 2026-06-02 -- Phase 11 plan 11-01 complete (prod-migration-dry-run CI, SC#3)
+last_updated: "2026-06-02T13:15:00Z"
+last_activity: 2026-06-02 -- Phase 11 plan 11-02 complete (security-scan CI: bandit + pip-audit + pnpm audit + ZAP baseline, HIGH-only, SC#4)
 progress:
   total_phases: 11
   completed_phases: 8
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 11 (Hardening and Operator-Demo Gate) — EXECUTING
-Plan: 2 of 6 (11-01 complete)
+Plan: 3 of 6 (11-01, 11-02 complete)
 Status: Executing Phase 11
-Last activity: 2026-06-02 -- Phase 11 plan 11-01 complete (prod-migration-dry-run CI, SC#3)
+Last activity: 2026-06-02 -- Phase 11 plan 11-02 complete (security-scan CI, SC#4)
 
 Progress: [█████████░] 92%
 
@@ -82,6 +82,7 @@ Progress: [█████████░] 92%
 | Phase 10 P10-05 | 4min | 3 tasks | 5 files |
 | Phase 10 P04 | ~6 min | 3 tasks | 11 files |
 | Phase 11 P11-01 | ~4 min | 2 tasks | 2 files |
+| Phase 11 P11-02 | ~18 min | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,7 @@ Recent decisions affecting current work:
 - [Phase ?]: House P&L rendered as ONE KpiCard (HousePnlCard) showing Today + All-time, color-by-sign from string — keeps the dashboard grid at five cards (10-04)
 - [Phase ?]: VolumeChart stroke/fill = var(--brand-primary, #059669) so the chart re-skins live with operator branding; emerald fallback; react-is pnpm.overrides pin untouched (10-04)
 - [Phase ?]: sessionStorage admin_default_route flag is a UX hint only — written, never read by any auth/redirect path; landing stays adminLoginAction existing redirect to /admin (10-04)
+- [Phase 11]: 2026-06-02 (Plan 11-02): SC#4 security-scan gate shipped. NEW `.github/workflows/security-scan.yml` with FOUR independent HIGH-only scanner jobs — bandit (`uv run bandit -r app/ --severity-level high`, 0 HIGH on backend/app verified locally), pip-audit (backend dependency CVEs), pnpm-audit (`pnpm audit --audit-level high`), zap-baseline (`zaproxy/action-baseline@v0.14.0` against the booted API, `target http://localhost:8000`, `rules_file_name .zap/rules.tsv`, `allow_issue_writing false`, `fail_action true`, ephemeral staging `.env` never logged, NO `services:` block per Pitfall 4). `bandit==1.9.4` + `pip-audit==2.10.0` added to `backend/pyproject.toml [dependency-groups] dev` ONLY (NOT runtime); `uv.lock` delta additive (239 ins, 0 del — no runtime churn); committed together so `backend-ci` frozen sync stays consistent (constraint 5). `.zap/rules.tsv` = 20 TAB-separated `IGNORE` rows suppressing JSON-API informational passive alerts + documents `/bets/*` authenticated-DAST v2 deferral (Pitfall 3/A4). **Task 1 (package-legitimacy human-verify, `[ASSUMED]` because slopcheck was unavailable) APPROVED BY OPERATOR (Pol) with confirmed pins before any install.** DEVIATION (Rule 3, plan-anticipated): pip-audit has no severity flag and a live audit surfaced 4 known non-HIGH transitives (starlette x3 via fastapi, pytest x1 dev-only) whose fixes are outside the pins — suppressed via `--ignore-vuln` (PYSEC-2026-161, CVE-2025-54121, CVE-2025-62727, CVE-2025-71176) so the gate catches new CVEs without a day-one red (constraint 4 + constraint 1); verified `No known vulnerabilities found, 4 ignored` exit 0. The three existing CI workflows byte-identical (constraint 2); backend tests/wallet suite untouched + fully separate from PR #16 (constraint 3). YAML validity verified via the backend uv venv's bundled PyYAML (no install, RULE 3 exclusion). 3 atomic commits (chore `b33dd72`, feat `d5b7634`, feat `6dfd049`). SC#4 of 6.
 - [Phase 11]: 2026-06-02 (Plan 11-01): SC#3 prod-migration-dry-run gate shipped. `bin/check_no_dev_config.sh` (90-line bash, mirrors bin/dev) targets THIS codebase's config shape — `ENVIRONMENT=dev` + hardcoded `localhost`/`127.0.0.1` in `backend/app`+`frontend/src` only (the app has NO `DEBUG` flag). Pitfall-1 allow-list: compose healthchecks / `.env.example` / tests / `.zap` / docs are structurally out of scan scope (grep `-r` rooted at the two app dirs). The clean tree already carries intentional `localhost` (the `process.env.X || "http://localhost:8000"` dev-fallback idiom across Server Components + lib helpers, the `FRONTEND_BASE_URL="http://localhost:3000"` config default, the `redis://localhost:6379/0` docstring) — so localhost is filtered through a 4-class `grep -vE` allow-list (||-fallback, multi-line continuation, comment/docstring incl. RST ``..``, typed `NAME:<type>="..."` default) per the plan's NOTE FOR EXECUTOR; a NEW bare `host="localhost"` still fails (verified clean→0, injected→1). `ENVIRONMENT=dev` rule runs across both roots with no allow-list (zero legit occurrences; config.py's typed annotation default is not matched). `.github/workflows/prod-migration-dry-run.yml` mirrors backend-ci.yml: `docker compose up -d --wait` (8 healthchecks) → `uv run alembic upgrade head` → reused Phase-5 `test_phase5_e2e.py` under `-e ENVIRONMENT=staging` (compose `x-backend-env` anchor hardcodes `ENVIRONMENT: dev`, so staging is applied per-exec — functional bet→settle path is load-bearing) → guard → always-`docker compose down -v`. Ephemeral staging `.env` heredoc, contents never echoed (T-11-01-01), gitignored. NO `services:` block (Pitfall 4 — compose owns Postgres/Redis). ZERO package installs (YAML-validity verified through the backend uv venv's bundled PyYAML 6.0.3, honoring the RULE 3 install exclusion), NO migration, NO app-code change; backend-ci/frontend-ci/security workflows byte-identical (constraint 4); backend tests untouched (constraint 3). 2 atomic commits (feat `1e1a39d`, ci `d244962`). PLT-07 row touched; SC#3 of 6.
 
 ### Pending Todos
@@ -159,6 +161,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-02T12:56:46Z
-Stopped at: Phase 11 plan 11-01 complete (prod-migration-dry-run CI / SC#3; commits 1e1a39d + d244962 on gsd/phase-11-hardening-operator-demo-gate). Next: plans 11-02..11-06 (security-scan, Sentry runbook, regulatory scaffold, responsive QA, Looks-Done audit).
+Last session: 2026-06-02T13:15:00Z
+Stopped at: Phase 11 plan 11-02 complete (security-scan CI / SC#4; commits b33dd72 + d5b7634 + 6dfd049 on gsd/phase-11-hardening-operator-demo-gate; Task 1 package-legitimacy gate approved by operator). Next: plans 11-03..11-06 (Sentry runbook, regulatory scaffold, responsive QA, Looks-Done audit).
 Resume file: None
