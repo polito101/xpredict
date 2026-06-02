@@ -28,6 +28,12 @@ jobs:
   dry-run:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Compose bind-mounts backend/ and the in-container `uv run` (migrations) creates a
+    # ROOT-owned backend/.venv on the host. Point the RUNNER's uv at a SEPARATE venv so
+    # its `uv sync` / `uv run pytest` never collide with that root-owned dir (Permission
+    # denied). Harmless to the in-container uv (compose exec uses its own container env).
+    env:
+      UV_PROJECT_ENVIRONMENT: /tmp/dryrun-venv
     steps:
       - name: Checkout
         uses: actions/checkout@v4
