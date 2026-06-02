@@ -322,7 +322,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 1** *(independent workstreams — no file overlap, fully parallel)*
 
-- [ ] 11-01-PLAN.md — prod-migration-dry-run CI: staging-style boot + reused Phase-5 bet→settle E2E + check_no_dev_config guard (SC#3) [W1]
+- [x] 11-01-PLAN.md — prod-migration-dry-run CI: staging-style boot + reused Phase-5 bet→settle E2E + check_no_dev_config guard (SC#3) [W1] — **shipped 2026-06-02, ~4 min, 2 atomic commits (feat guard `1e1a39d` + ci workflow `d244962`); guard clean→0 / injected→1 verified, workflow valid YAML, 3 existing CI files untouched**
 - [ ] 11-02-PLAN.md — security-scan CI: bandit + pip-audit + pnpm audit + OWASP ZAP baseline, HIGH-only, installs gated by human-verify (SC#4) [W1]
 - [ ] 11-03-PLAN.md — Sentry alert runbook: 4 critical-scenario rules + synthetic triggers + manual-verify sign-off (SC#5, closes PLT-08 deferral) [W1]
 - [ ] 11-04-PLAN.md — Regulatory scaffold: docs/regulatory.md + ToS placeholder + operator-agreement stub + player/admin footer links (SC#6) [W1]
@@ -357,7 +357,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete    | 2026-05-30 |
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
-| 11. Hardening & Operator-Demo Gate | 0/6 | Planned     | - |
+| 11. Hardening & Operator-Demo Gate | 1/6 | In progress | - |
 
 ## Coverage
 
