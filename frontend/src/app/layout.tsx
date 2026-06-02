@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandLogo } from "@/components/brand-logo";
@@ -58,6 +59,25 @@ export default async function RootLayout({
           </div>
         </header>
         {children}
+        <footer className="border-t border-zinc-200 bg-white">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-4 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <nav className="flex flex-wrap gap-x-4 gap-y-1">
+              <Link
+                href="https://github.com/polito101/xpredict/blob/main/docs/terms-of-service.md"
+                className="hover:text-zinc-700"
+              >
+                Terms of Service
+              </Link>
+              <Link
+                href="https://github.com/polito101/xpredict/blob/main/docs/regulatory.md"
+                className="hover:text-zinc-700"
+              >
+                Token policy
+              </Link>
+            </nav>
+            <p>Play-money tokens have no monetary value.</p>
+          </div>
+        </footer>
         <Toaster />
       </body>
     </html>

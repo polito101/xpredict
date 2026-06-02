@@ -39,6 +39,25 @@ export default function AdminLayout({
         </div>
       </nav>
       <main className="flex-1">{children}</main>
+      <footer className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-4 text-xs text-zinc-500 dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+          <nav className="flex flex-wrap gap-x-4 gap-y-1">
+            <Link
+              href="https://github.com/polito101/xpredict/blob/main/docs/terms-of-service.md"
+              className="hover:text-zinc-700 dark:hover:text-zinc-200"
+            >
+              Terms of Service
+            </Link>
+            <Link
+              href="https://github.com/polito101/xpredict/blob/main/docs/regulatory.md"
+              className="hover:text-zinc-700 dark:hover:text-zinc-200"
+            >
+              Token policy
+            </Link>
+          </nav>
+          <p>Play-money tokens have no monetary value.</p>
+        </div>
+      </footer>
     </div>
   );
 }
