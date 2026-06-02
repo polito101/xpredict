@@ -6,7 +6,7 @@ task's changes). Tracked here for a follow-up.
 
 ---
 
-## DEF-03-01 — Shared session-scoped transaction poisoning across test files (full-suite only)
+## DEF-03-01 — Shared session-scoped transaction poisoning across test files (full-suite only) — ✅ RESOLVED 2026-06-02
 
 - **Discovered during:** Plan 03-06 (reconciliation) — full-suite verification run
   (`pytest -q`, unit + integration together).
@@ -46,3 +46,26 @@ task's changes). Tracked here for a follow-up.
 - **Operational note:** GSD's documented sampling strategy runs per-file /
   per-wave / `-m "not integration"` gates — all of which are GREEN. The
   whole-suite-in-one-process invocation is the only place this surfaces.
+
+### ✅ Resolution (2026-06-02)
+
+Two distinct isolation bugs were conflated under DEF-03-01; both are now fixed:
+
+1. **Session-scoped tx poisoning (the original defect above)** — fixed by
+   `fae0d53`: `async_session` in `tests/conftest.py` is now FUNCTION-scoped (each
+   test gets its own connection + rolled-back transaction), so an aborted tx in
+   `test_audit_immutability.py` can no longer cascade `InFailedSQLTransactionError`
+   into later tests. (This is the "function-scoped savepoint isolation" alternative
+   the recommended-fix listed.)
+2. **`test_50_concurrent_overdraft` residual** (mis-attributed to DEF-03-01 in
+   PHASES.md / LOOKS-DONE-CHECKLIST) — this test was never a victim of the shared
+   session; it opens its OWN committed sessions. It failed in full-suite CI on a
+   *different* isolation flaw: it asserted `SUM(credit-debit)` over the WHOLE
+   `entries` table == 0, coupling it to rows committed by other committed-session
+   tests (bets/KPI/signup-bonus). CI showed `global_entry_sum=175.0000` while the
+   wallet's own ledger was perfect (drift 0, 25 ok / 25 rejected, balance exact).
+   Fixed by `f8a8859`: the conservation sum is now scoped to the test's own
+   {genesis, wallet, counterparty} triad (nets to 0 by construction).
+
+Full `pytest tests/` is now order-independent; **backend-ci is green on `main`**
+(run 26834844024). The production `WalletService.transfer` was never at fault.

@@ -71,9 +71,9 @@ State advanced since Agustin's note (Phase 9 merged via PR #13; Phase 8 opened a
 
 **Remaining GSD steps before the PR (no `VERIFICATION.md`/`SECURITY.md` yet):** `/gsd-verify-work 3` → `/gsd-code-review` → `/gsd-secure-phase 3`, then mark this row `👀 In review` + PR# and `/gsd-ship` (PR via GitHub MCP `create_pull_request`, repo-rooted session).
 
-**Two PRE-EXISTING defects flagged (NOT Phase 3 regressions, intentionally NOT fixed — out of scope, recommend a separate cleanup task):**
-- **DEF-03-01** — `backend/tests/core/test_audit_immutability.py` (Phase 1) poisons the session-scoped transaction without savepoint isolation, so running the *entire* backend integration suite in one process cascade-fails the wallet tests. Per-file / per-directory / non-integration runs are all green.
-- **DEF-FE-01** — `frontend/src/__tests__/middleware.test.ts` (Phase 2, commit `8a9c186`) imports `../middleware`, which does not exist in the source tree → 1 failing suite (0 tests).
+**Two PRE-EXISTING defects flagged (NOT Phase 3 regressions):**
+- **DEF-03-01** — ✅ **RESOLVED 2026-06-02.** Two distinct bugs were conflated here: (1) the session-scoped tx poisoning (`test_audit_immutability.py` aborting the shared transaction) — fixed by `fae0d53`, `async_session` is now function-scoped; (2) the residual `test_50_concurrent_overdraft` failure — actually an unscoped whole-table `SUM(credit-debit)` assertion (NOT the poisoning; this test uses its own committed sessions), fixed by `f8a8859` by scoping the sum to the test's own accounts. Full `pytest tests/` is now order-independent; backend-ci green on `main`.
+- **DEF-FE-01** — *(still open)* `frontend/src/__tests__/middleware.test.ts` (Phase 2, commit `8a9c186`) imports `../middleware`, which does not exist in the source tree → 1 failing suite (0 tests).
 
 ### Phase 4 & 5 — parallel ownership & integration handshake (2026-05-27)
 
