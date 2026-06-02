@@ -16,7 +16,7 @@
 | 8 | Admin CRM | Pol | ✅ Done | `gsd/phase-08-admin-crm-user-management-audit-log-viewer` | [#14](https://github.com/polito101/xpredict/pull/14) |
 | 9 | User App UX Polish & Real-Time | Agustin | ✅ Done | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | [#13](https://github.com/polito101/xpredict/pull/13) |
 | 10 | Admin KPI Dashboard & Branding | Pol | 👀 In review | `gsd/phase-10-admin-kpi-dashboard-configurable-branding` | [#15](https://github.com/polito101/xpredict/pull/15) |
-| 11 | Hardening & Operator-Demo Gate | — | ⬜ Not started | — | — |
+| 11 | Hardening & Operator-Demo Gate | Agustin | 🔄 In progress | `gsd/phase-11-hardening-operator-demo-gate` | — |
 
 ## Status legend
 
