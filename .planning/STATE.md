@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 ## Current Position
 
-Phase: 10 (admin-kpi-dashboard-configurable-branding) — EXECUTING
+Phase: 10 (admin-kpi-dashboard-configurable-branding) — SHIPPED (PR #15, in review)
 Plan: 5 of 5
-Status: Phase complete — ready for verification
-Last activity: 2026-05-31
+Status: Phase 10 shipped — PR #15 (verify passed w/ 4 human checks deferred; awaiting merge)
+Last activity: 2026-06-02
 
 Progress: [█████████░] 91%
 
@@ -158,5 +158,5 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-05-31T08:48:36.578Z
-Stopped at: Completed 10-05-PLAN.md
+Stopped at: Phase 10 shipped — PR #15 open, awaiting Pol's merge. Next: merge #15, then Phase 11 (Hardening & Operator-Demo Gate).
 Resume file: None
