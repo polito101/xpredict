@@ -98,7 +98,7 @@ export default async function WalletPage() {
   const { balance, currency, transactions } = await loadWallet();
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-semibold tracking-tight">Wallet</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -141,22 +141,24 @@ export default async function WalletPage() {
             {transactions.map((tx, i) => (
               <li
                 key={`${tx.created_at}-${i}`}
-                className="flex items-center justify-between py-3"
+                className="flex items-center justify-between gap-3 py-3"
               >
-                <span className="flex flex-col">
+                <span className="flex min-w-0 flex-col">
                   <span className="text-sm font-medium capitalize">
                     {tx.kind}
                   </span>
                   {tx.reason ? (
-                    <span className="text-xs text-zinc-500">{tx.reason}</span>
+                    <span className="truncate text-xs text-zinc-500">
+                      {tx.reason}
+                    </span>
                   ) : null}
                 </span>
-                <span className="flex items-center gap-2">
+                <span className="flex shrink-0 items-center gap-2">
                   <span
                     className={
                       tx.direction === "credit"
-                        ? "text-sm font-medium text-emerald-600"
-                        : "text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                        ? "whitespace-nowrap text-sm font-medium text-emerald-600"
+                        : "whitespace-nowrap text-sm font-medium text-zinc-700 dark:text-zinc-300"
                     }
                   >
                     {tx.direction === "credit" ? "+" : "-"}

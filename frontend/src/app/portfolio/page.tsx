@@ -103,7 +103,7 @@ export default async function PortfolioPage() {
   const { open, settled } = await loadPortfolio();
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-12">
+    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
       <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-semibold tracking-tight">Portfolio</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -131,8 +131,8 @@ export default async function PortfolioPage() {
                       Potential payout {p.potential_payout} {CURRENCY}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-500">If this outcome wins</span>
+                  <CardContent className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <span className="min-w-0 text-sm text-zinc-500">If this outcome wins</span>
                     <PnL value={p.potential_pnl} />
                   </CardContent>
                 </Card>
@@ -162,8 +162,8 @@ export default async function PortfolioPage() {
                       {p.won ? "Won" : "Lost"} — payout {p.payout} {CURRENCY}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex items-center justify-between">
-                    <span className="text-sm text-zinc-500">Realized P&amp;L</span>
+                  <CardContent className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <span className="min-w-0 text-sm text-zinc-500">Realized P&amp;L</span>
                     <PnL value={p.realized_pnl} />
                   </CardContent>
                 </Card>

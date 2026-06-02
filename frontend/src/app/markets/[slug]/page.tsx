@@ -144,7 +144,7 @@ async function MarketDetailBody({ slug }: { slug: string }) {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         {/* LEFT: description + criteria + chart + activity */}
-        <div className="flex flex-col gap-8 lg:col-span-2">
+        <div className="flex min-w-0 flex-col gap-8 lg:col-span-2">
           {/* Live odds + Live/Stale indicator (updates in place from the socket) */}
           {yesOutcome && noOutcome && (
             <MarketDetailLiveOdds
