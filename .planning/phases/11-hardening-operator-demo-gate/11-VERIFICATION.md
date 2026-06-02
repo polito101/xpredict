@@ -2,12 +2,12 @@
 phase: 11-hardening-operator-demo-gate
 verified: 2026-06-02T16:10:00Z
 status: human_needed
-score: 7/7 must-haves verified (5 fully closed + 2 code/doc-complete, awaiting documented live-runtime human-verify)
+score: 7/7 must-haves verified (6 fully closed + 1 code/doc-complete, awaiting Sentry live round-trip)
 overrides_applied: 0
 re_verification:
-  previous_status: none
-  previous_score: none
-  note: "Initial verification (no prior 11-VERIFICATION.md)."
+  previous_status: human_needed
+  previous_score: "5 fully closed + 2 deferred"
+  note: "DEFERRED-2 (responsive visual QA) closed 2026-06-02 by Pol via Claude Code preview tool. All pages (home/login/register/wallet/portfolio) verified at 360/390/414/768px — zero horizontal overflow. DEFERRED-1 (Sentry alert round-trip) still pending staging DSN."
 human_verification:
   - test: "Sentry alert round-trip (SC#5, plan 11-03) — DEFERRED-1 per docs/DEFERRED-MANUAL-GATES.md"
     expected: "Define the 4 alert rules in the Sentry UI per docs/runbooks/sentry-alerts.md §3, run the 4 synthetic triggers (§4) against xpredict-staging with the real SENTRY_DSN, confirm each event + alert lands in the configured channel (Slack #general or email), and fill the §5 sign-off table."
