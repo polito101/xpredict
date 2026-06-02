@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 last_updated: "2026-06-02T13:15:00Z"
-last_activity: 2026-06-02 -- Phase 11 plan 11-02 complete (security-scan CI: bandit + pip-audit + pnpm audit + ZAP baseline, HIGH-only, SC#4)
+last_activity: 2026-06-02 -- Phase 11 plan 11-03 Task 1 done (Sentry alert runbook, SC#5); Task 2 PENDING human-verify (Sentry round-trip vs real xpredict-staging DSN)
 progress:
   total_phases: 11
   completed_phases: 8
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 11 (Hardening and Operator-Demo Gate) — EXECUTING
-Plan: 3 of 6 (11-01, 11-02 complete)
-Status: Executing Phase 11
-Last activity: 2026-06-02 -- Phase 11 plan 11-02 complete (security-scan CI, SC#4)
+Plan: 3 of 6 (11-01, 11-02 complete; 11-03 IN-PROGRESS — Task 1 done, awaiting human-verify)
+Status: Executing Phase 11 — plan 11-03 blocked on a human-verify gate (Sentry round-trip)
+Last activity: 2026-06-02 -- Phase 11 plan 11-03 Task 1 done (Sentry alert runbook docs/runbooks/sentry-alerts.md, SC#5); Task 2 PENDING human Sentry round-trip vs real xpredict-staging DSN
 
 Progress: [█████████░] 92%
 
