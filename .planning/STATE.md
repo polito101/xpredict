@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-last_updated: "2026-05-31T08:49:16.477Z"
-last_activity: 2026-05-31
+status: executing
+last_updated: "2026-06-02T12:49:57.863Z"
+last_activity: 2026-06-02 -- Phase 11 execution started
 progress:
   total_phases: 11
   completed_phases: 8
-  total_plans: 35
+  total_plans: 41
   completed_plans: 32
   percent: 73
 ---
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 10 — admin-kpi-dashboard-configurable-branding
+**Current focus:** Phase 11 — Hardening and Operator-Demo Gate
 
 ## Current Position
 
-Phase: 10 (admin-kpi-dashboard-configurable-branding) — SHIPPED (PR #15, in review)
-Plan: 5 of 5
-Status: Phase 10 shipped — PR #15 (verify passed w/ 4 human checks deferred; awaiting merge)
-Last activity: 2026-06-02
+Phase: 11 (Hardening and Operator-Demo Gate) — EXECUTING
+Plan: 1 of 6
+Status: Executing Phase 11
+Last activity: 2026-06-02 -- Phase 11 execution started
 
 Progress: [█████████░] 91%
 
