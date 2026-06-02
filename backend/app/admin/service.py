@@ -132,16 +132,12 @@ class AdminUserService:
         direction = asc if sort_order == "asc" else desc
 
         items_stmt = (
-            base.order_by(direction(sort_col))
-            .offset((page - 1) * page_size)
-            .limit(page_size)
+            base.order_by(direction(sort_col)).offset((page - 1) * page_size).limit(page_size)
         )
         rows = (await session.execute(items_stmt)).all()
 
         items = [
-            AdminUserService._user_row_to_dict(
-                user, balance=balance, last_activity=last_activity
-            )
+            AdminUserService._user_row_to_dict(user, balance=balance, last_activity=last_activity)
             for (user, balance, last_activity) in rows
         ]
         return items, int(total)
@@ -254,9 +250,7 @@ class AdminUserService:
         stmt = base.order_by(User.created_at.desc()).limit(MAX_EXPORT_ROWS)
         rows = (await session.execute(stmt)).all()
         return [
-            AdminUserService._user_row_to_dict(
-                user, balance=balance, last_activity=last_activity
-            )
+            AdminUserService._user_row_to_dict(user, balance=balance, last_activity=last_activity)
             for (user, balance, last_activity) in rows
         ]
 
@@ -378,9 +372,7 @@ class AdminUserService:
     # User detail — profile + balance + counts (D-07).
     # ------------------------------------------------------------------ #
     @staticmethod
-    async def get_user_detail(
-        session: AsyncSession, user_id: UUID
-    ) -> dict[str, Any] | None:
+    async def get_user_detail(session: AsyncSession, user_id: UUID) -> dict[str, Any] | None:
         """Return the user's profile + balance + transaction/bet counts, or None."""
         user = (
             await session.execute(
@@ -406,15 +398,11 @@ class AdminUserService:
         transaction_count = 0
         if wallet_id is not None:
             balance = (
-                await session.execute(
-                    select(Account.balance).where(Account.id == wallet_id)
-                )
+                await session.execute(select(Account.balance).where(Account.id == wallet_id))
             ).scalar_one()
             transaction_count = (
                 await session.execute(
-                    select(func.count())
-                    .select_from(Entry)
-                    .where(Entry.account_id == wallet_id)
+                    select(func.count()).select_from(Entry).where(Entry.account_id == wallet_id)
                 )
             ).scalar_one()
 

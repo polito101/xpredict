@@ -282,9 +282,7 @@ async def test_export_users_status_filter_only_banned(engine: AsyncEngine) -> No
     try:
         async with await client() as c:
             token = await get_admin_token(c)
-            resp = await c.get(
-                "/api/v1/admin/export/users?status=banned", headers=auth(token)
-            )
+            resp = await c.get("/api/v1/admin/export/users?status=banned", headers=auth(token))
         assert resp.status_code == 200, resp.text
         rows = list(csv.DictReader(io.StringIO(resp.text)))
         emails = {r["email"] for r in rows}
@@ -357,9 +355,7 @@ async def test_export_bets_returns_csv(engine: AsyncEngine) -> None:
     try:
         async with await client() as c:
             token = await get_admin_token(c)
-            resp = await c.get(
-                f"/api/v1/admin/export/bets?user_id={uid}", headers=auth(token)
-            )
+            resp = await c.get(f"/api/v1/admin/export/bets?user_id={uid}", headers=auth(token))
         assert resp.status_code == 200, resp.text
         assert resp.headers["content-type"].startswith("text/csv")
         assert "bets.csv" in resp.headers["content-disposition"]

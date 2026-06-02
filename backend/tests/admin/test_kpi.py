@@ -4,7 +4,7 @@ Read-only aggregates over the EXISTING ledger / bets / markets / audit tables, s
 ``GET /api/v1/admin/dashboard/kpis?window=`` (admin-Bearer-gated). The two highest-value
 sentinels guard the two CORRECTED formulas (10-RESEARCH §Flagged Unknowns 1 & 2):
 
-  - **House P&L** is the kind-filtered net flow ``settle_loss − settle_winnings`` (NOT a
+  - **House P&L** is the kind-filtered net flow ``settle_loss - settle_winnings`` (NOT a
     non-existent ``house_expense`` account), with ``reverse_*`` netted — a reversal returns
     P&L to its pre-settlement value. Driven through a REAL ``SettlementService.resolve_market``
     so the assertion is against actual ledger entries, never hand-posted rows.
@@ -30,12 +30,10 @@ import pytest
 import pytest_asyncio
 
 from app.bets.market_port import MARKET_OPEN, MarketView, OutcomeView
-from app.bets.models import Bet
 from app.bets.service import BetService
 from app.db.session import _get_session_maker
 from app.settlement.service import SettlementService
 from app.wallet.constants import KIND_USER_WALLET, OWNER_USER, PLAY_USD
-
 from tests.admin._helpers import (
     auth,
     client,
@@ -183,7 +181,7 @@ async def _raw_kpis(window: str = "24h") -> tuple[int, str]:
 
 
 # --------------------------------------------------------------------------- #
-# House P&L (the highest-value sentinel) — net settle_loss − settle_winnings,
+# House P&L (the highest-value sentinel) — net settle_loss - settle_winnings,
 # reversal nets to zero, more-losers → positive, all-winners → negative.
 # --------------------------------------------------------------------------- #
 async def test_house_pnl(engine: "AsyncEngine") -> None:
@@ -195,7 +193,7 @@ async def test_house_pnl(engine: "AsyncEngine") -> None:
     # A more-losers market → positive house P&L:
     #   2 losers stake 60 each → +120 to house_revenue (settle_loss)
     #   1 winner stakes 40 @ 0.5 → winnings 40 paid from house_promo (settle_winnings)
-    #   net = 120 − 40 = +80.
+    #   net = 120 - 40 = +80.
     src = _StubMarketSource()
     m = src.add(_binary_market())
     yes, no = m.outcomes
@@ -264,9 +262,7 @@ async def test_dau(engine: "AsyncEngine") -> None:
 
     # Spread activity across days: a 30d-only bettor shows up in 30d, not 24h.
     old_bettor = await seed_user(engine, "kpi-dau-old@test.com", display_name="OldBettor")
-    await seed_bet(
-        engine, old_bettor, stake=Decimal("5.0000"), created_at=now - timedelta(days=10)
-    )
+    await seed_bet(engine, old_bettor, stake=Decimal("5.0000"), created_at=now - timedelta(days=10))
     _, body_24 = await _fetch_kpis("24h")
     _, body_30 = await _fetch_kpis("30d")
     # The 10-day-old bettor is in the 30d window but NOT the 24h window.
@@ -331,9 +327,7 @@ async def test_volume_24h(engine: "AsyncEngine") -> None:
     await seed_bet(engine, vol_user, stake=Decimal("12.5000"), created_at=now)
     await seed_bet(engine, vol_user, stake=Decimal("7.5000"), created_at=now)
     # A bet OUTSIDE the 24h window must NOT add to the 24h volume.
-    await seed_bet(
-        engine, vol_user, stake=Decimal("99.0000"), created_at=now - timedelta(days=2)
-    )
+    await seed_bet(engine, vol_user, stake=Decimal("99.0000"), created_at=now - timedelta(days=2))
 
     _, body1 = await _fetch_kpis("24h")
     assert Decimal(body1["volume_24h"]) - vol_before == Decimal("20.0000")
@@ -370,7 +364,9 @@ async def test_money_fields_serialize_as_strings(engine: "AsyncEngine") -> None:
     assert status == 200
     parsed = json.loads(raw)
     for field in ("volume_24h", "house_pnl_today", "house_pnl_cumulative"):
-        assert isinstance(parsed[field], str), f"{field} must be a JSON string, got {parsed[field]!r}"
+        assert isinstance(
+            parsed[field], str
+        ), f"{field} must be a JSON string, got {parsed[field]!r}"
     # The raw JSON text must quote the money values (no bare float tokens).
     assert f'"volume_24h": "{parsed["volume_24h"]}"' in raw or '"volume_24h":"' in raw
 
