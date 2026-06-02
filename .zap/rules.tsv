@@ -1,0 +1,42 @@
+# XPredict — OWASP ZAP baseline rule-action file (SC#4, Phase 11).
+#
+# Format: <ruleId>	<action>	<comment>   (TAB-separated; ZAP requires literal TABs).
+# action ∈ { WARN, IGNORE, FAIL }. Default action for any unlisted rule is WARN.
+#
+# Intent: keep the security-scan ZAP gate HIGH-only so the green CI base is not
+# broken on day one (RESEARCH Anti-Patterns / Pitfall 2). The baseline is PASSIVE
+# and UNAUTHENTICATED. It primarily exercises the public market routes and the
+# high-value unauthenticated /auth/* endpoints (/auth/login, /auth/register,
+# /auth/forgot-password). The rows below IGNORE the non-actionable informational
+# passive alerts a baseline scan always emits against a JSON API so they cannot
+# fail the build; genuine HIGH-risk findings are NOT suppressed and still gate.
+#
+# DEFERRAL (Pitfall 3 / RESEARCH A4): authenticated /bets/* DAST traversal is a
+# v2 item. /bets/* is cookie-auth-gated; an unauthenticated baseline spider sees
+# 401/403 there. We accept baseline (public + auth-endpoint) coverage now and
+# defer authenticated DAST (requires new ZAP auth-context infra, out of scope).
+#
+# This list is the INITIAL SEED — tune it against the first real scan report.
+#
+# --- Non-actionable passive informational alerts (IGNORE: never fail the build) ---
+10015	IGNORE	Re-examine Cache-control Directives (informational; JSON API)
+10019	IGNORE	Content-Type Header Missing (low/info on non-HTML responses)
+10020	IGNORE	Missing Anti-clickjacking / X-Frame-Options Header (N/A for a JSON API, no frames)
+10021	IGNORE	X-Content-Type-Options Header Missing (informational on JSON API)
+10023	IGNORE	Information Disclosure - Debug Error Messages (passive; triage HIGH separately)
+10024	IGNORE	Information Disclosure - Sensitive Information in URL (informational)
+10025	IGNORE	Information Disclosure - Sensitive Information in HTTP Referrer Header
+10027	IGNORE	Information Disclosure - Suspicious Comments (informational source-comment heuristic)
+10037	IGNORE	Server Leaks Information via X-Powered-By / Server header (low; hardening, not HIGH)
+10038	IGNORE	Content Security Policy (CSP) Header Not Set (N/A for a non-HTML JSON API)
+10049	IGNORE	Storable and Cacheable Content (informational caching heuristic)
+10050	IGNORE	Retrieved from Cache (informational)
+10054	IGNORE	Cookie Without SameSite Attribute (auth cookies set SameSite; baseline false-positive surface)
+10063	IGNORE	Permissions Policy Header Not Set (browser-policy header; N/A for a JSON API)
+10096	IGNORE	Timestamp Disclosure - Unix (informational regex match on numeric IDs/timestamps)
+10109	IGNORE	Modern Web Application (informational classification, not a vulnerability)
+10110	IGNORE	Dangerous JS Functions (informational JS heuristic)
+90005	IGNORE	Sec-Fetch-* Fetch Metadata Request Headers (informational)
+90010	IGNORE	Loosely Scoped Cookie (informational cookie-scope heuristic)
+# --- 401/403 noise on auth-gated routes the unauthenticated spider cannot enter (Pitfall 3) ---
+10105	IGNORE	Weak Authentication Method (baseline cannot authenticate; /bets/* DAST deferred to v2)
