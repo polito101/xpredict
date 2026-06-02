@@ -77,9 +77,7 @@ def _validate_logo(content_type: str | None, data: bytes) -> str:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Logo content does not match a JPEG file.",
         )
-    if declared == "image/webp" and not (
-        data[:4] == b"RIFF" and data[8:12] == b"WEBP"
-    ):
+    if declared == "image/webp" and not (data[:4] == b"RIFF" and data[8:12] == b"WEBP"):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Logo content does not match a WebP file.",

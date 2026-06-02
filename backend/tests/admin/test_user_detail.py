@@ -101,9 +101,7 @@ async def test_user_transactions_empty_without_wallet(engine: AsyncEngine) -> No
     try:
         async with await client() as c:
             token = await get_admin_token(c)
-            resp = await c.get(
-                f"/api/v1/admin/users/{uid}/transactions", headers=auth(token)
-            )
+            resp = await c.get(f"/api/v1/admin/users/{uid}/transactions", headers=auth(token))
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["total"] == 0

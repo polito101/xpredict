@@ -51,9 +51,7 @@ async def test_odds_edit_publishes_once_post_commit(engine: AsyncEngine) -> None
             )
             market_id = create_resp.json()["id"]
 
-            with patch(
-                "app.markets.router.publish_odds_change_threadsafe"
-            ) as mock_publish:
+            with patch("app.markets.router.publish_odds_change_threadsafe") as mock_publish:
                 resp = await c.patch(
                     f"/api/v1/admin/markets/{market_id}",
                     json={"odds_yes": "0.7"},
@@ -112,9 +110,7 @@ async def test_non_odds_patch_does_not_publish(engine: AsyncEngine) -> None:
             )
             market_id = create_resp.json()["id"]
 
-            with patch(
-                "app.markets.router.publish_odds_change_threadsafe"
-            ) as mock_publish:
+            with patch("app.markets.router.publish_odds_change_threadsafe") as mock_publish:
                 resp = await c.patch(
                     f"/api/v1/admin/markets/{market_id}",
                     json={"resolution_criteria": "Updated criteria only"},

@@ -66,9 +66,7 @@ async def test_audit_entry_shape_includes_payload_as_json_object(engine: AsyncEn
     try:
         async with await client() as c:
             token = await get_admin_token(c)
-            resp = await c.get(
-                f"/api/v1/admin/audit-log?event_type={marker}", headers=auth(token)
-            )
+            resp = await c.get(f"/api/v1/admin/audit-log?event_type={marker}", headers=auth(token))
         assert resp.status_code == 200, resp.text
         items = resp.json()["items"]
         assert len(items) == 1, items
@@ -93,9 +91,7 @@ async def test_audit_log_filter_by_event_type_exact(engine: AsyncEngine) -> None
     try:
         async with await client() as c:
             token = await get_admin_token(c)
-            resp = await c.get(
-                f"/api/v1/admin/audit-log?event_type={keep}", headers=auth(token)
-            )
+            resp = await c.get(f"/api/v1/admin/audit-log?event_type={keep}", headers=auth(token))
         assert resp.status_code == 200, resp.text
         types = {item["event_type"] for item in resp.json()["items"]}
         assert types == {keep}, types
@@ -113,9 +109,7 @@ async def test_audit_log_filter_by_actor_ilike(engine: AsyncEngine) -> None:
         async with await client() as c:
             token = await get_admin_token(c)
             # Substring ILIKE: search for the unique fragment.
-            resp = await c.get(
-                f"/api/v1/admin/audit-log?actor=ilike-{unique}", headers=auth(token)
-            )
+            resp = await c.get(f"/api/v1/admin/audit-log?actor=ilike-{unique}", headers=auth(token))
         assert resp.status_code == 200, resp.text
         actors = {item["actor"] for item in resp.json()["items"]}
         assert actor in actors, actors
@@ -181,9 +175,7 @@ async def test_audit_log_ordered_newest_first(engine: AsyncEngine) -> None:
     try:
         async with await client() as c:
             token = await get_admin_token(c)
-            resp = await c.get(
-                f"/api/v1/admin/audit-log?actor=order-{unique}", headers=auth(token)
-            )
+            resp = await c.get(f"/api/v1/admin/audit-log?actor=order-{unique}", headers=auth(token))
         assert resp.status_code == 200, resp.text
         ours = [i for i in resp.json()["items"] if i["actor"] == actor]
         assert len(ours) == 3, ours
@@ -224,9 +216,9 @@ async def test_audit_log_no_mutation_endpoints(engine: AsyncEngine) -> None:
             h = auth(token)
             for method in ("post", "put", "patch", "delete"):
                 resp = await getattr(c, method)("/api/v1/admin/audit-log", headers=h)
-                assert resp.status_code == 405, (
-                    f"{method.upper()} /audit-log -> {resp.status_code} (expected 405)"
-                )
+                assert (
+                    resp.status_code == 405
+                ), f"{method.upper()} /audit-log -> {resp.status_code} (expected 405)"
     finally:
         await cleanup_user(engine, ADMIN_EMAIL)
 

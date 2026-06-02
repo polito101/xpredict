@@ -24,9 +24,7 @@ async def load_singleton(session: AsyncSession) -> TenantConfig | None:
     resolve the SAME row.
     """
     return (
-        await session.execute(
-            select(TenantConfig).order_by(TenantConfig.created_at.asc()).limit(1)
-        )
+        await session.execute(select(TenantConfig).order_by(TenantConfig.created_at.asc()).limit(1))
     ).scalar_one_or_none()
 
 
