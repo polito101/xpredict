@@ -29,8 +29,10 @@ from pydantic import BaseModel, ConfigDict
 # writes; the rest are the auth / wallet / market / settlement events.
 KNOWN_EVENT_TYPES: list[str] = [
     "auth.player_registered",
-    "auth.login_started",
-    "auth.login_failed",
+    # "auth.login_started" / "auth.login_failed" were the Phase 1 names. The real
+    # event emitted since Phase 2 is "auth.session_started" (auth/router.py:175).
+    # The stale names are removed so the dropdown only lists types that actually exist.
+    "auth.session_started",
     "auth.admin_login_started",
     "auth.admin_login_failed",
     "auth.session_revoked",
@@ -47,6 +49,7 @@ KNOWN_EVENT_TYPES: list[str] = [
     "settlement.reversed",
     "admin.user_banned",
     "admin.user_unbanned",
+    "admin.branding_updated",
 ]
 
 

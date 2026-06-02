@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-last_updated: "2026-05-30T12:33:09.000Z"
-last_activity: 2026-05-30
+status: verifying
+last_updated: "2026-05-31T08:49:16.477Z"
+last_activity: 2026-05-31
 progress:
   total_phases: 11
-  completed_phases: 9
-  total_plans: 30
-  completed_plans: 30
-  percent: 82
-stopped_at: "Phases 1-9 merged to main (8 via PR #14, 9 via PR #13); tracker drift reconciled 2026-05-30 — ready to plan Phase 10"
+  completed_phases: 8
+  total_plans: 35
+  completed_plans: 32
+  percent: 73
 ---
 
 # Project State
@@ -21,16 +20,16 @@ stopped_at: "Phases 1-9 merged to main (8 via PR #14, 9 via PR #13); tracker dri
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 10 — Admin KPI Dashboard & Configurable Branding (next unstarted phase)
+**Current focus:** Phase 10 — admin-kpi-dashboard-configurable-branding
 
 ## Current Position
 
-Phase: 10 (Admin KPI Dashboard & Configurable Branding) — Not started
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-05-30
+Phase: 10 (admin-kpi-dashboard-configurable-branding) — SHIPPED (PR #15, in review)
+Plan: 5 of 5
+Status: Phase 10 shipped — PR #15 (verify passed w/ 4 human checks deferred; awaiting merge)
+Last activity: 2026-06-02
 
-Progress: [█████████░] 82%
+Progress: [█████████░] 91%
 
 ## Performance Metrics
 
@@ -77,6 +76,11 @@ Progress: [█████████░] 82%
 | Phase 09-user-app-ux-polish-market-detail-real-time P02 | 6min | 2 tasks | 5 files |
 | Phase 09-user-app-ux-polish-market-detail-real-time P03 | ~33min | 3 tasks | 12 files |
 | Phase 09-user-app-ux-polish-market-detail-real-time P04 | 8min | 2 tasks | 11 files |
+| Phase 10 P10-01 | 6 min | 3 tasks | 12 files |
+| Phase 10 P10-02 | 16 min | 3 tasks | 6 files |
+| Phase 10 P10-03 | ~14 min | 3 tasks | 5 files |
+| Phase 10 P10-05 | 4min | 3 tasks | 5 files |
+| Phase 10 P04 | ~6 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -122,6 +126,12 @@ Recent decisions affecting current work:
 - [Phase ?]: 2026-05-29 (Plan 09-03): Frontend real-time slice + Recharts foundation (MKT-03/04) shipped — the single highest-risk phase item (Recharts blank on React 19) is NEUTRALIZED: react-is pinned to the exact installed React (19.2.6) + a pnpm.overrides.react-is="$react-is" block collapses ALL transitive react-is (was 16.13.1 + 17.0.2 in dev tooling) to one version — `pnpm why react-is` reports a SINGLE version, gated by a chart-not-blank smoke test that asserts a real Recharts path.recharts-line-curve renders under jsdom (ResizeObserver + getBoundingClientRect stubbed; the react-is sentinel). Shipped: PriceHistoryChart ("use client" emerald-600 YES line + zinc grid + h-64 sized parent + 24h/7d/30d toggle defaulting 7d + <2-snapshot empty state); useMarketSocket (ports spike 003 — connects ${NEXT_PUBLIC_WS_URL}/ws/markets/{id}, Live→Stale(>30s, KEEPS odds — Pitfall 5)→Reconnecting with exponential backoff capped 30s+jitter, periodic ping, ignores non-price_update, full unmount cleanup; proven by a fake-timers + stub-WebSocket state-machine test); LiveIndicator (dot+label per ConnState, aria-live=polite); lib/api.ts fetchMarket/fetchPriceHistory/fetchActivity + MarketDetail/PriceHistoryResponse/ActivityItem/PricePoint/PriceWindow + MarketNotFound (money/odds as strings, SP-1); hand-copied shadcn dialog+select (new-york) wrapping @radix-ui/react-dialog@1.1.15 + react-select@2.2.6. NEXT_PUBLIC_WS_URL documented in the single root .env.example + docker-compose frontend env. pnpm driven via `corepack pnpm` (not on PATH in this Windows worktree). 3 atomic feat commits; chart 4 + hook 4 tests green; pnpm build clean. KNOWN PRE-EXISTING (out-of-scope, logged to deferred-items.md): src/__tests__/middleware.test.ts imports ../middleware but the file was renamed ../proxy in 02-05 — breaks repo-wide `pnpm typecheck` (1 error) + the full `pnpm test` (1 suite fails to LOAD; all 45 actual tests still pass). Every 09-03 source file is type-clean; next build (app-graph typecheck) exits 0. The market-detail PAGE that composes these pieces + the order form is Plan 09-04.
 - [Phase ?]: 2026-05-29 (Plan 09-02): Market-detail backend READ surface (MKT-03) shipped — two public endpoints on public_market_router. GET /{slug}/price-history?window=24h|7d|30d returns raw 5-min OddsSnapshot YES points for 24h/7d and a 30d series DOWNSAMPLED server-side via Postgres DISTINCT ON (date_trunc('hour', snapshot_at)) ORDER BY bucket, snapshot_at DESC — latest snapshot per hour bucket, then a Python re-sort ascending for the chart — so the browser never receives ~8640 raw points (T-09-07). The window is a FastAPI Literal[24h,7d,30d] so an out-of-allowlist value 422s before the service runs, and the cutoff is derived from _WINDOW_CUTOFFS, never SQL-interpolated (T-09-08). GET /{slug}/activity returns the last-20 bets anonymized SERVER-SIDE with two independent guards: the SELECT projects only (stake, created_at, outcome.label) and ActivityItem has no user_id/email/display_name field (T-09-05); tests assert both the schema field set AND the raw HTTP JSON body. Money/odds serialize as strings via field_serializer (SP-1). The two routes are siblings of /{slug}/bet-check so they do not shadow bare GET /{slug}. Verified against real testcontainer Postgres: full tests/markets/ 86 passed. ZERO new deps, ZERO migrations (read-only over existing models).
 - [Phase ?]: 2026-05-29 (Plan 09-04): Player market-detail page /markets/[slug] + order entry shipped (MKT-03) — Phase 9 COMPLETE (4/4). Async Server Component SSR-fetches market+price-history+activity in parallel (Promise.allSettled: market read is the 404 gate, history/activity degrade to empty), two-column grid grid-cols-1 lg:grid-cols-3 with always-visible Resolution criteria + sticky lg:top-8 order panel. OrderEntryForm (rhf+zod) -> BetConfirmDialog -> placeBetAction cookie-forward POST /bets; each backend status (402/409/403/422/401) maps to its SPECIFIC inline role=alert copy, NO toast (T-09-12/13). 403 disambiguates banned vs unverified on the FastAPI detail text. Composed Plan 03 pieces (chart/socket/LiveIndicator/dialog/select) + Plan 02 endpoints via two thin client wrappers (MarketDetailLiveOdds, PriceHistorySection) bridging the SSR page to client-only hooks (SP-5). Anonymized RecentActivityFeed (no user-id field — T-09-14) + MarketDetailSkeleton + portfolio loading.tsx (no layout shift). ZERO new deps. 7 order-form tests + 52/52 suite green; pnpm build exits 0. Only repo-wide failure is the pre-existing DEF-FE-01 orphan middleware.test.ts (out of scope, in deferred-items.md).
+- [Phase 10]: 2026-05-31 (Plan 10-01): Branding backend Slice A shipped. tenant_config single-row table (migration 0009 off head 0008) with UNIQUE(tenant_id) as the single-tenant->multi-tenant seam (D-07); idempotent ON CONFLICT singleton seed (XPredict/#4f46e5/#0ea5e9). Admin GET/PUT /api/v1/admin/tenant-config (current_active_admin-gated, audited admin.branding_updated, admin_id captured before commit). Multipart logo validated out-of-band: 256KB cap + content-type allowlist (PNG/JPEG/WebP/SVG) + leading magic-byte sniff (no Pillow/decode -- DoS-safe); SVG served via <img>+nosniff only (T-10-02). Server-side hex allowlist ^#[0-9a-fA-F]{6}$ via Field(pattern=) is the <style>-injection guard for Plan 10-05. Public GET /branding/current (4-field, no bytes -- Pitfall 7) + GET /branding/logo (bytes+Content-Type+nosniff). schemas.py + both routers omit the postponed-annotations future import. ADD-05 complete; ADD-06 backend half done (frontend consumption = Plan 10-05). 8/8 Wave-0 tests GREEN; single alembic head; ruff/mypy/money-lint clean.
+- [Phase 10]: 2026-05-31 (Plan 10-03): Branding admin form (Slice A frontend) shipped. /admin/branding Server Component (force-dynamic) pre-fetches the persisted config via a use-server Bearer-forwarding helper (branding-admin-api.ts mirrors admin-api.ts 1:1 — reads admin_jwt HttpOnly cookie server-side, token never reaches client JS, T-10-11); shared types split into branding-types.ts (Next use-server constraint). BrandingForm (RHF+zod) PUTs multipart/form-data (brand_name + 2 hexes + optional logo File, no manual Content-Type — fetch derives the boundary) to the 10-01 endpoint; status preserved in the thrown Error ("API error: 422") so a 422 maps to inline hex FormMessage (server authoritative — D-09). ColorField = FormControl-wrapped Input + sibling live swatch (swatch OUTSIDE FormControl so the Radix Slot id lands on the labellable input — the bug that broke getByLabelText). LogoUploadField = file input (PNG/JPEG/WebP/SVG) + <img> object-URL preview (revoked on unmount, T-10-13) + client allowlist→256KB pre-check surfacing exact UI-SPEC copy. Default-variant "Save branding" submit (non-destructive, A-SAVE) + Loader2. 10-UI-SPEC copy/spacing/color honored verbatim. ADD-05 (operator UI) complete. 7/7 vitest GREEN; pnpm build exit 0 (/admin/branding compiles as ƒ dynamic route); no new typecheck errors (only repo-wide error = pre-existing DEF-FE-01 orphan middleware.test.ts). NAV NOTE: ships the route only — the admin-nav Branding link lands in 10-04. Two Rule-1 fixes in Task 3 GREEN: swatch label association; test applyAccept:false to exercise the component's logo type pre-check.
+- [Phase 10]: 2026-05-31 (Plan 10-02): Admin KPI backend Slice C shipped. Read-only KpiService over bets/markets/entries+transfers/audit_log with the two CORRECTED formulas: house P&L = kind-filtered net flow settle_loss-settle_winnings (reverse_* netted, account-constrained to house_revenue credit/house_promo debit legs -- NO house_expense account exists), DAU = distinct UNION(bettors, auth.session_started logins) with admins excluded (bets emit no audit event so logins-only undercounts). Also active_markets (status==OPEN), pending_resolutions (deadline<now AND NOT IN RESOLVED/CANCELLED/DRAFT -- A3 excludes DRAFT), volume_24h (bets.stake not markets.volume), 30d date_trunc buckets. GET /api/v1/admin/dashboard/kpis?window=24h|7d|30d (current_active_admin-gated, Literal window -> 422 on bogus, structlog INFO timing). Money as MoneyStr (negative P&L valid). P&L test seam drives a REAL SettlementService.resolve+reverse; reversal-nets-to-zero is the correctness sentinel. 9/9 KPI tests GREEN; 121/121 admin+branding+settlement regression; single alembic head untouched (no migration). ADD-02+ADD-03 complete.
+- [Phase ?]: House P&L rendered as ONE KpiCard (HousePnlCard) showing Today + All-time, color-by-sign from string — keeps the dashboard grid at five cards (10-04)
+- [Phase ?]: VolumeChart stroke/fill = var(--brand-primary, #059669) so the chart re-skins live with operator branding; emerald fallback; react-is pnpm.overrides pin untouched (10-04)
+- [Phase ?]: sessionStorage admin_default_route flag is a UX hint only — written, never read by any auth/redirect path; landing stays adminLoginAction existing redirect to /admin (10-04)
 
 ### Pending Todos
 
@@ -147,6 +157,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: "2026-05-30T12:33:09.000Z"
-Stopped at: Tracker drift reconciliation (PR #14) — phases 1-9 reconciled to merged reality; ready to plan Phase 10
+Last session: 2026-05-31T08:48:36.578Z
+Stopped at: Phase 10 shipped — PR #15 open, awaiting Pol's merge. Next: merge #15, then Phase 11 (Hardening & Operator-Demo Gate).
 Resume file: None

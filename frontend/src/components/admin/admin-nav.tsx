@@ -1,13 +1,19 @@
 /**
  * Plan 08-03 — Admin top-nav links (client component).
+ * Plan 10-04 — added the leading "Dashboard" link (/admin) and "Branding"
+ *   (/admin/branding); this plan OWNS this file.
  *
  * Extracted from `app/admin/layout.tsx` (which stays a Server Component) so it
  * can use `usePathname()` to highlight the active link per UI-SPEC §Layout
- * Contract. "Users" and "Audit log" are real links; "Markets" stays a disabled
- * placeholder (Phase 10 / deferred).
+ * Contract. "Dashboard", "Users", "Audit log" and "Branding" are real links;
+ * "Markets" stays a disabled placeholder (deferred).
  *
  * Active:   text-zinc-900 font-semibold underline underline-offset-4 (dark: zinc-50)
  * Inactive: text-zinc-500 hover:text-zinc-900 (dark: zinc-400 hover:zinc-50)
+ *
+ * `/admin` (Dashboard) uses an EXACT-match active check (`pathname === "/admin"`)
+ * — a `startsWith("/admin/")` would mark Dashboard active on every admin
+ * sub-route. The other links keep the prefix (startsWith) behavior.
  */
 "use client";
 
@@ -16,9 +22,11 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-const LINKS: { href: string; label: string }[] = [
+const LINKS: { href: string; label: string; exact?: boolean }[] = [
+  { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/audit-log", label: "Audit log" },
+  { href: "/admin/branding", label: "Branding" },
 ];
 
 export function AdminNav() {
@@ -27,8 +35,9 @@ export function AdminNav() {
   return (
     <div className="flex items-center gap-4 text-sm">
       {LINKS.map((link) => {
-        const active =
-          pathname === link.href || pathname.startsWith(`${link.href}/`);
+        const active = link.exact
+          ? pathname === "/admin"
+          : pathname === link.href || pathname.startsWith(`${link.href}/`);
         return (
           <Link
             key={link.href}
