@@ -59,15 +59,15 @@ export function MarketCard({ market }: MarketCardProps) {
       <CardContent className="p-6 pt-0">
         <OddsDisplay yes={primaryPercent} no={secondaryPercent} />
       </CardContent>
-      <CardFooter className="p-6 pt-0 flex justify-between items-end">
-        <div className="text-sm text-zinc-500">
+      <CardFooter className="p-6 pt-0 flex justify-between items-end gap-2">
+        <div className="min-w-0 truncate text-sm text-zinc-500">
           <span>Vol: {formatVolume(market.volume)}</span>
           <span className="mx-2">|</span>
           <span className={isEnded ? "text-zinc-400" : undefined}>
             {deadline}
           </span>
         </div>
-        <div className="relative z-10">
+        <div className="relative z-10 shrink-0">
           <SourceBadge
             source={market.source}
             sourceUrl={market.source_url}

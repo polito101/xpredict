@@ -1,0 +1,173 @@
+name: security-scan
+
+# SC#4 — Phase 11 "Demo Trap" security-scan gate.
+# Four INDEPENDENT scanners, each gated to HIGH severity so a single finding or a
+# non-actionable LOW/MEDIUM/INFO alert cannot break the green CI base (RESEARCH
+# Anti-Patterns / Pitfall 2). gitleaks is already green (3-tier, Phase 1) and is
+# NOT re-added here. The three existing CI workflows (backend-ci / frontend-ci /
+# security) are intentionally NOT modified (CONTEXT constraint 4).
+#
+# Jobs are independent so one scanner failing is isolated from the others:
+#   bandit       — Python SAST over backend/app, FAIL only on HIGH
+#   pip-audit    — Python dependency CVE audit over the backend lockfile
+#   pnpm-audit   — frontend dependency CVE audit, FAIL only on HIGH
+#   zap-baseline — OWASP ZAP passive DAST against the booted API (/auth/* + public
+#                  market routes), HIGH-gated via .zap/rules.tsv
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # (A) Python SAST — bandit over backend/app. --severity-level high makes bandit
+  #     FAIL only on HIGH (Anti-Pattern: never fail on MEDIUM/LOW).
+  # ---------------------------------------------------------------------------
+  bandit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          pip install --upgrade pip
+          pip install uv
+
+      - name: uv sync (frozen)
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Bandit SAST (HIGH severity only)
+        working-directory: backend
+        run: uv run bandit -r app/ --severity-level high
+
+  # ---------------------------------------------------------------------------
+  # (B) Python dependency CVE audit — pip-audit over the backend deps.
+  #     pip-audit has NO severity-threshold flag (it exits non-zero on ANY known
+  #     advisory), so to honor the HIGH-only gate (CONTEXT constraint 4) and keep
+  #     the green base, known non-HIGH transitive advisories that cannot be fixed
+  #     within the existing dependency pins are suppressed with --ignore-vuln; the
+  #     job then gates on NEW / actionable CVEs only. It runs as its OWN isolated
+  #     job, so even an un-ignored finding fails only here, never blocking
+  #     bandit / pnpm / ZAP. Re-audit and prune this ignore-list whenever the
+  #     FastAPI/pytest pins are bumped (the upstream fixes land outside our ranges).
+  #
+  #     Suppressed (audited 2026-06-02; all transitive, none HIGH-exploitable here):
+  #       PYSEC-2026-161 / CVE-2025-54121 / CVE-2025-62727  starlette (via fastapi;
+  #         fixes 1.0.1 / 0.47.2 / 0.49.1 are outside fastapi>=0.115.7,<0.116.0)
+  #       CVE-2025-71176  pytest (DEV-ONLY test dep; fix 9.0.3 is outside pytest<9.0)
+  # ---------------------------------------------------------------------------
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          pip install --upgrade pip
+          pip install uv
+
+      - name: uv sync (frozen)
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: pip-audit (backend dependency CVEs, non-HIGH transitives ignored)
+        working-directory: backend
+        run: >-
+          uv run pip-audit
+          --ignore-vuln PYSEC-2026-161
+          --ignore-vuln CVE-2025-54121
+          --ignore-vuln CVE-2025-62727
+          --ignore-vuln CVE-2025-71176
+
+  # ---------------------------------------------------------------------------
+  # (C) Frontend dependency CVE audit — pnpm audit, FAIL only on HIGH.
+  #     Mirrors frontend-ci.yml setup (pnpm 9.15.0, node 20, pnpm cache).
+  #     --prod scopes the audit to the DEPLOYED surface (production dependencies).
+  #     Dev-only tooling advisories are out of scope for a deployment security gate —
+  #     e.g. GHSA-5xrq-8626-4rwp (Vitest UI dev-server, vitest <4.1.0, a devDependency
+  #     never shipped). Any HIGH/critical in a PRODUCTION dep still fails this job.
+  # ---------------------------------------------------------------------------
+  pnpm-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: pnpm install (frozen lockfile)
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: pnpm audit (production deps, HIGH severity only)
+        working-directory: frontend
+        run: pnpm audit --prod --audit-level high
+
+  # ---------------------------------------------------------------------------
+  # (D) OWASP ZAP passive baseline against the booted API. Reaches /auth/* + the
+  #     public market routes; HIGH-gated via .zap/rules.tsv (IGNORE list). The
+  #     baseline is passive + unauthenticated — authenticated /bets/* DAST is a v2
+  #     deferral (Pitfall 3). NO `services:` for db/redis: compose owns them
+  #     (Pitfall 4). The staging-style .env is written in-job and NEVER echoed.
+  # ---------------------------------------------------------------------------
+  zap-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write staging-style env (ephemeral, never committed, never logged)
+        run: |
+          cat > .env <<'EOF'
+          ENVIRONMENT=staging
+          SECRET_KEY=ci-staging-placeholder-32-characters-minimum-xx
+          ADMIN_JWT_PUBLIC_SECRET=ci-staging-placeholder-32-characters-minimum
+          SENTRY_DSN=
+          EOF
+
+      - name: Boot stack (compose owns db/redis, no services block)
+        run: docker compose up -d --wait
+
+      - name: ZAP baseline scan (HIGH-gated via .zap/rules.tsv)
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "http://localhost:8000"
+          rules_file_name: ".zap/rules.tsv"
+          cmd_options: "-a"
+          allow_issue_writing: false
+          fail_action: true
+
+      - name: Tear down stack
+        if: always()
+        run: docker compose down -v

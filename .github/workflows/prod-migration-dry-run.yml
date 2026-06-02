@@ -1,0 +1,104 @@
+# SC#3 "Demo Trap" gate (Phase 11). Proves the full docker-compose stack boots
+# under a STAGING-style environment, runs the existing Phase-5
+# bet -> settle -> wallet -> portfolio E2E green over the integrated migration
+# chain (single head 0009), and fails the build if any hardcoded dev URL or
+# ENVIRONMENT=dev has leaked into application source.
+#
+# Mirrors .github/workflows/backend-ci.yml conventions (trigger shape,
+# permissions, timeout, actions/checkout@v4). The three existing CI workflows
+# (backend-ci / frontend-ci / security) are left untouched. The Phase-5 E2E is a
+# testcontainers test, so it runs on the RUNNER (exactly as backend-ci does), not
+# via `docker compose exec` (the backend container has no Docker socket, so
+# testcontainers cannot start there).
+#
+# Pitfall 4: Postgres/Redis are NOT declared as GitHub `services:` — docker
+# compose owns db + redis; a `services:` block would collide on host ports.
+
+name: prod-migration-dry-run
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Compose bind-mounts backend/ and the in-container `uv run` (migrations) creates a
+    # ROOT-owned backend/.venv on the host. Point the RUNNER's uv at a SEPARATE venv so
+    # its `uv sync` / `uv run pytest` never collide with that root-owned dir (Permission
+    # denied). Harmless to the in-container uv (compose exec uses its own container env).
+    env:
+      UV_PROJECT_ENVIRONMENT: /tmp/dryrun-venv
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # T-11-01-01 (Information Disclosure): the staging-style .env is generated
+      # in-job, is covered by .gitignore (`.env` is gitignored), and is NEVER
+      # committed. Its contents are throwaway placeholders, not real secrets, and
+      # are NOT echoed back to the log.
+      - name: Write ephemeral staging-style .env (never logged, never committed)
+        run: |
+          cat > .env <<'EOF'
+          ENVIRONMENT=staging
+          LOG_LEVEL=INFO
+          SECRET_KEY=ci-staging-placeholder-32-characters-minimum-xx
+          ADMIN_JWT_PUBLIC_SECRET=ci-staging-placeholder-32-characters-minimum
+          JWT_ALGORITHM=HS256
+          SENTRY_DSN=
+          SENTRY_TRACES_SAMPLE_RATE=0.1
+          NEXT_PUBLIC_SENTRY_DSN=
+          EOF
+          echo "Wrote staging-style .env ($(wc -l < .env) keys) — contents intentionally not printed."
+
+      # `--wait` blocks until all 8 compose healthchecks pass before any later
+      # step runs. The compose `x-backend-env` anchor hardcodes ENVIRONMENT: dev
+      # for backend/worker/beat/flower (it is dev-only infra), so the staging
+      # override is applied per-exec on the E2E step below; SECRET_KEY /
+      # ADMIN_JWT_PUBLIC_SECRET are substituted from the generated .env.
+      - name: Boot the full compose stack (waits on 8 healthchecks)
+        run: docker compose up -d --wait
+
+      # Single Alembic head 0009 (0001 -> ... -> 0006 merge -> ... -> 0009),
+      # invoked through uv like bin/dev does (alembic lives in the container venv).
+      - name: Apply migrations (alembic upgrade head)
+        run: docker compose exec -T backend uv run alembic upgrade head
+
+      # Reuse the EXISTING Phase-5 integration E2E verbatim (no new test logic).
+      # It is a TESTCONTAINERS test (spins its own ephemeral Postgres via the
+      # runner's Docker), so it runs ON THE RUNNER — exactly as backend-ci runs it —
+      # NOT via `docker compose exec` (the backend container has no Docker socket, so
+      # testcontainers cannot start there: DockerException). The booted compose stack
+      # + the alembic step above already validate the staging config; this step
+      # proves the bet -> settle -> wallet -> portfolio code path is green.
+      - name: Set up Python 3.12 (runner — for the testcontainers E2E)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          pip install --upgrade pip
+          pip install uv
+
+      - name: uv sync (frozen)
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run bet -> settle E2E (reused Phase-5 path, on the runner)
+        working-directory: backend
+        run: uv run pytest tests/integration/test_phase5_e2e.py -x --tb=short
+
+      # SC#3 guard (Task 1): fail the build on hardcoded dev config in app source.
+      - name: Guard against dev config in application source
+        run: bash bin/check_no_dev_config.sh
+
+      # Always tear the stack down (and drop volumes) even if a step above failed.
+      - name: Tear down the stack
+        if: always()
+        run: docker compose down -v
