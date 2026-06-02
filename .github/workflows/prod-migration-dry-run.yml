@@ -5,9 +5,11 @@
 # ENVIRONMENT=dev has leaked into application source.
 #
 # Mirrors .github/workflows/backend-ci.yml conventions (trigger shape,
-# permissions, timeout, actions/checkout@v4). Adds NO package install (it reuses
-# the container's `uv sync --frozen` env) and NO migration. The three existing
-# CI workflows (backend-ci / frontend-ci / security) are left untouched.
+# permissions, timeout, actions/checkout@v4). The three existing CI workflows
+# (backend-ci / frontend-ci / security) are left untouched. The Phase-5 E2E is a
+# testcontainers test, so it runs on the RUNNER (exactly as backend-ci does), not
+# via `docker compose exec` (the backend container has no Docker socket, so
+# testcontainers cannot start there).
 #
 # Pitfall 4: Postgres/Redis are NOT declared as GitHub `services:` — docker
 # compose owns db + redis; a `services:` block would collide on host ports.
@@ -62,13 +64,29 @@ jobs:
         run: docker compose exec -T backend uv run alembic upgrade head
 
       # Reuse the EXISTING Phase-5 integration E2E verbatim (no new test logic).
-      # Run it under ENVIRONMENT=staging so the bet->settle path is exercised in
-      # the staging-style env (the must-have truth), overriding the compose
-      # anchor's dev default just for this process.
-      - name: Run bet -> settle E2E (reused Phase-5 path) under staging env
-        run: >-
-          docker compose exec -T -e ENVIRONMENT=staging backend
-          uv run pytest tests/integration/test_phase5_e2e.py -x --tb=short
+      # It is a TESTCONTAINERS test (spins its own ephemeral Postgres via the
+      # runner's Docker), so it runs ON THE RUNNER — exactly as backend-ci runs it —
+      # NOT via `docker compose exec` (the backend container has no Docker socket, so
+      # testcontainers cannot start there: DockerException). The booted compose stack
+      # + the alembic step above already validate the staging config; this step
+      # proves the bet -> settle -> wallet -> portfolio code path is green.
+      - name: Set up Python 3.12 (runner — for the testcontainers E2E)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          pip install --upgrade pip
+          pip install uv
+
+      - name: uv sync (frozen)
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Run bet -> settle E2E (reused Phase-5 path, on the runner)
+        working-directory: backend
+        run: uv run pytest tests/integration/test_phase5_e2e.py -x --tb=short
 
       # SC#3 guard (Task 1): fail the build on hardcoded dev config in app source.
       - name: Guard against dev config in application source
