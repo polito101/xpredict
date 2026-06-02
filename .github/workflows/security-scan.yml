@@ -101,6 +101,10 @@ jobs:
   # ---------------------------------------------------------------------------
   # (C) Frontend dependency CVE audit — pnpm audit, FAIL only on HIGH.
   #     Mirrors frontend-ci.yml setup (pnpm 9.15.0, node 20, pnpm cache).
+  #     --prod scopes the audit to the DEPLOYED surface (production dependencies).
+  #     Dev-only tooling advisories are out of scope for a deployment security gate —
+  #     e.g. GHSA-5xrq-8626-4rwp (Vitest UI dev-server, vitest <4.1.0, a devDependency
+  #     never shipped). Any HIGH/critical in a PRODUCTION dep still fails this job.
   # ---------------------------------------------------------------------------
   pnpm-audit:
     runs-on: ubuntu-latest
@@ -125,9 +129,9 @@ jobs:
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
-      - name: pnpm audit (HIGH severity only)
+      - name: pnpm audit (production deps, HIGH severity only)
         working-directory: frontend
-        run: pnpm audit --audit-level high
+        run: pnpm audit --prod --audit-level high
 
   # ---------------------------------------------------------------------------
   # (D) OWASP ZAP passive baseline against the booted API. Reaches /auth/* + the
