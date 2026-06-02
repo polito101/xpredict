@@ -24,8 +24,14 @@ Concurrency note: each transfer opens its OWN ``AsyncSession`` from the producti
 ledger rows are therefore real committed rows; they are isolated from every other
 test by a unique ``owner_id`` per account and all assertions are scoped to those
 account ids (``transfers``/``entries`` are immutable and cannot be deleted, so we
-never attempt teardown — ``global_entry_sum`` is invariably 0 because every
-transfer nets to zero regardless of accumulated rows).
+never attempt teardown). The conservation check (``scoped_entry_sum``) sums the
+ledger over ONLY this test's three accounts {genesis, wallet, counterparty} — a
+closed system that nets to 0 by construction — NOT the whole ``entries`` table.
+The harness could sum the whole table because it owned an isolated spike DB; the
+production suite runs ``pytest tests/`` in ONE process against ONE shared
+testcontainer DB, where a dozen committed-session tests (bets, KPI, signup-bonus)
+accumulate real ledger rows. A whole-table sum would couple this gate to their
+data and fail on suite order — the isolation bug this scoping fixes.
 """
 
 from __future__ import annotations
@@ -36,7 +42,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from app.db.session import _get_session_maker
 from app.wallet.constants import (
@@ -84,7 +90,7 @@ class _Outcome:
 
     final_balance: Decimal
     ledger_balance: Decimal  # SUM(credit) - SUM(debit) over the wallet
-    global_entry_sum: Decimal  # SUM(credit) - SUM(debit) over the 2 test accounts
+    scoped_entry_sum: Decimal  # SUM(credit) - SUM(debit) over THIS test's 3 accounts
     succeeded: int
     rejected: int
 
@@ -103,7 +109,7 @@ class _Outcome:
             self.final_balance >= 0
             and self.drift == Decimal("0")
             and self.final_balance == self.expected_balance
-            and self.global_entry_sum == Decimal("0")
+            and self.scoped_entry_sum == Decimal("0")
         )
 
 
@@ -118,7 +124,9 @@ async def _seed_two_accounts() -> tuple[UUID, UUID]:
     later divergence is real drift, not a seeding artifact.
 
     Distinct ``owner_id`` per run so concurrent committed rows never collide with
-    any other test. Returns ``(wallet_id, counterparty_id)``.
+    any other test. Returns ``(wallet_id, counterparty_id, genesis_id)`` — the
+    genesis id is returned so the conservation check can scope to this test's
+    closed triad.
     """
     session_maker = _get_session_maker()
     wallet_id, counterparty_id, genesis_id = uuid4(), uuid4(), uuid4()
@@ -179,7 +187,7 @@ async def _seed_two_accounts() -> tuple[UUID, UUID]:
             text("UPDATE accounts SET balance = balance + :amt WHERE id = :w"),
             {"amt": OPENING, "w": wallet_id},
         )
-    return wallet_id, counterparty_id
+    return wallet_id, counterparty_id, genesis_id
 
 
 async def _one_transfer(wallet_id: UUID, counterparty_id: UUID) -> str:
@@ -199,7 +207,7 @@ async def _one_transfer(wallet_id: UUID, counterparty_id: UUID) -> str:
             return "rejected_insufficient"
 
 
-async def _measure(wallet_id: UUID, tags: list[str]) -> _Outcome:
+async def _measure(wallet_id: UUID, account_ids: tuple[UUID, ...], tags: list[str]) -> _Outcome:
     """Port of ``harness._measure`` — read the cache + ledger sums via a fresh session."""
     session_maker = _get_session_maker()
     async with session_maker() as s:
@@ -215,23 +223,26 @@ async def _measure(wallet_id: UUID, tags: list[str]) -> _Outcome:
                 {"credit": DIRECTION_CREDIT, "id": wallet_id},
             )
         ).scalar_one()
-        # global_entry_sum over ALL entries (harness._measure verbatim). Every
-        # transfer nets to zero, so this is a permanent global invariant (== 0)
-        # regardless of rows accumulated by other tests — making it isolation-safe
-        # despite the immutable, un-deletable ledger.
-        global_entry_sum = (
+        # Conservation check scoped to THIS test's closed triad {genesis, wallet,
+        # counterparty}: genesis funds the wallet, the wallet funds the
+        # counterparty, so SUM(credit - debit) over the three nets to 0 by
+        # construction. The harness summed the WHOLE table — safe only in its
+        # isolated spike DB. Here `pytest tests/` shares one testcontainer DB
+        # across the suite, so committed-session tests (bets/KPI/signup-bonus)
+        # leave real rows; scoping by account_id keeps this gate order-independent.
+        scoped_entry_sum = (
             await s.execute(
                 text(
                     "SELECT COALESCE(SUM(CASE WHEN direction = :credit THEN amount "
-                    "ELSE -amount END), 0) FROM entries"
-                ),
-                {"credit": DIRECTION_CREDIT},
+                    "ELSE -amount END), 0) FROM entries WHERE account_id IN :ids"
+                ).bindparams(bindparam("ids", expanding=True)),
+                {"credit": DIRECTION_CREDIT, "ids": list(account_ids)},
             )
         ).scalar_one()
     return _Outcome(
         final_balance=final_balance,
         ledger_balance=ledger_balance,
-        global_entry_sum=global_entry_sum,
+        scoped_entry_sum=scoped_entry_sum,
         succeeded=tags.count("ok"),
         rejected=tags.count("rejected_insufficient"),
     )
@@ -243,20 +254,20 @@ async def test_50_concurrent_overdraft() -> None:
     The signature gate — proves ``WalletService.transfer`` is race-safe on
     production code (FOR UPDATE serialization), not just in the spike harness.
     """
-    wallet_id, counterparty_id = await _seed_two_accounts()
+    wallet_id, counterparty_id, genesis_id = await _seed_two_accounts()
 
     tags = await asyncio.gather(
         *(_one_transfer(wallet_id, counterparty_id) for _ in range(N_CONCURRENT))
     )
 
-    outcome = await _measure(wallet_id, list(tags))
+    outcome = await _measure(wallet_id, (genesis_id, wallet_id, counterparty_id), list(tags))
 
     # The exact harness LoadResult.correct invariant.
     assert outcome.correct, (
         f"SC#2 invariant violated: final={outcome.final_balance} "
         f"ledger={outcome.ledger_balance} drift={outcome.drift} "
         f"expected={outcome.expected_balance} "
-        f"global_entry_sum={outcome.global_entry_sum} "
+        f"scoped_entry_sum={outcome.scoped_entry_sum} "
         f"succeeded={outcome.succeeded} rejected={outcome.rejected}"
     )
     # Exactly opening // per_amount succeed; the rest are rejected (CHECK net +
