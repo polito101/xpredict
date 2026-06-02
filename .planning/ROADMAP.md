@@ -317,7 +317,21 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
   5. Sentry alert rules are configured and synthetically triggered for the four critical scenarios from PROJECT.md: settlement failures, Polymarket sync error-rate spikes, ledger reconciliation drift (Phase 3 task), and auth abuse spikes (failed-login burst); each alert lands in the configured Sentry project's notification channel.
   6. A Spanish-counsel-reviewed Terms of Service and token policy document are linked in the player and admin UI footers; the regulatory posture from PITFALLS.md §"The Regulatory Line" is documented in the repo's `docs/regulatory.md` and the operator-agreement template (operator signs binding policy before any demo) is checked into the repo.
 
-**Plans**: TBD
+**Plans**: 6 plans (2 waves)
+**Plan list**:
+
+**Wave 1** *(independent workstreams — no file overlap, fully parallel)*
+
+- [ ] 11-01-PLAN.md — prod-migration-dry-run CI: staging-style boot + reused Phase-5 bet→settle E2E + check_no_dev_config guard (SC#3) [W1]
+- [ ] 11-02-PLAN.md — security-scan CI: bandit + pip-audit + pnpm audit + OWASP ZAP baseline, HIGH-only, installs gated by human-verify (SC#4) [W1]
+- [ ] 11-03-PLAN.md — Sentry alert runbook: 4 critical-scenario rules + synthetic triggers + manual-verify sign-off (SC#5, closes PLT-08 deferral) [W1]
+- [ ] 11-04-PLAN.md — Regulatory scaffold: docs/regulatory.md + ToS placeholder + operator-agreement stub + player/admin footer links (SC#6) [W1]
+- [ ] 11-05-PLAN.md — Responsive QA 360–768px: CSS/layout-only fixes to home, market detail, bet flow, portfolio, wallet, auth (SC#1 / PLT-07) [W1]
+
+**Wave 2** *(blocked on 11-01/02/03 — cites their deliverables as evidence)*
+
+- [ ] 11-06-PLAN.md — "Looks Done But Isn't" executed audit: every item VERIFIED/CLOSED or DEFERRED; wallet/ledger/concurrency verify-only (Pol track) (SC#2) [W2]
+
 **Research/spike flags**: None — execution of established checklists.
 **Critical pitfalls covered**: PITFALL #3 (regulatory ToS gate before any operator demo), all demo-trap pitfalls (final pass).
 
@@ -343,7 +357,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete    | 2026-05-30 |
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
-| 11. Hardening & Operator-Demo Gate | 0/TBD | Not started | - |
+| 11. Hardening & Operator-Demo Gate | 0/6 | Planned     | - |
 
 ## Coverage
 
