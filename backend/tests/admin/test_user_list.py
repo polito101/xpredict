@@ -70,9 +70,7 @@ async def test_list_users_search_by_display_name(engine: AsyncEngine) -> None:
     try:
         async with await client() as c:
             token = await get_admin_token(c)
-            resp = await c.get(
-                "/api/v1/admin/users?search=Bobby Unique", headers=auth(token)
-            )
+            resp = await c.get("/api/v1/admin/users?search=Bobby Unique", headers=auth(token))
         assert resp.status_code == 200, resp.text
         emails = {item["email"] for item in resp.json()["items"]}
         assert "bob-crm@test.com" in emails

@@ -68,8 +68,8 @@ async def test_all_endpoints_403_with_player_token(engine: AsyncEngine) -> None:
             token = login.json()["access_token"]
             for method, path, body in _routes(uid):
                 resp = await _call(c, method, path, body, headers=auth(token))
-                assert resp.status_code == 403, (
-                    f"{method} {path} -> {resp.status_code} (expected 403)"
-                )
+                assert (
+                    resp.status_code == 403
+                ), f"{method} {path} -> {resp.status_code} (expected 403)"
     finally:
         await cleanup_user(engine, _PLAYER_EMAIL)

@@ -8,9 +8,9 @@ serializes as a string (never a JSON float).
 Two formulas are the CORRECTED ones (10-RESEARCH §Flagged Unknowns 1 & 2 — the ROADMAP SC#2
 formulas are WRONG against the real schema and MUST NOT be copied verbatim):
 
-  - **House P&L** is NOT ``SUM(house_revenue) − SUM(house-expense-account)`` — no such
+  - **House P&L** is NOT ``SUM(house_revenue) - SUM(house-expense-account)`` — no such
     house-expense account exists. It is the kind-filtered net flow:
-    ``Σ(settle_loss credit→house_revenue) − Σ(settle_winnings debit→house_promo)``, with the
+    ``Σ(settle_loss credit→house_revenue) - Σ(settle_winnings debit→house_promo)``, with the
     ``reverse_*`` legs netted so a reversed settlement leaves no phantom P&L. The transfer
     kinds + house account UUIDs are IMPORTED (``TRANSFER_SETTLE_*`` / ``TRANSFER_REVERSE_*`` /
     ``HOUSE_*_ACCOUNT_ID``) — never hardcoded. The account-constrained arm hits
@@ -103,7 +103,7 @@ def window_to_hours(window: str) -> int:
 async def house_pnl(
     session: AsyncSession, *, lo: datetime | None = None, hi: datetime | None = None
 ) -> Decimal:
-    """House P&L over ``[lo, hi)`` — net ``settle_loss − settle_winnings`` (reverse_* netted).
+    """House P&L over ``[lo, hi)`` — net ``settle_loss - settle_winnings`` (reverse_* netted).
 
     Strategy B (kind-filtered net flow, 10-RESEARCH §Flagged Unknown 1): robust to
     ``house_promo`` also funding recharges / signup bonuses (those are NOT house P&L) because
