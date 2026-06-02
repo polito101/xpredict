@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-06-02T13:15:00Z"
-last_activity: 2026-06-02 -- Phase 11 plan 11-03 Task 1 done (Sentry alert runbook, SC#5); Task 2 PENDING human-verify (Sentry round-trip vs real xpredict-staging DSN)
+last_updated: "2026-06-02T14:05:00Z"
+last_activity: 2026-06-02 -- Phase 11 plan 11-04 Tasks 1+2 done (regulatory/ToS/operator-agreement skeletons + player/admin footer links, SC#6); Task 3 PENDING human-verify (Spanish-counsel deferral acknowledgment, gate=blocking-human)
 progress:
   total_phases: 11
   completed_phases: 8
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 11 (Hardening and Operator-Demo Gate) — EXECUTING
-Plan: 3 of 6 (11-01, 11-02 complete; 11-03 IN-PROGRESS — Task 1 done, awaiting human-verify)
-Status: Executing Phase 11 — plan 11-03 blocked on a human-verify gate (Sentry round-trip)
-Last activity: 2026-06-02 -- Phase 11 plan 11-03 Task 1 done (Sentry alert runbook docs/runbooks/sentry-alerts.md, SC#5); Task 2 PENDING human Sentry round-trip vs real xpredict-staging DSN
+Plan: 4 of 6 (11-01, 11-02 complete; 11-03 + 11-04 IN-PROGRESS — autonomous work done, each awaiting a human-verify gate)
+Status: Executing Phase 11 — plan 11-04 Tasks 1+2 done, blocked on the Task-3 blocking-human gate (Spanish-counsel deferral acknowledgment); 11-03 still awaiting its Sentry round-trip gate
+Last activity: 2026-06-02 -- Phase 11 plan 11-04 Tasks 1+2 done (docs/regulatory.md + docs/terms-of-service.md + docs/operator-agreement.md skeletons + player/admin footer links to the ToS / token policy, SC#6; commits 89c6472 + 76c8806); Task 3 PENDING human-verify counsel-deferral acknowledgment
 
 Progress: [█████████░] 92%
 
@@ -161,6 +161,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-02T13:15:00Z
-Stopped at: Phase 11 plan 11-02 complete (security-scan CI / SC#4; commits b33dd72 + d5b7634 + 6dfd049 on gsd/phase-11-hardening-operator-demo-gate; Task 1 package-legitimacy gate approved by operator). Next: plans 11-03..11-06 (Sentry runbook, regulatory scaffold, responsive QA, Looks-Done audit).
+Last session: 2026-06-02T14:05:00Z
+Stopped at: Phase 11 plan 11-04 Tasks 1+2 complete (regulatory/ToS scaffold + footer links / SC#6; commits 89c6472 + 76c8806 on gsd/phase-11-hardening-operator-demo-gate). Task 3 (checkpoint:human-verify, gate=blocking-human) PENDING — Pol must accept the legal SKELETONS (no authored prose) and acknowledge Spanish-counsel review of the ToS + token policy as a gating external dependency. Resume signal: "approved — scaffold accepted, counsel review acknowledged as deferred external dependency". Also still open: 11-03 Sentry round-trip gate. Remaining plans: 11-05 (responsive QA), 11-06 (Looks-Done audit).
 Resume file: None
