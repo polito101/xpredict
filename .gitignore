@@ -53,3 +53,10 @@ build/
 Thumbs.db
 *.swp
 *.swo
+
+# ---------------------------------------------------------------------------
+# Claude Code / GSD — local-only artifacts (never commit)
+# ---------------------------------------------------------------------------
+
+.claude/launch.json
+.claude/worktrees/
