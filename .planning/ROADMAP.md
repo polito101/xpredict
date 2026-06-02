@@ -32,7 +32,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [x] **Phase 8: Admin CRM (User Management & Audit Log Viewer)** - Paginated user list with search/filters, user detail page (profile + balance + history + bets), ban/unban state machine with frozen-balance semantics, CSV export, immutable audit-log viewer. (completed 2026-05-30, PR #14)
 - [x] **Phase 9: User App UX Polish (Market Detail & Real-Time)** - Market detail page with resolution criteria + price-history chart + activity feed, real-time WebSocket price updates for mirrored polls + house edits. (completed 2026-05-29, PR #13)
 - [x] **Phase 10: Admin KPI Dashboard & Configurable Branding** - Admin landing dashboard (24h volume, DAU, active markets, pending resolutions, house P&L) with Recharts, TenantConfig CRUD (brand name/logo/palette), runtime branding consumption in player UI. (completed 2026-05-31)
-- [ ] **Phase 11: Hardening & Operator-Demo Gate** - Mobile responsiveness validation (≥360px), Sentry alert rule tuning, rate-limit tuning, "Looks Done But Isn't" checklist execution, prod-migration dry-run, security scan (gitleaks/bandit/npm audit/OWASP ZAP). **Final gate before any operator demo.**
+- [x] **Phase 11: Hardening & Operator-Demo Gate** - Mobile responsiveness validation (≥360px), Sentry alert rule tuning, rate-limit tuning, "Looks Done But Isn't" checklist execution, prod-migration dry-run, security scan (gitleaks/bandit/npm audit/OWASP ZAP). **Final gate before any operator demo.**
 
 ## Phase Details
 
@@ -324,13 +324,13 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 - [x] 11-01-PLAN.md — prod-migration-dry-run CI: staging-style boot + reused Phase-5 bet→settle E2E + check_no_dev_config guard (SC#3) [W1] — **shipped 2026-06-02, ~4 min, 2 atomic commits (feat guard `1e1a39d` + ci workflow `d244962`); guard clean→0 / injected→1 verified, workflow valid YAML, 3 existing CI files untouched**
 - [x] 11-02-PLAN.md — security-scan CI: bandit + pip-audit + pnpm audit + OWASP ZAP baseline, HIGH-only, installs gated by human-verify (SC#4) [W1] — **shipped 2026-06-02, ~18 min, 3 atomic commits (chore deps `b33dd72` + feat .zap/rules.tsv `d5b7634` + feat security-scan.yml `6dfd049`); Task-1 package-legitimacy gate approved by operator (bandit 1.9.4 / pip-audit 2.10.0 / action-baseline v0.14.0); bandit HIGH gate 0-findings on backend/app + pip-audit clean (4 non-HIGH transitives ignored via --ignore-vuln) verified locally; valid YAML 4 jobs; 3 existing CI files untouched; backend tests untouched (separate from PR #16)**
-- [ ] 11-03-PLAN.md — Sentry alert runbook: 4 critical-scenario rules + synthetic triggers + manual-verify sign-off (SC#5, closes PLT-08 deferral) [W1]
-- [ ] 11-04-PLAN.md — Regulatory scaffold: docs/regulatory.md + ToS placeholder + operator-agreement stub + player/admin footer links (SC#6) [W1]
-- [ ] 11-05-PLAN.md — Responsive QA 360–768px: CSS/layout-only fixes to home, market detail, bet flow, portfolio, wallet, auth (SC#1 / PLT-07) [W1]
+- [x] 11-03-PLAN.md — Sentry alert runbook: 4 critical-scenario rules + synthetic triggers + manual-verify sign-off (SC#5, closes PLT-08 deferral) [W1]
+- [x] 11-04-PLAN.md — Regulatory scaffold: docs/regulatory.md + ToS placeholder + operator-agreement stub + player/admin footer links (SC#6) [W1]
+- [x] 11-05-PLAN.md — Responsive QA 360–768px: CSS/layout-only fixes to home, market detail, bet flow, portfolio, wallet, auth (SC#1 / PLT-07) [W1]
 
 **Wave 2** *(blocked on 11-01/02/03 — cites their deliverables as evidence)*
 
-- [ ] 11-06-PLAN.md — "Looks Done But Isn't" executed audit: every item VERIFIED/CLOSED or DEFERRED; wallet/ledger/concurrency verify-only (Pol track) (SC#2) [W2]
+- [x] 11-06-PLAN.md — "Looks Done But Isn't" executed audit: every item VERIFIED/CLOSED or DEFERRED; wallet/ledger/concurrency verify-only (Pol track) (SC#2) [W2]
 
 **Research/spike flags**: None — execution of established checklists.
 **Critical pitfalls covered**: PITFALL #3 (regulatory ToS gate before any operator demo), all demo-trap pitfalls (final pass).
@@ -357,7 +357,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Admin CRM (User Management & Audit Log Viewer) | 3/3 | Complete    | 2026-05-30 |
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
-| 11. Hardening & Operator-Demo Gate | 2/6 | In progress | - |
+| 11. Hardening & Operator-Demo Gate | 6/6 | In review | 2026-06-02 |
 
 ## Coverage
 
