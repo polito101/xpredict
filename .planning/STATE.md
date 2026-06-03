@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-06-03T14:17:54.888Z"
+last_updated: "2026-06-03T14:41:33.947Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 12
   completed_phases: 9
   total_plans: 47
-  completed_plans: 40
+  completed_plans: 41
   percent: 75
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 12 (admin-market-operations-ui-and-player-resolution-display) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-06-03
 
-Progress: [█████████░] 85%
+Progress: [█████████░] 87%
 
 ## Performance Metrics
 
@@ -87,6 +87,7 @@ Progress: [█████████░] 85%
 | Phase 11 P11-06 | ~14 min | 1 of 2 tasks | 1 file |
 | Phase 12 P12-01 | ~30min | 3 tasks | 13 files |
 | Phase 12 P12-02 | 6min | 3 tasks | 5 files |
+| Phase 12 P12-03 | ~12min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 2026-06-03 (Plan 12-01): STL-06 winner now persisted on the markets row INSIDE the settlement ACID tx — HouseMarketResolveAdapter.mark_resolved writes winning_outcome_id/resolution_source/resolution_justification (was audit-log-only); get_market_public returns 200 for RESOLVED (was 404). resolution_source is a stable token (HOUSE if actor set, POLYMARKET_UMA if None). Ledger math + audit block byte-unchanged; idempotency preserved.
 - [Phase ?]: 2026-06-03 (Plan 12-01): BET-06 stored as nullable markets.min_stake/max_stake columns (Numeric(18,4), nullable-money exception), NOT TenantConfig (single-row global table, structurally unfit for per-market values) — DIVERGES from the 'via TenantConfig' requirement wording, on RESEARCH A1 evidence; global BET_MIN/MAX_STAKE config kept as default (NULL=fallback). No backfill of pre-Phase-12 RESOLVED markets (additive+reversible). Rule-1 fix: migration 0010 revision id shortened to 0010_phase12_resolution_stakes (varchar(32) limit); filename keeps the long form. Migration APPLIED to project Postgres (alembic current==0010, 5 cols live).
 - [Phase 12]: 2026-06-03 (Plan 12-02): admin-markets frontend foundation shipped (Wave-1). admin-markets-api.ts ('use server') Bearer-forwards the admin_jwt HttpOnly cookie and encodes the TWO-PREFIX SPLIT (Pitfall 1): market CRUD (fetchMarkets/fetchMarketAdmin/createMarket/updateMarket/closeMarket) under /api/v1/admin/markets, settlement (resolveMarket/reverseSettlement/forceSettle) under BARE /admin/markets/{id}/... — confirmed at markets/router.py:32 vs settlement/router.py:46. admin-markets-api.test.ts is the Wave-0 URL-contract guard (10 tests: CRUD keeps /api/v1, settlement asserts not.toContain('/api/v1'), Bearer forwarded). admin-markets-types.ts holds all shapes ('use server' exports only async fns); money/odds typed string (SP-1); MarketDetail is an explicit interface matching backend MarketRead (not extends MarketListItem); create uses initial_odds_yes, update uses odds_yes (verified field-name discrepancy encoded). MarketStatusBadge: shared 5-state chip (OPEN=emerald/CLOSED=amber/RESOLVED=zinc-900/CANCELLED=red/DRAFT=zinc + dark) built TDD, neutral fallback for unknown tokens. 25/25 vitest green; typecheck exit 0; 4 atomic commits (feat 56b9cf2, test b5a0467, test/RED 80c2d55, feat/GREEN a089b73). Wave-2 (12-03/04/05/06) imports all three with zero collision; LOAD-BEARING: never hand-build a settlement URL with /api/v1.
+- [Phase ?]: 2026-06-03 (Plan 12-03): BET-06 per-market stake limits enforced server-side INSIDE BetService.place_bet (RESEARCH A4 — the router has no market loaded; only the service fetches it via MarketReadPort). Effective bound = market.min/max_stake if not None else settings.BET_MIN/MAX_STAKE (NULL columns => global fallback, no behavior change). New StakeOutOfRange(BetError) -> 422; the former router-level global-only check (the 'Phase 10 (TenantConfig)' deferral block) was REMOVED. MarketView carries nullable min/max_stake; HouseMarketReadAdapter populates them. Client mirror: makeBetSchema(min,max) factory + optional minStake/maxStake props on OrderEntryForm (global fallback), copy 'Stake must be between {min} and {max} PLAY_USD.'; server authoritative (T-12-08), money string (SP-1). 46 backend + 9 order-form tests green. Tooling: corepack pnpm drifted to 11.5.1 and is destructive on this host — used standalone pnpm 9.15.0 + node-direct vitest; NO lockfile/workspace change committed (DEF-FE-PNPM11).
 
 ### Pending Todos
 
@@ -174,6 +176,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T14:17:54.874Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-06-03T14:41:33.933Z
+Stopped at: Completed 12-03-PLAN.md
 Resume file: None
