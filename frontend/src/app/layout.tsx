@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -8,6 +9,17 @@ import {
   DEFAULT_BRANDING,
 } from "@/lib/branding-public";
 import { pickReadableForeground } from "@/lib/brand-color";
+
+/**
+ * Premium body typeface (v1.1 Fase A) — replaces the OS system-font stack with
+ * Inter, exposed as the `--font-sans` CSS variable that globals.css consumes.
+ * `display: "swap"` avoids invisible text while the font loads.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "XPredict",
@@ -48,7 +60,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <head>
         {/* Validated opaque hex tokens + a foreground derived from primary
             (one of two safe constant literals — never untrusted input). */}
