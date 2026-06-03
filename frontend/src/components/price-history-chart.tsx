@@ -125,7 +125,7 @@ export function PriceHistoryChart({
               <Line
                 type="monotone"
                 dataKey="yes"
-                stroke="#059669"
+                stroke="var(--brand-primary, #059669)"
                 strokeWidth={2}
                 dot={false}
               />
