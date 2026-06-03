@@ -18,6 +18,7 @@
  * (UI-SPEC A-ZERO: a real zero is meaningful for "is this platform healthy?").
  */
 import * as React from "react";
+import Link from "next/link";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -169,10 +170,21 @@ export function KpiGrid({
         caption={dauToggle}
       />
       <KpiCard label="Active markets" value={String(kpis.active_markets)} />
-      <KpiCard
-        label="Pending resolutions"
-        value={String(kpis.pending_resolutions)}
-      />
+      {/* A-KPI-LINK: the "Pending resolutions" card deep-links to the markets
+          that need action — status=CLOSED is the closest queryable proxy for
+          "past-deadline awaiting resolution". The card visual is unchanged; the
+          Link only adds the navigation affordance (block so the whole card is
+          the hit target; rounded-xl matches the Card radius for focus ring). */}
+      <Link
+        href="/admin/markets?status=CLOSED"
+        className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+        aria-label="Pending resolutions — view markets awaiting action"
+      >
+        <KpiCard
+          label="Pending resolutions"
+          value={String(kpis.pending_resolutions)}
+        />
+      </Link>
       <HousePnlCard
         today={kpis.house_pnl_today}
         cumulative={kpis.house_pnl_cumulative}
