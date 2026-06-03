@@ -19,9 +19,15 @@ Additive, reversible migration adding FIVE nullable columns to ``markets``:
 Purely additive: every column is nullable, no backfill (pre-Phase-12 resolved markets keep
 their audit-log-only winner — a follow-up backfill can read ``audit_log.payload`` if needed).
 
-Revision ID: 0010_phase12_resolution_and_stake_limits
+Revision ID: 0010_phase12_resolution_stakes
 Revises: 0009_phase10_tenant_config
 Create Date: 2026-06-03
+
+NOTE: the ``revision`` identifier is ``0010_phase12_resolution_stakes`` (30 chars) — the
+``alembic_version.version_num`` column is ``varchar(32)``, so the longer descriptive name
+``0010_phase12_resolution_and_stake_limits`` (40 chars) would fail to APPLY with a
+``StringDataRightTruncation``. The FILENAME keeps the descriptive form (alembic decouples the
+filename from the revision id); only the in-table id is shortened.
 """
 
 from __future__ import annotations
@@ -32,7 +38,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0010_phase12_resolution_and_stake_limits"
+revision: str = "0010_phase12_resolution_stakes"
 down_revision: Union[str, Sequence[str], None] = "0009_phase10_tenant_config"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

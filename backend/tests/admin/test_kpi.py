@@ -93,7 +93,15 @@ class _FakeMarketResolver:
         self.resolved: list[tuple[UUID, UUID]] = []
         self.reopened: list[UUID] = []
 
-    async def mark_resolved(self, session, *, market_id: UUID, winning_outcome_id: UUID) -> None:
+    async def mark_resolved(
+        self,
+        session,
+        *,
+        market_id: UUID,
+        winning_outcome_id: UUID,
+        resolution_source: str,
+        justification: str,
+    ) -> None:
         self.resolved.append((market_id, winning_outcome_id))
 
     async def mark_unresolved(self, session, *, market_id: UUID) -> None:

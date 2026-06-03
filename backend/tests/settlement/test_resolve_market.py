@@ -96,7 +96,15 @@ class FakeMarketResolver:
         self.resolved: list[tuple[UUID, UUID]] = []
         self.reopened: list[UUID] = []
 
-    async def mark_resolved(self, session, *, market_id: UUID, winning_outcome_id: UUID) -> None:
+    async def mark_resolved(
+        self,
+        session,
+        *,
+        market_id: UUID,
+        winning_outcome_id: UUID,
+        resolution_source: str,
+        justification: str,
+    ) -> None:
         self.resolved.append((market_id, winning_outcome_id))
 
     async def mark_unresolved(self, session, *, market_id: UUID) -> None:
@@ -109,7 +117,15 @@ class RaisingMarketResolver:
     time it raises the ledger postings + bet-status flips have already happened in the tx;
     the rollback must undo ALL of them (SC#5/#8)."""
 
-    async def mark_resolved(self, session, *, market_id: UUID, winning_outcome_id: UUID) -> None:
+    async def mark_resolved(
+        self,
+        session,
+        *,
+        market_id: UUID,
+        winning_outcome_id: UUID,
+        resolution_source: str,
+        justification: str,
+    ) -> None:
         raise RuntimeError("injected resolver failure")
 
     async def mark_unresolved(self, session, *, market_id: UUID) -> None:
@@ -223,6 +239,51 @@ async def _resolve(
     )
 
 
+async def _seed_real_market(market: MarketView) -> None:
+    """INSERT a real ``markets`` row (+ its outcomes) matching ``market`` so the REAL
+    ``HouseMarketResolveAdapter`` can persist the STL-06 resolution columns on it.
+
+    The in-memory ``MarketView`` drives bet placement; this committed row is what the
+    adapter UPDATEs (winning_outcome_id / resolution_source / resolution_justification).
+    """
+    from app.markets.enums import MarketSourceEnum, MarketStatus
+    from app.markets.models import Market, Outcome
+
+    sm = _get_session_maker()
+    async with sm() as s, s.begin():
+        mkt = Market(
+            id=market.id,
+            question=f"STL-06 persist {market.id.hex[:8]}",
+            slug=f"stl06-persist-{market.id.hex[:8]}",
+            resolution_criteria="test",
+            source=MarketSourceEnum.HOUSE.value,
+            status=MarketStatus.OPEN.value,
+            deadline=market.deadline,
+        )
+        s.add(mkt)
+        await s.flush()
+        for ov in market.outcomes:
+            s.add(
+                Outcome(
+                    id=ov.id,
+                    market_id=market.id,
+                    label=ov.label,
+                    initial_odds=ov.price,
+                    current_odds=ov.price,
+                )
+            )
+
+
+async def _market_row(market_id: UUID) -> Market:
+    from app.markets.models import Market
+
+    sm = _get_session_maker()
+    async with sm() as s:
+        return (
+            await s.execute(select(Market).where(Market.id == market_id))
+        ).scalar_one()
+
+
 async def _audit_for_market(event_type: str, market_id: UUID) -> list[AuditLog]:
     """Audit rows of ``event_type`` whose payload ``market_id`` matches (committed state)."""
     sm = _get_session_maker()
@@ -287,6 +348,69 @@ async def test_resolve_market_pays_winners_and_sweeps_losers() -> None:
     # The returned plan exposes the aggregate flows.
     assert plan.total_payout == Decimal("80.0000")
     assert plan.total_loser_stake == Decimal("60.0000")
+
+
+# --------------------------------------------------------------------------- #
+# STL-06 — the REAL adapter persists winner + source + justification on the markets
+# row inside the settlement tx (admin path => "HOUSE", system path => "POLYMARKET_UMA").
+# --------------------------------------------------------------------------- #
+async def test_resolve_market_persists_resolution_columns_house() -> None:
+    from app.settlement.adapters import HouseMarketResolveAdapter
+
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))
+    yes, no = m.outcomes
+    await _seed_real_market(m)  # a real markets row the adapter can UPDATE
+    alice, _ = await _seed_wallet(Decimal("100.0000"))
+    bob, _ = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, m, yes.id, Decimal("40.0000"), src)  # winner
+    await _place(bob, m, no.id, Decimal("60.0000"), src)  # loser
+    admin_id = uuid4()
+
+    sm = _get_session_maker()
+    async with sm() as session:
+        await _resolve(
+            session,
+            market_id=m.id,
+            winning_outcome_id=yes.id,
+            market_resolver=HouseMarketResolveAdapter(),
+            actor_user_id=admin_id,  # admin path => HOUSE token
+            justification="YES per the official source",
+        )
+
+    row = await _market_row(m.id)
+    assert row.status == "RESOLVED"
+    assert row.winning_outcome_id == yes.id
+    assert row.resolution_source == "HOUSE"  # actor_user_id set => admin/house resolve
+    assert row.resolution_justification == "YES per the official source"
+    assert row.resolved_at is not None
+
+
+async def test_resolve_market_persists_polymarket_uma_source_when_no_actor() -> None:
+    from app.settlement.adapters import HouseMarketResolveAdapter
+
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))
+    yes, _no = m.outcomes
+    await _seed_real_market(m)
+    alice, _ = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, m, yes.id, Decimal("20.0000"), src)
+
+    sm = _get_session_maker()
+    async with sm() as session:
+        await _resolve(
+            session,
+            market_id=m.id,
+            winning_outcome_id=yes.id,
+            market_resolver=HouseMarketResolveAdapter(),
+            actor_user_id=None,  # system path => POLYMARKET_UMA token
+            justification="auto-resolved from Polymarket UMA",
+        )
+
+    row = await _market_row(m.id)
+    assert row.winning_outcome_id == yes.id
+    assert row.resolution_source == "POLYMARKET_UMA"  # actor None => auto/Polymarket path
+    assert row.resolution_justification == "auto-resolved from Polymarket UMA"
 
 
 # --------------------------------------------------------------------------- #

@@ -199,3 +199,53 @@ async def test_bet_check_closed_market_returns_400(engine: AsyncEngine) -> None:
         assert resp.json()["detail"]["code"] == "MARKET_NOT_OPEN"
     finally:
         await _cleanup_admin(engine)
+
+
+async def test_public_get_resolved_market_returns_200_with_resolution(
+    engine: AsyncEngine,
+) -> None:
+    """STL-06: a RESOLVED market is public (no longer 404) and MarketRead carries the
+    winner + source + justification (the player resolved-panel data)."""
+    await _seed_admin(engine)
+    try:
+        async with await _client() as c:
+            login = await c.post(
+                "/admin/auth/login",
+                data={"username": _ADMIN_EMAIL, "password": _ADMIN_PASSWORD},
+            )
+            token = login.json()["access_token"]
+            market = await _create_market(c, token)
+            winner_outcome_id = market["outcomes"][0]["id"]
+
+        # Drive the market to RESOLVED + populate the STL-06 columns directly (mirrors the
+        # expired-deadline UPDATE pattern above; the resolve service is exercised elsewhere).
+        async with engine.connect() as conn:
+            await conn.execute(
+                text(
+                    "UPDATE markets SET status = 'RESOLVED', "
+                    "winning_outcome_id = CAST(:woid AS uuid), "
+                    "resolution_source = :src, resolution_justification = :just, "
+                    "resolved_at = now() "
+                    "WHERE id = CAST(:mid AS uuid)"
+                ),
+                {
+                    "woid": winner_outcome_id,
+                    "src": "HOUSE",
+                    "just": "YES per the official source",
+                    "mid": market["id"],
+                },
+            )
+            await conn.commit()
+
+        async with await _client() as c:
+            resp = await c.get(f"/api/v1/markets/{market['slug']}")
+
+        assert resp.status_code == 200  # no longer 404 (STL-06 root cause)
+        body = resp.json()
+        assert body["status"] == "RESOLVED"
+        assert body["winning_outcome_id"] == winner_outcome_id
+        assert body["resolution_source"] == "HOUSE"
+        assert body["resolution_justification"] == "YES per the official source"
+        assert body["resolved_at"] is not None
+    finally:
+        await _cleanup_admin(engine)
