@@ -41,6 +41,9 @@ class MarketCreate(BaseModel):
     deadline: datetime
     initial_odds_yes: Decimal = Field(default=Decimal("0.5"), gt=0, lt=1)
     category: str | None = Field(default=None, max_length=100)
+    # BET-06 per-market stake limits (optional; NULL = global default).
+    min_stake: Decimal | None = Field(default=None, ge=0)
+    max_stake: Decimal | None = Field(default=None, ge=0)
 
     @field_validator("deadline")
     @classmethod
@@ -57,6 +60,9 @@ class MarketUpdate(BaseModel):
     deadline: datetime | None = None
     odds_yes: Decimal | None = Field(default=None, gt=0, lt=1)
     category: str | None = None
+    # BET-06 per-market stake limits (optional; NULL = global default).
+    min_stake: Decimal | None = Field(default=None, ge=0)
+    max_stake: Decimal | None = Field(default=None, ge=0)
 
     @field_validator("deadline")
     @classmethod
@@ -103,12 +109,25 @@ class MarketRead(BaseModel):
     updated_at: datetime
     closed_at: datetime | None
     resolved_at: datetime | None
+    # STL-06: the resolution projection exposed publicly on a RESOLVED market.
+    winning_outcome_id: UUID | None = None
+    resolution_source: str | None = None
+    resolution_justification: str | None = None
+    # BET-06: per-market stake limits (NULL = the global default applies).
+    min_stake: Decimal | None = None
+    max_stake: Decimal | None = None
     outcomes: list[OutcomeRead]
 
     @field_serializer("volume", "volume_24hr")
     @classmethod
     def serialize_volume_decimal(cls, v: Decimal) -> str:
         return str(v)
+
+    @field_serializer("min_stake", "max_stake")
+    @classmethod
+    def serialize_stake_decimal(cls, v: Decimal | None) -> str | None:
+        # Money on the wire is a JSON string (WAL-05 / CONVENTIONS); None stays null.
+        return str(v) if v is not None else None
 
 
 class MarketListItem(BaseModel):
