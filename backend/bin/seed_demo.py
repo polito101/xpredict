@@ -27,6 +27,7 @@ bet / settlement services (``grant_signup_bonus`` / ``recharge`` / ``place_bet``
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -35,6 +36,9 @@ from sqlalchemy import select
 
 from app.auth.models import User
 from app.db.session import _get_session_maker
+from app.markets.models import Outcome
+from app.markets.schemas import MarketCreate
+from app.markets.service import MarketService
 from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
@@ -91,6 +95,8 @@ class SeedConfig:
     """
 
     n_users: int = 10
+    n_markets: int = 15
+    n_resolved_markets: int = 4
     email_domain: str = DEMO_EMAIL_DOMAIN
 
 
@@ -211,4 +217,311 @@ async def seed_users(cfg: SeedConfig) -> list[SeededUser]:
         user_id = await _ensure_user_with_wallet(session_maker, spec, hasher)
         await _fund_wallet(session_maker, user_id, spec)
         seeded.append(SeededUser(id=user_id, email=spec.email, display_name=spec.display_name))
+    return seeded
+
+
+# --------------------------------------------------------------------------- #
+# Bloque 2 — house markets (OPEN). The demo spine: home, market-detail, charts.
+# --------------------------------------------------------------------------- #
+
+# Believable binary prediction markets for the demo home. Each tuple is
+# (question, resolution_criteria, category, initial_odds_yes, deadline_offset_days).
+# Odds are Decimal-from-string in (0, 1); offsets are strictly future. Kept long
+# enough that the medium volume (15) never repeats a question.
+_MARKET_TEMPLATES: tuple[tuple[str, str, str, Decimal, int], ...] = (
+    (
+        "Will Bitcoin close above $100,000 by the deadline?",
+        "Resolves YES if the BTC/USD daily close on a major exchange is above "
+        "$100,000 on or before the deadline.",
+        "Crypto",
+        Decimal("0.62"),
+        45,
+    ),
+    (
+        "Will the central bank cut interest rates at its next meeting?",
+        "Resolves YES if the policy rate is lowered at the next scheduled meeting "
+        "per the official statement.",
+        "Economy",
+        Decimal("0.55"),
+        30,
+    ),
+    (
+        "Will a crewed lunar flyby launch this year?",
+        "Resolves YES if a crewed mission performs a lunar flyby on or before the "
+        "deadline, per the operator's confirmation.",
+        "Space",
+        Decimal("0.28"),
+        120,
+    ),
+    (
+        "Will the home team win the national championship final?",
+        "Resolves YES if the home team is the official champion of the final.",
+        "Sports",
+        Decimal("0.48"),
+        21,
+    ),
+    (
+        "Will a major lab release a model topping the public leaderboard?",
+        "Resolves YES if a new model takes the #1 spot on the agreed public "
+        "benchmark leaderboard before the deadline.",
+        "Tech",
+        Decimal("0.70"),
+        60,
+    ),
+    (
+        "Will this season set a new monthly temperature record?",
+        "Resolves YES if an official agency reports a record monthly global mean "
+        "temperature within the window.",
+        "Climate",
+        Decimal("0.66"),
+        40,
+    ),
+    (
+        "Will the incumbent party win the upcoming election?",
+        "Resolves YES if the incumbent party wins per the certified result.",
+        "Politics",
+        Decimal("0.52"),
+        90,
+    ),
+    (
+        "Will Ethereum set a new all-time high this year?",
+        "Resolves YES if ETH/USD prints a new all-time high on a major exchange "
+        "before the deadline.",
+        "Crypto",
+        Decimal("0.34"),
+        75,
+    ),
+    (
+        "Will the summer blockbuster gross over $1B worldwide?",
+        "Resolves YES if reported worldwide box office exceeds $1B before the " "deadline.",
+        "Entertainment",
+        Decimal("0.40"),
+        50,
+    ),
+    (
+        "Will unemployment fall below 4% in the next report?",
+        "Resolves YES if the headline unemployment rate is below 4.0% in the next "
+        "official jobs report.",
+        "Economy",
+        Decimal("0.45"),
+        25,
+    ),
+    (
+        "Will the new flagship phone ship on-device AI features?",
+        "Resolves YES if the announced flagship ships with the advertised "
+        "on-device AI features by the deadline.",
+        "Tech",
+        Decimal("0.58"),
+        35,
+    ),
+    (
+        "Will the league MVP be a first-time winner this season?",
+        "Resolves YES if the official MVP has never previously won the award.",
+        "Sports",
+        Decimal("0.50"),
+        28,
+    ),
+    (
+        "Will oil close above $90 a barrel by month end?",
+        "Resolves YES if the front-month crude benchmark settles above $90 on the "
+        "last trading day of the month.",
+        "Commodities",
+        Decimal("0.43"),
+        18,
+    ),
+    (
+        "Will a Category 5 hurricane form this season?",
+        "Resolves YES if an official agency classifies any storm as Category 5 "
+        "within the window.",
+        "Climate",
+        Decimal("0.37"),
+        70,
+    ),
+    (
+        "Will the tech IPO price above its target range?",
+        "Resolves YES if the final IPO price is above the stated target range.",
+        "Finance",
+        Decimal("0.60"),
+        33,
+    ),
+    (
+        "Will the streaming series top the global chart three weeks running?",
+        "Resolves YES if the series holds the #1 global chart spot for three "
+        "consecutive weeks before the deadline.",
+        "Entertainment",
+        Decimal("0.31"),
+        22,
+    ),
+    (
+        "Will the central bank hold rates steady through the period?",
+        "Resolves YES if the policy rate is unchanged at every scheduled meeting "
+        "within the window.",
+        "Economy",
+        Decimal("0.47"),
+        110,
+    ),
+    (
+        "Will the rover confirm subsurface water at its new site?",
+        "Resolves YES if the mission team officially confirms subsurface water at "
+        "the new site before the deadline.",
+        "Space",
+        Decimal("0.36"),
+        95,
+    ),
+)
+
+
+@dataclass(frozen=True)
+class DemoMarketSpec:
+    """The deterministic description of one demo house market to seed.
+
+    ``resolve_to`` is ``"YES"``/``"NO"`` for the subset Bloque 5 settles (so the
+    portfolio shows settled P&L), else ``None`` (stays OPEN). ``deadline_offset_days``
+    is added to ``now`` at seed time so the deadline is always strictly future —
+    required by ``MarketCreate`` and by ``place_bet``'s ``is_open`` check.
+    """
+
+    question: str
+    resolution_criteria: str
+    category: str
+    initial_odds_yes: Decimal
+    deadline_offset_days: int
+    resolve_to: str | None
+
+
+def build_market_specs(cfg: SeedConfig) -> list[DemoMarketSpec]:
+    """Build the deterministic demo-market list for ``cfg`` (pure; no I/O).
+
+    The first ``n_resolved_markets`` are flagged for resolution with a
+    deterministic alternating winning side (even index → YES, odd → NO); the rest
+    stay OPEN. Questions stay unique past the template count via a round suffix.
+    """
+    n_resolved = min(cfg.n_resolved_markets, cfg.n_markets)
+    specs: list[DemoMarketSpec] = []
+    for i in range(cfg.n_markets):
+        question, criteria, category, odds, offset = _MARKET_TEMPLATES[i % len(_MARKET_TEMPLATES)]
+        if i >= len(_MARKET_TEMPLATES):
+            question = f"{question} (Round {i // len(_MARKET_TEMPLATES) + 1})"
+        resolve_to = ("YES" if i % 2 == 0 else "NO") if i < n_resolved else None
+        specs.append(
+            DemoMarketSpec(
+                question=question,
+                resolution_criteria=criteria,
+                category=category,
+                initial_odds_yes=odds,
+                deadline_offset_days=offset,
+                resolve_to=resolve_to,
+            )
+        )
+    return specs
+
+
+@dataclass(frozen=True)
+class SeededMarket:
+    """A seeded house market's ids — consumed by Bloques 3 (odds), 4 (bets), 5 (resolve)."""
+
+    id: UUID
+    slug: str
+    question: str
+    yes_outcome_id: UUID
+    no_outcome_id: UUID
+    initial_odds_yes: Decimal
+    resolve_to: str | None
+
+    @property
+    def winning_outcome_id(self) -> UUID | None:
+        """The outcome id Bloque 5 resolves to, or ``None`` if this market stays open."""
+        if self.resolve_to == "YES":
+            return self.yes_outcome_id
+        if self.resolve_to == "NO":
+            return self.no_outcome_id
+        return None
+
+
+async def _ensure_demo_admin(
+    session_maker: async_sessionmaker[AsyncSession], cfg: SeedConfig
+) -> UUID:
+    """Resolve (or create) the demo admin — a verified superuser, idempotent by email.
+
+    The market author for ``create_market`` (it reads ``admin_user.id`` for the audit
+    row). Namespaced by ``cfg.email_domain`` and reused on a re-run.
+    """
+    email = f"demo-admin@{cfg.email_domain}"
+    async with session_maker() as session:
+        existing = (
+            await session.execute(
+                select(User).where(User.email == email)  # type: ignore[arg-type]
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            return existing.id
+
+        admin = User(
+            email=email,
+            hashed_password=PasswordHash.recommended().hash(DEMO_USER_PASSWORD),
+            is_active=True,
+            is_verified=True,
+            is_superuser=True,
+        )
+        session.add(admin)
+        await session.flush()
+        admin_id = admin.id
+        await session.commit()
+        return admin_id
+
+
+async def seed_markets(cfg: SeedConfig) -> list[SeededMarket]:
+    """Seed OPEN house markets via ``MarketService`` (committed); return their ids.
+
+    Creates (or reuses) the demo admin, then creates each market through
+    ``MarketService.create_market`` (caller-owned: it add+flushes, we commit ONCE so
+    the bet read-adapter — which reads on its own connection — sees them). YES/NO
+    outcome ids are read back post-commit for the downstream blocks.
+
+    NOT idempotent on its own — re-running adds new markets (no question UNIQUE); the
+    orchestrator guards against a double-seed and ``--reset`` wipes first.
+    """
+    specs = build_market_specs(cfg)
+    session_maker = _get_session_maker()
+    admin_id = await _ensure_demo_admin(session_maker, cfg)
+
+    created: list[tuple[UUID, str, DemoMarketSpec]] = []
+    async with session_maker() as session:
+        admin = await session.get(User, admin_id)
+        if admin is None:  # defensive — just ensured above
+            raise RuntimeError("demo admin vanished mid-seed")
+        for spec in specs:
+            deadline = datetime.now(UTC) + timedelta(days=spec.deadline_offset_days)
+            body = MarketCreate(
+                question=spec.question,
+                resolution_criteria=spec.resolution_criteria,
+                deadline=deadline,
+                initial_odds_yes=spec.initial_odds_yes,
+                category=spec.category,
+            )
+            market = await MarketService.create_market(session, admin, body)
+            created.append((market.id, market.slug, spec))
+        await session.commit()
+
+    seeded: list[SeededMarket] = []
+    async with session_maker() as session:
+        for market_id, slug, spec in created:
+            rows = (
+                await session.execute(
+                    select(Outcome.id, Outcome.label).where(Outcome.market_id == market_id)
+                )
+            ).all()
+            yes_id = next(oid for oid, label in rows if label.upper() == "YES")
+            no_id = next(oid for oid, label in rows if label.upper() == "NO")
+            seeded.append(
+                SeededMarket(
+                    id=market_id,
+                    slug=slug,
+                    question=spec.question,
+                    yes_outcome_id=yes_id,
+                    no_outcome_id=no_id,
+                    initial_odds_yes=spec.initial_odds_yes,
+                    resolve_to=spec.resolve_to,
+                )
+            )
     return seeded
