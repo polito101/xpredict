@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-06-02T14:30:00Z"
-last_activity: 2026-06-02 -- Phase 11 plan 11-06 Task 1 done (executed the "Looks Done But Isnt" audit -> docs/LOOKS-DONE-CHECKLIST.md, 32 rows, SC#2/PLT-07; commit df0038d); Task 2 PENDING blocking human-verify (Pol signs off the audit + 4 external deferrals). 11-05 Task 2 visual-QA also still PENDING.
+last_updated: "2026-06-03T13:03:44.177Z"
+last_activity: 2026-06-03 -- Phase 12 planning complete
 progress:
-  total_phases: 11
-  completed_phases: 8
-  total_plans: 41
-  completed_plans: 33
+  total_phases: 12
+  completed_phases: 9
+  total_plans: 47
+  completed_plans: 38
   percent: 75
 ---
 
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 Phase: 11 (Hardening and Operator-Demo Gate) — EXECUTING
 Plan: 6 of 6 (11-01, 11-02 complete; 11-03 + 11-04 + 11-05 + 11-06 IN-PROGRESS — autonomous work done, each awaiting a human-verify gate)
-Status: Executing Phase 11 — plan 11-06 Task 1 done (executed "Looks Done But Isnt" audit -> docs/LOOKS-DONE-CHECKLIST.md, 32 rows, SC#2/PLT-07; commit df0038d), blocked on the Task-2 blocking human gate (Pol signs off the audit + acknowledges the 4 external deferrals); 11-05 still awaiting its visual-QA gate; 11-04 still awaiting its counsel-deferral gate; 11-03 still awaiting its Sentry round-trip gate
-Last activity: 2026-06-02 -- Phase 11 plan 11-06 Task 1 done (executed the "Looks Done But Isnt" audit as docs/LOOKS-DONE-CHECKLIST.md — 32 rows, one per PITFALLS item, each VERIFIED/CLOSED/VERIFY-ONLY(Pol track)/DEFERRED with evidence; wallet/ledger/concurrency verify-only vs existing tests + Pol's DEF-03-01 track, never re-implemented; cites dry-run 11-01 + security-scan 11-02 + Sentry runbook 11-03 + regulatory scaffold 11-04; SC#2/PLT-07; commit df0038d on gsd/phase-11-hardening-operator-demo-gate); Task 2 PENDING blocking human sign-off
+Status: Ready to execute
+Last activity: 2026-06-03 -- Phase 12 planning complete
 
 Progress: [█████████░] 92%
 
@@ -87,6 +87,10 @@ Progress: [█████████░] 92%
 | Phase 11 P11-06 | ~14 min | 1 of 2 tasks | 1 file |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- 2026-06-03: **Phase 12 added** — "Admin Market Operations UI & Player Resolution Display", the **v1.0 closure phase** mandated by `.planning/v1.0-MILESTONE-AUDIT.md` (status: `gaps_found`). Closes 3 UI/integration blockers found by the milestone audit: STL-06 (player resolution display — winner not persisted + 404 on RESOLVED markets), admin market-management UI (ADM-01..04, ADM-07), admin resolve/reverse/force-settle UI (STL-02, STL-07, ADM-05, ADM-06), plus BET-06 per-market limits. Backends already merged + tested across Phases 4/5/7; phase is mostly frontend + one additive migration. Milestone NOT archived until this closes and re-audit passes.
 
 ### Decisions
 
@@ -165,6 +169,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-02T14:30:00Z
-Stopped at: Phase 11 plan 11-06 Task 1 complete (executed the "Looks Done But Isnt" audit -> docs/LOOKS-DONE-CHECKLIST.md, 32 rows / SC#2 / PLT-07; commit df0038d on gsd/phase-11-hardening-operator-demo-gate). Task 2 (checkpoint:human-verify, gate=blocking) PENDING — Pol must read docs/LOOKS-DONE-CHECKLIST.md and confirm every item is VERIFIED/CLOSED (evidence) or DEFERRED (reason+owner), confirm the wallet/ledger/concurrency rows are VERIFY-ONLY vs existing tests + his separate backend-test-isolation track (DEF-03-01, not re-implemented), and acknowledge the 4 genuinely-external deferrals (backup-restore/PITR = infra; Sentry round-trip = Pol per docs/runbooks/sentry-alerts.md §5; Spanish-counsel ToS review = external counsel; Postgres metrics = infra). Resume signal: 'approved — audit accepted, deferrals acknowledged' (or list any item that must be closed before the operator demo). ALL Phase-11 human gates now open together for one coordinated Pol review: 11-03 Sentry round-trip, 11-04 counsel deferral, 11-05 visual QA, 11-06 audit sign-off. Phase 11 autonomous work is COMPLETE across all 6 plans.
-Resume file: None
+Last session: 2026-06-03T12:32:30.652Z
+Stopped at: Phase 12 UI-SPEC approved
+Resume file: .planning/phases/12-admin-market-operations-ui-and-player-resolution-display/12-UI-SPEC.md
