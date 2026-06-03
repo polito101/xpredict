@@ -56,6 +56,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BetConfirmDialog } from "@/components/bet-confirm-dialog";
+import { BetPlacedSuccess } from "@/components/bet-placed-success";
 
 const CURRENCY = "PLAY_USD";
 
@@ -271,15 +272,7 @@ export function OrderEntryForm({
             </div>
           )}
 
-          {success && (
-            <p
-              role="status"
-              className="text-sm font-semibold text-emerald-600"
-              data-testid="bet-success"
-            >
-              {success}
-            </p>
-          )}
+          {success && <BetPlacedSuccess message={success} />}
 
           <Button
             type="submit"
