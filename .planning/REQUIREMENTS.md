@@ -91,7 +91,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [x] **ADM-04**: Admin can close a house market early (stops accepting new bets) before resolving it
 - [x] **ADM-05**: Admin can resolve a house market manually (see STL-02)
 - [x] **ADM-06**: Admin can force-settle a stuck Polymarket-mirrored market via two-step confirm with mandatory justification (emergency override; audit-logged)
-- [ ] **ADM-07**: After first bet is placed on a house market, resolution criteria are locked (UI disabled + API rejects) to prevent rule-changes mid-game
+- [x] **ADM-07**: After first bet is placed on a house market, resolution criteria are locked (UI disabled + API rejects) to prevent rule-changes mid-game
 
 ### Admin — Dashboard & Branding (ADD)
 
@@ -231,7 +231,7 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | ADM-04 | Phase 4 | Complete |
 | ADM-05 | Phase 5 | Complete |
 | ADM-06 | Phase 7 | Complete |
-| ADM-07 | Phase 4 | Pending |
+| ADM-07 | Phase 4 | Complete |
 | ADD-01 | Phase 10 | Complete |
 | ADD-02 | Phase 10 | Complete |
 | ADD-03 | Phase 10 | Complete |

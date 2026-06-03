@@ -364,7 +364,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 - [x] 12-03-PLAN.md — BET-06 per-market stake limits: MarketView + adapter + place_bet check (global fallback) + order-form client mirror (BET-06) [W2]
 - [x] 12-04-PLAN.md — STL-06 player resolution display: MarketResolutionPanel + RESOLVED branch on /markets/[slug] + own-result fetch (STL-06) [W2]
-- [ ] 12-05-PLAN.md — Admin markets list + CRUD: enable nav + markets-data-table + create/edit market-form (BET-06 fields, ADM-07 lock) (ADM-01..04, ADM-07) [W2]
+- [x] 12-05-PLAN.md — Admin markets list + CRUD: enable nav + markets-data-table + create/edit market-form (BET-06 fields, ADM-07 lock) (ADM-01..04, ADM-07) [W2]
 
 **Wave 3** *(blocked on 12-01/02/04/05)*
 
@@ -395,7 +395,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
 | 11. Hardening & Operator-Demo Gate | 6/6 | In review | 2026-06-02 |
-| 12. Admin Market Operations UI & Player Resolution Display | 4/6 | In Progress|  |
+| 12. Admin Market Operations UI & Player Resolution Display | 5/6 | In Progress|  |
 
 ## Coverage
 
