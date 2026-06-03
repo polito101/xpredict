@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-last_updated: "2026-06-03T14:06:50.776Z"
+last_updated: "2026-06-03T14:17:54.888Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 12
   completed_phases: 9
   total_plans: 47
-  completed_plans: 39
+  completed_plans: 40
   percent: 75
 ---
 
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 12 (admin-market-operations-ui-and-player-resolution-display) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-06-03
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Progress: [████████░░] 83%
 | Phase 11 P11-05 | ~15 min | 1 of 2 tasks | 4 files |
 | Phase 11 P11-06 | ~14 min | 1 of 2 tasks | 1 file |
 | Phase 12 P12-01 | ~30min | 3 tasks | 13 files |
+| Phase 12 P12-02 | 6min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -147,6 +148,7 @@ Recent decisions affecting current work:
 - [Phase 11]: 2026-06-02 (Plan 11-01): SC#3 prod-migration-dry-run gate shipped. `bin/check_no_dev_config.sh` (90-line bash, mirrors bin/dev) targets THIS codebase's config shape — `ENVIRONMENT=dev` + hardcoded `localhost`/`127.0.0.1` in `backend/app`+`frontend/src` only (the app has NO `DEBUG` flag). Pitfall-1 allow-list: compose healthchecks / `.env.example` / tests / `.zap` / docs are structurally out of scan scope (grep `-r` rooted at the two app dirs). The clean tree already carries intentional `localhost` (the `process.env.X || "http://localhost:8000"` dev-fallback idiom across Server Components + lib helpers, the `FRONTEND_BASE_URL="http://localhost:3000"` config default, the `redis://localhost:6379/0` docstring) — so localhost is filtered through a 4-class `grep -vE` allow-list (||-fallback, multi-line continuation, comment/docstring incl. RST ``..``, typed `NAME:<type>="..."` default) per the plan's NOTE FOR EXECUTOR; a NEW bare `host="localhost"` still fails (verified clean→0, injected→1). `ENVIRONMENT=dev` rule runs across both roots with no allow-list (zero legit occurrences; config.py's typed annotation default is not matched). `.github/workflows/prod-migration-dry-run.yml` mirrors backend-ci.yml: `docker compose up -d --wait` (8 healthchecks) → `uv run alembic upgrade head` → reused Phase-5 `test_phase5_e2e.py` under `-e ENVIRONMENT=staging` (compose `x-backend-env` anchor hardcodes `ENVIRONMENT: dev`, so staging is applied per-exec — functional bet→settle path is load-bearing) → guard → always-`docker compose down -v`. Ephemeral staging `.env` heredoc, contents never echoed (T-11-01-01), gitignored. NO `services:` block (Pitfall 4 — compose owns Postgres/Redis). ZERO package installs (YAML-validity verified through the backend uv venv's bundled PyYAML 6.0.3, honoring the RULE 3 install exclusion), NO migration, NO app-code change; backend-ci/frontend-ci/security workflows byte-identical (constraint 4); backend tests untouched (constraint 3). 2 atomic commits (feat `1e1a39d`, ci `d244962`). PLT-07 row touched; SC#3 of 6.
 - [Phase ?]: 2026-06-03 (Plan 12-01): STL-06 winner now persisted on the markets row INSIDE the settlement ACID tx — HouseMarketResolveAdapter.mark_resolved writes winning_outcome_id/resolution_source/resolution_justification (was audit-log-only); get_market_public returns 200 for RESOLVED (was 404). resolution_source is a stable token (HOUSE if actor set, POLYMARKET_UMA if None). Ledger math + audit block byte-unchanged; idempotency preserved.
 - [Phase ?]: 2026-06-03 (Plan 12-01): BET-06 stored as nullable markets.min_stake/max_stake columns (Numeric(18,4), nullable-money exception), NOT TenantConfig (single-row global table, structurally unfit for per-market values) — DIVERGES from the 'via TenantConfig' requirement wording, on RESEARCH A1 evidence; global BET_MIN/MAX_STAKE config kept as default (NULL=fallback). No backfill of pre-Phase-12 RESOLVED markets (additive+reversible). Rule-1 fix: migration 0010 revision id shortened to 0010_phase12_resolution_stakes (varchar(32) limit); filename keeps the long form. Migration APPLIED to project Postgres (alembic current==0010, 5 cols live).
+- [Phase 12]: 2026-06-03 (Plan 12-02): admin-markets frontend foundation shipped (Wave-1). admin-markets-api.ts ('use server') Bearer-forwards the admin_jwt HttpOnly cookie and encodes the TWO-PREFIX SPLIT (Pitfall 1): market CRUD (fetchMarkets/fetchMarketAdmin/createMarket/updateMarket/closeMarket) under /api/v1/admin/markets, settlement (resolveMarket/reverseSettlement/forceSettle) under BARE /admin/markets/{id}/... — confirmed at markets/router.py:32 vs settlement/router.py:46. admin-markets-api.test.ts is the Wave-0 URL-contract guard (10 tests: CRUD keeps /api/v1, settlement asserts not.toContain('/api/v1'), Bearer forwarded). admin-markets-types.ts holds all shapes ('use server' exports only async fns); money/odds typed string (SP-1); MarketDetail is an explicit interface matching backend MarketRead (not extends MarketListItem); create uses initial_odds_yes, update uses odds_yes (verified field-name discrepancy encoded). MarketStatusBadge: shared 5-state chip (OPEN=emerald/CLOSED=amber/RESOLVED=zinc-900/CANCELLED=red/DRAFT=zinc + dark) built TDD, neutral fallback for unknown tokens. 25/25 vitest green; typecheck exit 0; 4 atomic commits (feat 56b9cf2, test b5a0467, test/RED 80c2d55, feat/GREEN a089b73). Wave-2 (12-03/04/05/06) imports all three with zero collision; LOAD-BEARING: never hand-build a settlement URL with /api/v1.
 
 ### Pending Todos
 
@@ -172,6 +174,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T14:06:26.535Z
-Stopped at: Phase 12 UI-SPEC approved
+Last session: 2026-06-03T14:17:54.874Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None

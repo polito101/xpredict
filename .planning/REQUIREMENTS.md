@@ -67,12 +67,12 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 ### Settlement & Resolution (STL)
 
 - [ ] **STL-01**: When a Polymarket market reaches confirmed-resolved status (not just `closed`) PLUS internal grace period (UMA dispute window safety margin), system auto-settles the mirrored market via SettlementService
-- [ ] **STL-02**: Admin can manually resolve a house market by selecting winning outcome with mandatory justification text and a two-step confirm flow
+- [x] **STL-02**: Admin can manually resolve a house market by selecting winning outcome with mandatory justification text and a two-step confirm flow
 - [ ] **STL-03**: Settlement is idempotent: re-running settlement on a settled market is a no-op (`WHERE settled_at IS NULL` guard + `(bet_id, event_type)` UNIQUE on ledger entries)
 - [ ] **STL-04**: Settlement credits winners' wallets and debits market liability in a single ACID transaction (no split commits, no orphan ledger entries)
 - [ ] **STL-05**: Settlement writes audit log entry with: market_id, source, resolver (admin_user_id or `polymarket-uma`), winning_outcome, total_payout, settlement_timestamp
 - [x] **STL-06**: Player sees resolution display on each settled market: winning outcome, resolution source ("Polymarket UMA" or "Operator: {admin_display_name}"), justification text (public), settlement timestamp, their own payout/loss
-- [ ] **STL-07**: Admin can reverse a settlement via compensating ledger entries (never DELETE/UPDATE); reversal requires justification and writes audit log entry
+- [x] **STL-07**: Admin can reverse a settlement via compensating ledger entries (never DELETE/UPDATE); reversal requires justification and writes audit log entry
 
 ### Admin — User CRM (ADU)
 
@@ -85,12 +85,12 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Admin — Markets (ADM)
 
-- [ ] **ADM-01**: Admin can view paginated list of all markets across sources with filters (source, status, category)
-- [ ] **ADM-02**: Admin can create a house market with question, resolution criteria text, deadline, initial odds (default 50/50), and optional category
-- [ ] **ADM-03**: Admin can edit a house market's odds, deadline, and resolution criteria while it has zero bets
-- [ ] **ADM-04**: Admin can close a house market early (stops accepting new bets) before resolving it
-- [ ] **ADM-05**: Admin can resolve a house market manually (see STL-02)
-- [ ] **ADM-06**: Admin can force-settle a stuck Polymarket-mirrored market via two-step confirm with mandatory justification (emergency override; audit-logged)
+- [x] **ADM-01**: Admin can view paginated list of all markets across sources with filters (source, status, category)
+- [x] **ADM-02**: Admin can create a house market with question, resolution criteria text, deadline, initial odds (default 50/50), and optional category
+- [x] **ADM-03**: Admin can edit a house market's odds, deadline, and resolution criteria while it has zero bets
+- [x] **ADM-04**: Admin can close a house market early (stops accepting new bets) before resolving it
+- [x] **ADM-05**: Admin can resolve a house market manually (see STL-02)
+- [x] **ADM-06**: Admin can force-settle a stuck Polymarket-mirrored market via two-step confirm with mandatory justification (emergency override; audit-logged)
 - [ ] **ADM-07**: After first bet is placed on a house market, resolution criteria are locked (UI disabled + API rejects) to prevent rule-changes mid-game
 
 ### Admin — Dashboard & Branding (ADD)
@@ -213,24 +213,24 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | BET-06 | Phase 5 | Complete |
 | BET-07 | Phase 5 | Pending |
 | STL-01 | Phase 7 | Pending |
-| STL-02 | Phase 5 | Pending |
+| STL-02 | Phase 5 | Complete |
 | STL-03 | Phase 5 | Pending |
 | STL-04 | Phase 5 | Pending |
 | STL-05 | Phase 5 | Pending |
 | STL-06 | Phase 5 | Complete |
-| STL-07 | Phase 5 | Pending |
+| STL-07 | Phase 5 | Complete |
 | ADU-01 | Phase 8 | Complete |
 | ADU-02 | Phase 8 | Complete |
 | ADU-03 | Phase 5 | Pending |
 | ADU-04 | Phase 8 | Complete |
 | ADU-05 | Phase 8 | Complete |
 | ADU-06 | Phase 8 | Complete |
-| ADM-01 | Phase 4 | Pending |
-| ADM-02 | Phase 4 | Pending |
-| ADM-03 | Phase 4 | Pending |
-| ADM-04 | Phase 4 | Pending |
-| ADM-05 | Phase 5 | Pending |
-| ADM-06 | Phase 7 | Pending |
+| ADM-01 | Phase 4 | Complete |
+| ADM-02 | Phase 4 | Complete |
+| ADM-03 | Phase 4 | Complete |
+| ADM-04 | Phase 4 | Complete |
+| ADM-05 | Phase 5 | Complete |
+| ADM-06 | Phase 7 | Complete |
 | ADM-07 | Phase 4 | Pending |
 | ADD-01 | Phase 10 | Complete |
 | ADD-02 | Phase 10 | Complete |
