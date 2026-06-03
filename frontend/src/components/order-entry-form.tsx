@@ -32,7 +32,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 import { placeBetAction } from "@/lib/bet-actions";
 import {
-  BetSchema,
+  makeBetSchema,
   BET_MAX_STAKE,
   BET_MIN_STAKE,
   type BetValues,
@@ -70,6 +70,13 @@ interface OrderEntryFormProps {
   outcomes: OrderEntryOutcome[];
   marketStatus: string;
   isAuthenticated: boolean;
+  /**
+   * Per-market stake bounds (BET-06). Money STRINGS on the wire (SP-1) — parsed
+   * only to compare. When absent (or null), the global BET_MIN/MAX_STAKE defaults
+   * apply. The server (`place_bet`) is authoritative; these are a UX mirror.
+   */
+  minStake?: string | null;
+  maxStake?: string | null;
 }
 
 /** Round a probability string (0..1) to a whole percent for display (SP-1). */
@@ -83,21 +90,21 @@ function toPct(odds: string | undefined): number {
  * Expected payout = stake / current_odds_of_chosen (RESEARCH Pattern 7).
  * Display-only string math: returns a 2-dp string, or "—" when not computable.
  *
- * Gated on the SAME tenant min/max the zod schema enforces (WR-08) so the
- * preview and the submit gate agree — a sub-BET_MIN_STAKE (or over-max) stake
- * shows "—" rather than a plausible payout for a bet the form will then reject.
- * Display-only: this never feeds storage math (SP-1).
+ * Gated on the SAME effective min/max the zod schema enforces (WR-08) so the
+ * preview and the submit gate agree — a sub-min (or over-max) stake shows "—"
+ * rather than a plausible payout for a bet the form will then reject. The bounds
+ * prefer the per-market values, falling back to the globals. Display-only: this
+ * never feeds storage math (SP-1).
  */
-function expectedPayout(stake: string, odds: string | undefined): string {
+function expectedPayout(
+  stake: string,
+  odds: string | undefined,
+  minNum: number,
+  maxNum: number,
+): string {
   const s = parseFloat(stake);
   const p = odds ? parseFloat(odds) : NaN;
-  if (
-    Number.isNaN(s) ||
-    Number.isNaN(p) ||
-    p <= 0 ||
-    s < BET_MIN_STAKE ||
-    s > BET_MAX_STAKE
-  )
+  if (Number.isNaN(s) || Number.isNaN(p) || p <= 0 || s < minNum || s > maxNum)
     return "—";
   return (s / p).toFixed(2);
 }
@@ -107,6 +114,8 @@ export function OrderEntryForm({
   outcomes,
   marketStatus,
   isAuthenticated,
+  minStake,
+  maxStake,
 }: OrderEntryFormProps) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     placeBetAction,
@@ -114,8 +123,16 @@ export function OrderEntryForm({
   );
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Effective numeric bounds (BET-06): prefer the per-market value, fall back to
+  // the global default. Parsed ONLY for the bound comparison — the stake stays a
+  // string on the wire (SP-1). The server re-checks and is authoritative.
+  const minNum = minStake != null ? Number(minStake) : BET_MIN_STAKE;
+  const maxNum = maxStake != null ? Number(maxStake) : BET_MAX_STAKE;
+
+  const betSchema = useMemo(() => makeBetSchema(minNum, maxNum), [minNum, maxNum]);
+
   const form = useForm<BetValues>({
-    resolver: zodResolver(BetSchema),
+    resolver: zodResolver(betSchema),
     defaultValues: { outcome: "YES", stake: "" },
     mode: "onSubmit",
   });
@@ -135,7 +152,7 @@ export function OrderEntryForm({
 
   const yesPct = toPct(yesOutcome?.current_odds);
   const noPct = toPct(noOutcome?.current_odds);
-  const payout = expectedPayout(stake ?? "", chosen?.current_odds);
+  const payout = expectedPayout(stake ?? "", chosen?.current_odds, minNum, maxNum);
 
   // Form-level error from the Server Action (the mapped inline bet error).
   const formError =
