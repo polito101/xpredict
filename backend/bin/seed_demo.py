@@ -36,6 +36,8 @@ from pwdlib import PasswordHash
 from sqlalchemy import insert, select
 
 from app.auth.models import User
+from app.bets.adapters import HouseMarketReadAdapter
+from app.bets.service import BetService
 from app.core.config import get_settings
 from app.db.session import _get_session_maker
 from app.markets.models import OddsSnapshot, Outcome
@@ -604,3 +606,87 @@ async def seed_odds_history(cfg: SeedConfig, markets: Sequence[SeededMarket]) ->
     async with session_maker() as session, session.begin():
         await session.execute(insert(OddsSnapshot), rows)
     return len(rows)
+
+
+# --------------------------------------------------------------------------- #
+# Bloque 4 — bets. Spread deterministically across users + markets, always
+# spanning both sides so resolved markets yield winners AND losers.
+# --------------------------------------------------------------------------- #
+
+# Deterministic stake ladder (Decimal-from-string), small vs the funded balance
+# so no placement overdraws the wallet.
+_BET_STAKES: tuple[Decimal, ...] = (
+    Decimal("25.0000"),
+    Decimal("50.0000"),
+    Decimal("40.0000"),
+    Decimal("60.0000"),
+    Decimal("30.0000"),
+)
+
+
+@dataclass(frozen=True)
+class BetSpec:
+    """One deterministic demo bet, by user/market position + side + stake."""
+
+    user_index: int
+    market_index: int
+    side: str  # "YES" / "NO"
+    stake: Decimal
+
+
+def build_bet_specs(cfg: SeedConfig) -> list[BetSpec]:
+    """Build the deterministic demo-bet list for ``cfg`` (pure; no I/O).
+
+    Each market gets 4-7 bettors with ALTERNATING sides (k even -> YES, odd -> NO),
+    so every market — resolved or not — carries at least one YES and one NO bet
+    (winners and losers once settled). Bettors and stakes cycle by position so the
+    spread is varied yet reproducible.
+    """
+    n_markets = len(build_market_specs(cfg))
+    specs: list[BetSpec] = []
+    for j in range(n_markets):
+        n_bettors = 4 + (j % 4)  # 4..7 bettors per market
+        for k in range(n_bettors):
+            specs.append(
+                BetSpec(
+                    user_index=(j + k) % cfg.n_users,
+                    market_index=j,
+                    side="YES" if k % 2 == 0 else "NO",
+                    stake=_BET_STAKES[(j + k) % len(_BET_STAKES)],
+                )
+            )
+    return specs
+
+
+async def seed_bets(
+    cfg: SeedConfig,
+    users: Sequence[SeededUser],
+    markets: Sequence[SeededMarket],
+) -> int:
+    """Place the deterministic demo bets via ``BetService.place_bet`` (returns count).
+
+    Each bet runs on its OWN fresh session: place_bet drives its own
+    liability-account + bet transactions, so a session-per-bet keeps the
+    begin()-on-open-tx hazard out of reach and isolates any rejection. Markets must
+    be committed + OPEN with a future deadline (Bloques 2/3 guarantee that). Money
+    moves only through the validated bet path — no hand-written ledger rows.
+    """
+    specs = build_bet_specs(cfg)
+    session_maker = _get_session_maker()
+    market_source = HouseMarketReadAdapter()
+    placed = 0
+    for spec in specs:
+        user = users[spec.user_index]
+        market = markets[spec.market_index]
+        outcome_id = market.yes_outcome_id if spec.side == "YES" else market.no_outcome_id
+        async with session_maker() as session:
+            await BetService.place_bet(
+                session,
+                user_id=user.id,
+                market_id=market.id,
+                outcome_id=outcome_id,
+                stake=spec.stake,
+                market_source=market_source,
+            )
+        placed += 1
+    return placed
