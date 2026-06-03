@@ -1,7 +1,7 @@
 # Roadmap: XPredict
 
 **Mode:** mvp (Vertical MVP)
-**Granularity:** fine (11 phases)
+**Granularity:** fine (12 phases — Phase 12 added 2026-06-03 as the v1.0 closure phase)
 **Created:** 2026-05-25
 **Total v1 requirements:** 69 (all mapped, no orphans)
 
@@ -33,6 +33,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [x] **Phase 9: User App UX Polish (Market Detail & Real-Time)** - Market detail page with resolution criteria + price-history chart + activity feed, real-time WebSocket price updates for mirrored polls + house edits. (completed 2026-05-29, PR #13)
 - [x] **Phase 10: Admin KPI Dashboard & Configurable Branding** - Admin landing dashboard (24h volume, DAU, active markets, pending resolutions, house P&L) with Recharts, TenantConfig CRUD (brand name/logo/palette), runtime branding consumption in player UI. (completed 2026-05-31)
 - [x] **Phase 11: Hardening & Operator-Demo Gate** - Mobile responsiveness validation (≥360px), Sentry alert rule tuning, rate-limit tuning, "Looks Done But Isn't" checklist execution, prod-migration dry-run, security scan (gitleaks/bandit/npm audit/OWASP ZAP). **Final gate before any operator demo.**
+- [ ] **Phase 12: Admin Market Operations UI & Player Resolution Display** - Close the three v1.0-audit blockers: persist + show the player resolution display (STL-06), admin market-management UI (list/create/edit/close — ADM-01..04, ADM-07), admin two-step resolve/reverse/force-settle UI (STL-02, STL-07, ADM-05, ADM-06), and per-market stake limits (BET-06). Mostly frontend over already-merged-and-tested backends. **v1.0 closure phase — see `.planning/v1.0-MILESTONE-AUDIT.md`.**
 
 ## Phase Details
 
@@ -335,15 +336,51 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 **Research/spike flags**: None — execution of established checklists.
 **Critical pitfalls covered**: PITFALL #3 (regulatory ToS gate before any operator demo), all demo-trap pitfalls (final pass).
 
+### Phase 12: Admin Market Operations UI & Player Resolution Display
+
+**Goal**: Make the v1.0 operator-demo flows reachable through the product UI by closing the three blockers found in the v1.0 milestone audit. The backend for all of this is already merged and tested (Phases 4, 5, 7); this phase is mostly frontend plus one small additive backend change (persisting the winning outcome).
+**Mode:** mvp
+**Depends on**: Phase 4 (admin_market_router), Phase 5 (settlement endpoints + SettlementService), Phase 7 (force-settle endpoint). **v1.0 closure phase — see `.planning/v1.0-MILESTONE-AUDIT.md` (status: gaps_found).**
+**Requirements**: STL-06, ADM-01, ADM-02, ADM-03, ADM-04, ADM-05, ADM-06, ADM-07, STL-02, STL-07, BET-06
+**Success Criteria** (what must be TRUE):
+
+  1. **Player resolution display (STL-06)** — On resolve, the winning outcome is persisted to queryable columns (`markets.winning_outcome_id` + `resolution_source` + `resolution_justification`), written inside the settlement transaction by `mark_resolved`; `get_market_public` no longer 404s a RESOLVED market; `MarketRead` exposes the resolution fields; the market detail page renders winning outcome, resolution source ("Polymarket UMA" or "Operator: {admin_display_name}"), public justification, settlement timestamp, and the player's own payout/loss.
+  2. **Admin market-management UI (ADM-01..04, ADM-07)** — A new `/admin/markets` page (the disabled nav placeholder is enabled) lists markets paginated with source/status/category filters, and lets an admin create a house market (question, criteria, deadline, default 50/50 odds, optional category), edit it, and close it early — all wired to the existing `admin_market_router`. The resolution-criteria field is disabled in the UI once the market has bets (API already enforces 423).
+  3. **Admin resolve/reverse/force-settle UI (STL-02, ADM-05, STL-07, ADM-06)** — From the admin markets surface an admin can resolve a house market via a two-step confirm + mandatory justification, reverse a settlement (with justification), and force-settle a stuck Polymarket-mirrored market (two-step + justification) — wired to the existing `/admin/markets/{id}/resolve|reverse|force-settle`. The KPI "pending resolutions" card links here.
+  4. **Per-market stake limits (BET-06)** — Min/max stake become operator-configurable per market via TenantConfig (schema + admin form + server- and client-side enforcement), replacing the global-constant-only limits.
+  5. **End-to-end through the UI** — An operator creates a house market, a player bets on it, the operator resolves it from the admin UI, and the player sees the resolution display and realized P&L — with no raw-API step anywhere in the loop (Flows 1 & 3 from the audit pass through the product).
+
+**Research/spike flags**: None — all backends exist and are tested; this is UI wiring plus one small additive migration.
+
+**Plans**: 6 plans (3 waves)
+**Plan list**:
+
+**Wave 1** *(parallel — backend foundation + frontend api/contract foundation; no file overlap)*
+
+- [ ] 12-01-PLAN.md — Backend foundation: migration 0010 (markets +5 cols) + STL-06 mark_resolved persist ripple (Protocol+adapter+service+6 fakes) + get_market_public RESOLVED + [BLOCKING] migration apply (STL-06, BET-06) [W1]
+- [ ] 12-02-PLAN.md — Frontend foundation: "use server" admin-markets-api (two-prefix Bearer-forward) + Wave-0 URL-contract guard + shared MarketStatusBadge (ADM-01..06, STL-02, STL-07) [W1]
+
+**Wave 2** *(parallel — all depend on Wave 1; no file overlap)*
+
+- [ ] 12-03-PLAN.md — BET-06 per-market stake limits: MarketView + adapter + place_bet check (global fallback) + order-form client mirror (BET-06) [W2]
+- [ ] 12-04-PLAN.md — STL-06 player resolution display: MarketResolutionPanel + RESOLVED branch on /markets/[slug] + own-result fetch (STL-06) [W2]
+- [ ] 12-05-PLAN.md — Admin markets list + CRUD: enable nav + markets-data-table + create/edit market-form (BET-06 fields, ADM-07 lock) (ADM-01..04, ADM-07) [W2]
+
+**Wave 3** *(blocked on 12-01/02/04/05)*
+
+- [ ] 12-06-PLAN.md — Admin resolve/reverse/force-settle dialogs + /admin/markets/[id] detail host + close + KPI deep-link + SC#5 end-to-end human-verify gate (STL-02, STL-07, ADM-05, ADM-06, ADM-04) [W3]
+**Critical pitfalls covered**: The "existence-vs-integration" gap (backend-complete endpoints with no UI consumer) surfaced by the v1.0 audit; closes the operator-demo path and the player happy-path resolution display.
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11.
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12.
 
 **Vertical milestones:**
 
 - **First demoable end-to-end happy path**: end of **Phase 5** (bet on house market → admin resolves → wallet credited → P&L visible).
-- **Operator-ready demo**: end of **Phase 11** (after KPI dashboard, branding, hardening, and ToS gate).
+- **Operator-ready demo**: end of **Phase 12** (Phase 11 shipped hardening; the v1.0 audit found the admin market-ops UI + player resolution display still missing — Phase 12 closes them).
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -358,6 +395,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
 | 11. Hardening & Operator-Demo Gate | 6/6 | In review | 2026-06-02 |
+| 12. Admin Market Operations UI & Player Resolution Display | 0/6 | Planned | - |
 
 ## Coverage
 
