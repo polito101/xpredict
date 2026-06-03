@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandLogo } from "@/components/brand-logo";
+import { PlayerNav } from "@/components/player-nav";
 import {
   fetchBrandingPublic,
   DEFAULT_BRANDING,
@@ -59,6 +61,12 @@ export default async function RootLayout({
     // /branding/current unreachable → keep DEFAULT_BRANDING (safe fallback).
   }
 
+  // Session presence drives the nav (Log in/Sign up vs Log out). Only this
+  // server-side boolean crosses into the tree — the cookie value never does.
+  const isAuthenticated = Boolean(
+    (await cookies()).get("xpredict_session")?.value,
+  );
+
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <head>
@@ -68,8 +76,9 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <header className="border-b border-zinc-200 bg-white">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center px-4 sm:px-6">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
             <BrandLogo brandName={b.brand_name} logoUrl={b.logo_url} />
+            <PlayerNav isAuthenticated={isAuthenticated} />
           </div>
         </header>
         {children}
