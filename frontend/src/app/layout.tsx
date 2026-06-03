@@ -7,6 +7,7 @@ import {
   fetchBrandingPublic,
   DEFAULT_BRANDING,
 } from "@/lib/branding-public";
+import { pickReadableForeground } from "@/lib/brand-color";
 
 export const metadata: Metadata = {
   title: "XPredict",
@@ -49,8 +50,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <head>
-        {/* Only the two validated opaque hex tokens are interpolated here. */}
-        <style>{`:root{--brand-primary:${b.primary_hex};--brand-secondary:${b.secondary_hex};}`}</style>
+        {/* Validated opaque hex tokens + a foreground derived from primary
+            (one of two safe constant literals — never untrusted input). */}
+        <style>{`:root{--brand-primary:${b.primary_hex};--brand-primary-foreground:${pickReadableForeground(b.primary_hex)};--brand-secondary:${b.secondary_hex};}`}</style>
       </head>
       <body className="min-h-full flex flex-col">
         <header className="border-b border-zinc-200 bg-white">
