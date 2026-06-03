@@ -33,7 +33,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from pwdlib import PasswordHash
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, text
 
 from app.auth.models import User
 from app.bets.adapters import HouseMarketReadAdapter
@@ -45,6 +45,14 @@ from app.markets.schemas import MarketCreate
 from app.markets.service import MarketService
 from app.settlement.adapters import HouseMarketResolveAdapter
 from app.settlement.service import SettlementService
+from app.wallet.constants import (
+    HOUSE_PROMO_ACCOUNT_ID,
+    HOUSE_REVENUE_ACCOUNT_ID,
+    KIND_HOUSE_PROMO,
+    KIND_HOUSE_REVENUE,
+    OWNER_SYSTEM,
+    PLAY_USD,
+)
 from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
@@ -728,3 +736,63 @@ async def seed_resolutions(cfg: SeedConfig, markets: Sequence[SeededMarket]) -> 
             )
         resolved += 1
     return resolved
+
+
+# --------------------------------------------------------------------------- #
+# Bloque 6 — reset. Wipe the demo dataset back to a clean migrated state.
+# --------------------------------------------------------------------------- #
+
+# house_promo opening balance — mirrors Alembic 0004 (HOUSE_PROMO_OPENING_BALANCE).
+_HOUSE_PROMO_OPENING_BALANCE = Decimal("1000000000.0000")
+
+# Demo/domain tables wiped on --reset. CASCADE handles the FK web
+# (entries->transfers/accounts, outcomes->markets, refresh_tokens->users, ...).
+# TRUNCATE does NOT fire the per-row append-only triggers on transfers/entries/
+# audit_log, so it is the ONE way to clear the immutable ledger (DELETE is blocked).
+_RESET_TABLES: tuple[str, ...] = (
+    "users",
+    "accounts",
+    "transfers",
+    "entries",
+    "markets",
+    "outcomes",
+    "odds_snapshots",
+    "bets",
+    "audit_log",
+)
+
+
+async def reset_demo() -> None:
+    """Wipe the demo/domain dataset back to a clean migrated state.
+
+    TRUNCATE ... RESTART IDENTITY CASCADE the domain tables (sidestepping the ledger's
+    append-only row triggers, which a DELETE cannot), then re-seed the two
+    house-account singletons the ledger needs (mirroring Alembic 0004). Re-run
+    ``create_admin`` + ``seed_demo`` afterwards for a fresh demo.
+
+    GLOBAL by design — there is no demo-only namespace on the ledger, and a sales
+    demo wants a clean slate.
+    """
+    session_maker = _get_session_maker()
+    async with session_maker() as session, session.begin():
+        # Table names come from the _RESET_TABLES constant (not user input).
+        await session.execute(
+            text(f"TRUNCATE TABLE {', '.join(_RESET_TABLES)} RESTART IDENTITY CASCADE")  # nosec B608
+        )
+        await session.execute(
+            text(
+                "INSERT INTO accounts (id, owner_type, owner_id, kind, currency, balance) "
+                "VALUES (:promo_id, :system, NULL, :promo_kind, :currency, :promo_balance), "
+                "       (:revenue_id, :system, NULL, :revenue_kind, :currency, 0) "
+                "ON CONFLICT (owner_type, owner_id, kind, currency) DO NOTHING"
+            ),
+            {
+                "promo_id": HOUSE_PROMO_ACCOUNT_ID,
+                "revenue_id": HOUSE_REVENUE_ACCOUNT_ID,
+                "system": OWNER_SYSTEM,
+                "promo_kind": KIND_HOUSE_PROMO,
+                "revenue_kind": KIND_HOUSE_REVENUE,
+                "currency": PLAY_USD,
+                "promo_balance": _HOUSE_PROMO_OPENING_BALANCE,
+            },
+        )
