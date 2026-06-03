@@ -44,7 +44,7 @@ export function MarketCard({ market }: MarketCardProps) {
   const isEnded = deadline === "Ended";
 
   return (
-    <Card className="relative hover:shadow-md transition-shadow focus-within:ring-2 focus-within:ring-zinc-950 focus-within:ring-offset-2 group">
+    <Card className="group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-brand-primary focus-within:ring-offset-2">
       <CardHeader className="p-6 pb-2">
         <h3 className="text-base font-semibold leading-snug line-clamp-3">
           <Link
