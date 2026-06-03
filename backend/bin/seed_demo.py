@@ -43,6 +43,8 @@ from app.db.session import _get_session_maker
 from app.markets.models import OddsSnapshot, Outcome
 from app.markets.schemas import MarketCreate
 from app.markets.service import MarketService
+from app.settlement.adapters import HouseMarketResolveAdapter
+from app.settlement.service import SettlementService
 from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
@@ -690,3 +692,39 @@ async def seed_bets(
             )
         placed += 1
     return placed
+
+
+# --------------------------------------------------------------------------- #
+# Bloque 5 — resolution. Settle the flagged markets through SettlementService so
+# the portfolio shows settled positions with realized P&L (winners + losers).
+# --------------------------------------------------------------------------- #
+
+
+async def seed_resolutions(cfg: SeedConfig, markets: Sequence[SeededMarket]) -> int:
+    """Resolve the flagged markets via ``SettlementService.resolve_market`` (count).
+
+    Settlement is the ONLY way state + money move here — never a hand-flipped status
+    or hand-written payout (that would break ledger / P&L / audit). Each resolution
+    runs on its own fresh session (resolve_market owns its begin()). We pass
+    ``winning_outcome_id`` today; once Phase 12 persists the winner on the Market
+    model, the same call records it with no seed change.
+    """
+    session_maker = _get_session_maker()
+    admin_id = await _ensure_demo_admin(session_maker, cfg)
+    resolver = HouseMarketResolveAdapter()
+    resolved = 0
+    for market in markets:
+        winning_outcome_id = market.winning_outcome_id
+        if winning_outcome_id is None:
+            continue  # stays OPEN
+        async with session_maker() as session:
+            await SettlementService.resolve_market(
+                session,
+                market_id=market.id,
+                winning_outcome_id=winning_outcome_id,
+                market_resolver=resolver,
+                justification=f"Demo resolution: {market.resolve_to} per the official source.",
+                actor_user_id=admin_id,
+            )
+        resolved += 1
+    return resolved
