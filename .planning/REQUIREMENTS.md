@@ -61,7 +61,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **BET-03**: Bet placement is a single ACID transaction: lock wallet row → check balance → insert bet → insert ledger entries (debit wallet, credit market liability) → update balance cache → commit
 - [ ] **BET-04**: Player sees bet confirmation modal with stake, current odds, expected payout, and explicit confirm step before bet is created
 - [ ] **BET-05**: Player cannot sell a position before resolution (no cash-out in v1; locked at API level)
-- [ ] **BET-06**: Configurable bet limits per market — global minimum and maximum stake (operator-set via TenantConfig); UI rejects below/above the range
+- [x] **BET-06**: Configurable bet limits per market — global minimum and maximum stake (operator-set via TenantConfig); UI rejects below/above the range
 - [ ] **BET-07**: Player can view portfolio with open positions (stake, current odds, unrealized P&L) and settled positions (stake, outcome, realized P&L)
 
 ### Settlement & Resolution (STL)
@@ -71,7 +71,7 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **STL-03**: Settlement is idempotent: re-running settlement on a settled market is a no-op (`WHERE settled_at IS NULL` guard + `(bet_id, event_type)` UNIQUE on ledger entries)
 - [ ] **STL-04**: Settlement credits winners' wallets and debits market liability in a single ACID transaction (no split commits, no orphan ledger entries)
 - [ ] **STL-05**: Settlement writes audit log entry with: market_id, source, resolver (admin_user_id or `polymarket-uma`), winning_outcome, total_payout, settlement_timestamp
-- [ ] **STL-06**: Player sees resolution display on each settled market: winning outcome, resolution source ("Polymarket UMA" or "Operator: {admin_display_name}"), justification text (public), settlement timestamp, their own payout/loss
+- [x] **STL-06**: Player sees resolution display on each settled market: winning outcome, resolution source ("Polymarket UMA" or "Operator: {admin_display_name}"), justification text (public), settlement timestamp, their own payout/loss
 - [ ] **STL-07**: Admin can reverse a settlement via compensating ledger entries (never DELETE/UPDATE); reversal requires justification and writes audit log entry
 
 ### Admin — User CRM (ADU)
@@ -210,14 +210,14 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | BET-03 | Phase 5 | Pending |
 | BET-04 | Phase 5 | Pending |
 | BET-05 | Phase 5 | Pending |
-| BET-06 | Phase 5 | Pending |
+| BET-06 | Phase 5 | Complete |
 | BET-07 | Phase 5 | Pending |
 | STL-01 | Phase 7 | Pending |
 | STL-02 | Phase 5 | Pending |
 | STL-03 | Phase 5 | Pending |
 | STL-04 | Phase 5 | Pending |
 | STL-05 | Phase 5 | Pending |
-| STL-06 | Phase 5 | Pending |
+| STL-06 | Phase 5 | Complete |
 | STL-07 | Phase 5 | Pending |
 | ADU-01 | Phase 8 | Complete |
 | ADU-02 | Phase 8 | Complete |

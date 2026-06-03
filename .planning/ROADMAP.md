@@ -357,7 +357,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 1** *(parallel — backend foundation + frontend api/contract foundation; no file overlap)*
 
-- [ ] 12-01-PLAN.md — Backend foundation: migration 0010 (markets +5 cols) + STL-06 mark_resolved persist ripple (Protocol+adapter+service+6 fakes) + get_market_public RESOLVED + [BLOCKING] migration apply (STL-06, BET-06) [W1]
+- [x] 12-01-PLAN.md — Backend foundation: migration 0010 (markets +5 cols) + STL-06 mark_resolved persist ripple (Protocol+adapter+service+6 fakes) + get_market_public RESOLVED + [BLOCKING] migration apply (STL-06, BET-06) [W1]
 - [ ] 12-02-PLAN.md — Frontend foundation: "use server" admin-markets-api (two-prefix Bearer-forward) + Wave-0 URL-contract guard + shared MarketStatusBadge (ADM-01..06, STL-02, STL-07) [W1]
 
 **Wave 2** *(parallel — all depend on Wave 1; no file overlap)*
@@ -395,7 +395,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
 | 11. Hardening & Operator-Demo Gate | 6/6 | In review | 2026-06-02 |
-| 12. Admin Market Operations UI & Player Resolution Display | 0/6 | Planned | - |
+| 12. Admin Market Operations UI & Player Resolution Display | 1/6 | In Progress|  |
 
 ## Coverage
 
