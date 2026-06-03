@@ -3,8 +3,11 @@
  * (https://ui.shadcn.com/docs/components/button). Modified only to import
  * `cn` from "@/lib/utils" matching the path alias in tsconfig.json.
  *
- * Visual style is the "new-york" default — neutral zinc palette to match
- * the existing app/page.tsx tone.
+ * Visual style is the "new-york" default. The primary (default) variant and the
+ * focus ring consume the operator brand token (--brand-primary, v1.1 Fase A) so a
+ * palette change re-skins every CTA, with the label color derived for contrast
+ * (--brand-primary-foreground). secondary/ghost/outline stay neutral zinc and
+ * destructive stays semantic red.
  */
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
@@ -13,11 +16,11 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-zinc-900 text-zinc-50 hover:bg-zinc-900/90",
+        default: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary/90",
         destructive: "bg-red-500 text-zinc-50 hover:bg-red-500/90",
         outline:
           "border border-zinc-200 bg-white hover:bg-zinc-100 hover:text-zinc-900",
