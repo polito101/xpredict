@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-06-03T15:05:19.951Z"
+status: verifying
+last_updated: "2026-06-03T15:47:42.916Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 12
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 47
-  completed_plans: 43
-  percent: 75
+  completed_plans: 44
+  percent: 83
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 Phase: 12 (admin-market-operations-ui-and-player-resolution-display) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-03
 
-Progress: [█████████░] 91%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
@@ -90,6 +90,7 @@ Progress: [█████████░] 91%
 | Phase 12 P12-03 | ~12min | 2 tasks | 10 files |
 | Phase 12 P12-04 | 18min | 3 tasks | 4 files |
 | Phase 12 P12-05 | 5min | 2 tasks | 6 files |
+| Phase 12 P12-06 | ~20min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -156,6 +157,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 2026-06-03 (Plan 12-04): STL-06 player resolution display shipped. MarketResolutionPanel composes the order-panel Card + portfolio PnL (loss neutral zinc-700, A-LOSS-NEUTRAL) + won/lost copy; renders in markets/[slug] RIGHT column when status===RESOLVED (order form replaced, LEFT untouched), MarketStatusBadge in header. Own result self-scoped from /bets/me/portfolio (cookie-forwarded, no user_id, filtered by market_id; T-12-11/13); justification escaped React text, NO dangerouslySetInnerHTML (T-12-12). MarketDetail +4 resolution +2 stake fields; OrderEntryForm fed minStake/maxStake. FLAG: HOUSE shows bare 'Operator' (token-only per 12-01; panel has operatorName prop ready). 10/10 panel tests + typecheck green; standalone pnpm 9.15.0 no lock churn.
 - [Phase ?]: 12-05: MarketForm is shared create/edit via a mode prop; the odds wire-name split (initial_odds_yes create / odds_yes edit) is applied only at submit-time body construction
 - [Phase ?]: 12-05: BET-06 stake fields stay strings (Number() only for the min<=max compare); blank optional fields omitted from the body so the backend applies the platform default
+- [Phase ?]: 2026-06-03 (Plan 12-06): admin settlement dialogs call ONLY the 12-02 wrappers (resolveMarket/reverseSettlement/forceSettle on the BARE /admin/markets/{id}/... prefix, closeMarket on /api/v1), never a hand-built URL — the settlement-prefix split is structurally impossible to break from the UI (T-12-19).
+- [Phase ?]: 2026-06-03 (Plan 12-06): /admin/markets/[id] is a thin Server Component (fetchMarketAdmin + not-found degrade) that hands the market to a sibling 'use client' island (market-detail-actions.tsx) hosting the 12-05 MarketForm edit + the status/source-gated Resolve/Force-settle/Reverse/Close buttons + dialogs; mirrors the shipped admin/users/[id] hosts-actions convention; dialog success -> router.refresh().
+- [Phase ?]: 2026-06-03 (Plan 12-06): action gating = OPEN/CLOSED+HOUSE -> Resolve; OPEN/CLOSED+POLYMARKET -> Force-settle; RESOLVED -> Reverse; OPEN -> Close. Reverse dialog body uses the UI-SPEC copy guard verbatim and does NOT promise clean re-resolution (Pitfall 5 / T-12-21 — the v1 idempotency-key-collision limitation is surfaced, not invited). close-market-dialog has no reason field; resolve/force-settle add a YES/NO outcome Select above the mandatory justification. Shared copy + the 401/403->session-expired status branch live in settlement-dialog-utils.ts.
+- [Phase ?]: 2026-06-03 (Plan 12-06): SC#5 end-to-end-through-the-UI acceptance APPROVED by Pol — the full operator->player resolution loop (create/list/bet/criteria-lock/resolve/player-display/reverse/force-settle/KPI-deep-link) passes with no raw-API step. Closing acceptance for the v1.0-closure phase; Phase 12 is 6/6 and ready_for_verification. KPI Pending-resolutions card deep-links to /admin/markets?status=CLOSED.
 
 ### Pending Todos
 
@@ -181,6 +186,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-03T15:05:13.244Z
-Stopped at: Completed 12-04-PLAN.md
+Last session: 2026-06-03T15:47:25.321Z
+Stopped at: Completed 12-06-PLAN.md — Phase 12 ready_for_verification (6/6 plans)
 Resume file: None

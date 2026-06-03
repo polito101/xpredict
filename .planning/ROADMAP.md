@@ -33,7 +33,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 - [x] **Phase 9: User App UX Polish (Market Detail & Real-Time)** - Market detail page with resolution criteria + price-history chart + activity feed, real-time WebSocket price updates for mirrored polls + house edits. (completed 2026-05-29, PR #13)
 - [x] **Phase 10: Admin KPI Dashboard & Configurable Branding** - Admin landing dashboard (24h volume, DAU, active markets, pending resolutions, house P&L) with Recharts, TenantConfig CRUD (brand name/logo/palette), runtime branding consumption in player UI. (completed 2026-05-31)
 - [x] **Phase 11: Hardening & Operator-Demo Gate** - Mobile responsiveness validation (≥360px), Sentry alert rule tuning, rate-limit tuning, "Looks Done But Isn't" checklist execution, prod-migration dry-run, security scan (gitleaks/bandit/npm audit/OWASP ZAP). **Final gate before any operator demo.**
-- [ ] **Phase 12: Admin Market Operations UI & Player Resolution Display** - Close the three v1.0-audit blockers: persist + show the player resolution display (STL-06), admin market-management UI (list/create/edit/close — ADM-01..04, ADM-07), admin two-step resolve/reverse/force-settle UI (STL-02, STL-07, ADM-05, ADM-06), and per-market stake limits (BET-06). Mostly frontend over already-merged-and-tested backends. **v1.0 closure phase — see `.planning/v1.0-MILESTONE-AUDIT.md`.**
+- [x] **Phase 12: Admin Market Operations UI & Player Resolution Display** - Close the three v1.0-audit blockers: persist + show the player resolution display (STL-06), admin market-management UI (list/create/edit/close — ADM-01..04, ADM-07), admin two-step resolve/reverse/force-settle UI (STL-02, STL-07, ADM-05, ADM-06), and per-market stake limits (BET-06). Mostly frontend over already-merged-and-tested backends. **v1.0 closure phase — see `.planning/v1.0-MILESTONE-AUDIT.md`.** (completed 2026-06-03)
 
 ## Phase Details
 
@@ -368,7 +368,7 @@ Phase numbering is sequential integers (1-11). Decimal phases (e.g., 2.1) are re
 
 **Wave 3** *(blocked on 12-01/02/04/05)*
 
-- [ ] 12-06-PLAN.md — Admin resolve/reverse/force-settle dialogs + /admin/markets/[id] detail host + close + KPI deep-link + SC#5 end-to-end human-verify gate (STL-02, STL-07, ADM-05, ADM-06, ADM-04) [W3]
+- [x] 12-06-PLAN.md — Admin resolve/reverse/force-settle dialogs + /admin/markets/[id] detail host + close + KPI deep-link + SC#5 end-to-end human-verify gate (STL-02, STL-07, ADM-05, ADM-06, ADM-04) [W3]
 **Critical pitfalls covered**: The "existence-vs-integration" gap (backend-complete endpoints with no UI consumer) surfaced by the v1.0 audit; closes the operator-demo path and the player happy-path resolution display.
 **UI hint**: yes
 
@@ -395,7 +395,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
 | 11. Hardening & Operator-Demo Gate | 6/6 | In review | 2026-06-02 |
-| 12. Admin Market Operations UI & Player Resolution Display | 5/6 | In Progress|  |
+| 12. Admin Market Operations UI & Player Resolution Display | 6/6 | Complete   | 2026-06-03 |
 
 ## Coverage
 
