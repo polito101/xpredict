@@ -26,7 +26,9 @@ bet / settlement services (``grant_signup_bonus`` / ``recharge`` / ``place_bet``
 
 from __future__ import annotations
 
+import asyncio
 import math
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -796,3 +798,102 @@ async def reset_demo() -> None:
                 "promo_balance": _HOUSE_PROMO_OPENING_BALANCE,
             },
         )
+
+
+# --------------------------------------------------------------------------- #
+# Bloque 7 — orchestration + CLI.
+# --------------------------------------------------------------------------- #
+
+
+class AlreadySeeded(RuntimeError):
+    """Raised when the demo is already seeded — run with ``--reset`` first."""
+
+
+@dataclass(frozen=True)
+class SeedResult:
+    """Count summary of one seed run (+ OPEN market slugs for chart checks / links)."""
+
+    users: int
+    markets: int
+    odds_snapshots: int
+    bets: int
+    resolutions: int
+    open_market_slugs: tuple[str, ...]
+
+
+async def _is_already_seeded(cfg: SeedConfig) -> bool:
+    """True if the demo admin already exists — the seed marker."""
+    session_maker = _get_session_maker()
+    email = f"demo-admin@{cfg.email_domain}"
+    async with session_maker() as session:
+        existing = (
+            await session.execute(
+                select(User).where(User.email == email)  # type: ignore[arg-type]
+            )
+        ).scalar_one_or_none()
+    return existing is not None
+
+
+async def seed_demo(cfg: SeedConfig | None = None) -> SeedResult:
+    """Populate the full demo dataset in dependency order (returns a summary).
+
+    Order: users -> markets -> odds history -> bets -> resolutions. Guarded by the
+    demo-admin marker: a second run raises :class:`AlreadySeeded` (run ``--reset``
+    first). Every value movement flows through the validated services, so the
+    resulting ledger reconciles with zero drift.
+    """
+    cfg = cfg or SeedConfig()
+    if await _is_already_seeded(cfg):
+        raise AlreadySeeded(
+            f"demo already seeded (demo-admin@{cfg.email_domain} exists) — "
+            "run with --reset to wipe and re-seed"
+        )
+
+    users = await seed_users(cfg)
+    markets = await seed_markets(cfg)
+    n_snapshots = await seed_odds_history(cfg, markets)
+    n_bets = await seed_bets(cfg, users, markets)
+    n_resolved = await seed_resolutions(cfg, markets)
+
+    return SeedResult(
+        users=len(users),
+        markets=len(markets),
+        odds_snapshots=n_snapshots,
+        bets=n_bets,
+        resolutions=n_resolved,
+        open_market_slugs=tuple(m.slug for m in markets if m.resolve_to is None),
+    )
+
+
+async def main(argv: Sequence[str] | None = None, *, cfg: SeedConfig | None = None) -> int:
+    """CLI entry point. ``--reset`` wipes + re-seeds; otherwise populate (guarded).
+
+    Returns a process exit code: 0 on success, 1 if the demo is already seeded.
+    """
+    args = list(sys.argv[1:] if argv is None else argv)
+
+    if "--reset" in args:
+        await reset_demo()
+        result = await seed_demo(cfg)
+        print(
+            f"Reset + re-seeded demo: {result.users} users, {result.markets} markets, "
+            f"{result.bets} bets, {result.resolutions} resolved, "
+            f"{result.odds_snapshots} odds snapshots."
+        )
+        return 0
+
+    try:
+        result = await seed_demo(cfg)
+    except AlreadySeeded as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    print(
+        f"Seeded demo: {result.users} users, {result.markets} markets, "
+        f"{result.bets} bets, {result.resolutions} resolved, "
+        f"{result.odds_snapshots} odds snapshots."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(asyncio.run(main()))
