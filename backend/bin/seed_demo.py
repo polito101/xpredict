@@ -26,22 +26,25 @@ bet / settlement services (``grant_signup_bonus`` / ``recharge`` / ``place_bet``
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from pwdlib import PasswordHash
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 from app.auth.models import User
+from app.core.config import get_settings
 from app.db.session import _get_session_maker
-from app.markets.models import Outcome
+from app.markets.models import OddsSnapshot, Outcome
 from app.markets.schemas import MarketCreate
 from app.markets.service import MarketService
 from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from uuid import UUID
 
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -525,3 +528,79 @@ async def seed_markets(cfg: SeedConfig) -> list[SeededMarket]:
                 )
             )
     return seeded
+
+
+# --------------------------------------------------------------------------- #
+# Bloque 3 — odds history. ~30 days of OddsSnapshot rows so the price-history
+# charts render in every window (24h/7d/30d), converging to current odds.
+# --------------------------------------------------------------------------- #
+
+# A point every few hours across 30 days — every window lands well above the
+# 2-point chart minimum (24h≈8, 7d≈56, 30d≈240 points).
+_HISTORY_DAYS = 30
+_HISTORY_INTERVAL_HOURS = 3
+_HISTORY_STEPS = _HISTORY_DAYS * 24 // _HISTORY_INTERVAL_HOURS
+
+
+def _odds_walk(base: Decimal, seed: int, step: int, total_steps: int) -> Decimal:
+    """Deterministic YES probability at ``step`` that converges to ``base`` at the end.
+
+    A decaying sine wobble plus a decaying start offset (both varied by ``seed`` — the
+    market's position — so each chart looks distinct yet reproducible), clamped to
+    (0,1) for the odds CHECK. Not money: quantized to the 6-dp Odds scale via a string
+    so no binary-float artifact reaches the column.
+    """
+    t = step / (total_steps - 1)  # 0.0 .. 1.0
+    wobble = math.sin((step + seed * 7) * 0.4) * 0.08 * (1.0 - t)
+    start_offset = ((seed % 5) - 2) * 0.05  # -0.10 .. +0.10
+    value = float(base) + wobble + start_offset * (1.0 - t)
+    value = min(0.98, max(0.02, value))
+    return Decimal(str(round(value, 6)))
+
+
+async def seed_odds_history(cfg: SeedConfig, markets: Sequence[SeededMarket]) -> int:
+    """Backfill ~30 days of OddsSnapshot rows per market (returns the row count).
+
+    Direct bulk insert — odds_snapshots are NOT money (the ledger discipline covers
+    transfers/entries), and there is no backfill service (``create_market`` only
+    stamps a single now-snapshot). The YES series is a deterministic walk converging
+    to the market's current YES odds; NO is its complement (1 - YES). Timestamps run
+    from ~30 days ago up to a few hours before now, so they sit before the
+    create_market now-snapshot rather than colliding with it.
+
+    ``cfg`` is accepted for API symmetry with the other ``seed_*`` steps.
+    """
+    session_maker = _get_session_maker()
+    tenant_id = get_settings().TENANT_ID_DEFAULT
+    now = datetime.now(UTC)
+
+    rows: list[dict[str, object]] = []
+    for seed, market in enumerate(markets):
+        for step in range(_HISTORY_STEPS):
+            snapshot_at = now - timedelta(hours=_HISTORY_INTERVAL_HOURS * (_HISTORY_STEPS - step))
+            yes_p = _odds_walk(market.initial_odds_yes, seed, step, _HISTORY_STEPS)
+            no_p = Decimal("1") - yes_p
+            rows.append(
+                {
+                    "market_id": market.id,
+                    "outcome_id": market.yes_outcome_id,
+                    "probability": yes_p,
+                    "snapshot_at": snapshot_at,
+                    "tenant_id": tenant_id,
+                }
+            )
+            rows.append(
+                {
+                    "market_id": market.id,
+                    "outcome_id": market.no_outcome_id,
+                    "probability": no_p,
+                    "snapshot_at": snapshot_at,
+                    "tenant_id": tenant_id,
+                }
+            )
+
+    if not rows:
+        return 0
+    async with session_maker() as session, session.begin():
+        await session.execute(insert(OddsSnapshot), rows)
+    return len(rows)
