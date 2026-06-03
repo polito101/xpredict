@@ -1,28 +1,20 @@
 /**
  * Plan 03-05 Task 3 — Player wallet page (WAL-03 balance, WAL-04 history, SC#6 stub).
  *
- * A Server Component that shows the logged-in player:
- *   - their current play balance (in PLAY_USD),
- *   - their recent transaction history (empty-state when there is none), and
- *   - a DISABLED "Add funds" button (SC#6 / PLT-05) — the Stripe top-up
- *     affordance is present but inert. v2 enables it behind the
- *     `stripe_recharge_enabled` feature flag (seeded FALSE in Phase 1); the
- *     backend `WalletService.recharge(payment_provider="stripe")` raises
- *     `NotImplementedError` until then.
+ * A Server Component that shows the logged-in player their play balance, recent
+ * transaction history, and a DISABLED "Add funds" button (SC#6 / PLT-05 — the
+ * Stripe top-up affordance is present but inert until v2).
  *
  * Money is rendered exactly as the backend serialized it — a STRING (SC#4); we
- * never parse it to a JS number (floats would lose the NUMERIC(18,4) precision,
- * PITFALLS #4). Copy is ENGLISH and deliberately avoids the word "deposit"
- * (PITFALLS #3 — this is play money: "Add funds" / "play balance", never
- * "deposit").
+ * never parse it to a JS number (floats would lose NUMERIC(18,4) precision,
+ * PITFALLS #4). Copy is ENGLISH and avoids "deposit" (PITFALLS #3 — play money).
  *
- * Data fetch (server-side, cookie-forwarded — mirrors `lib/auth.ts`): the page
- * reads `BACKEND_URL` from the server env (no `NEXT_PUBLIC_` prefix, so it never
- * leaks into the client bundle) and forwards the player's `xpredict_session`
- * cookie to `GET /wallet/me/balance` + `/wallet/me/transactions`. If the backend
- * is unreachable or the session is missing, it degrades to a zero balance + an
- * empty history rather than crashing (a follow-up phase can harden the redirect
- * to /login). The fetch is isolated in `loadWallet()` so tests can mock it.
+ * Failure handling (v1.1 Fase C): the fetch result is a discriminated union, so
+ * the page distinguishes three cases instead of silently degrading every one to
+ * a misleading "0":
+ *   - `unauthenticated` (no session cookie) → a sign-in prompt,
+ *   - `error` (backend unreachable / non-2xx) → a non-silent RetryError, and
+ *   - `ok` → the balance + history (with an empty state when there's none).
  */
 import { cookies } from "next/headers";
 
@@ -34,6 +26,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RetryError } from "@/components/retry-error";
+import { SignedOutNotice } from "@/components/signed-out-notice";
 
 const CURRENCY = "PLAY_USD";
 
@@ -51,26 +45,26 @@ type WalletData = {
   transactions: TransactionItem[];
 };
 
+type WalletResult =
+  | { status: "ok"; data: WalletData }
+  | { status: "error" }
+  | { status: "unauthenticated" };
+
 function getBackendUrl(): string {
   return process.env.BACKEND_URL || "http://localhost:8000";
 }
 
 /**
  * Fetch the player's balance + recent history server-side, forwarding the
- * session cookie. Degrades to a zero balance / empty history on any failure so
- * the page always renders (the read endpoints are cookie-gated server-side).
+ * session cookie. Returns a discriminated result so the page can tell apart a
+ * signed-out visitor, a backend failure, and a genuinely empty wallet.
  */
-async function loadWallet(): Promise<WalletData> {
-  const fallback: WalletData = {
-    balance: "0",
-    currency: CURRENCY,
-    transactions: [],
-  };
-  try {
-    const store = await cookies();
-    const session = store.get("xpredict_session")?.value;
-    if (!session) return fallback;
+async function loadWallet(): Promise<WalletResult> {
+  const store = await cookies();
+  const session = store.get("xpredict_session")?.value;
+  if (!session) return { status: "unauthenticated" };
 
+  try {
     const headers = { Cookie: `xpredict_session=${session}` };
     const base = getBackendUrl();
 
@@ -79,23 +73,24 @@ async function loadWallet(): Promise<WalletData> {
       fetch(`${base}/wallet/me/transactions`, { headers, cache: "no-store" }),
     ]);
 
-    const balance: string =
-      balanceRes.ok && typeof (await balanceRes.clone().json()).balance === "string"
-        ? (await balanceRes.json()).balance
-        : fallback.balance;
+    if (!balanceRes.ok || !txRes.ok) return { status: "error" };
 
-    const transactions: TransactionItem[] = txRes.ok
-      ? ((await txRes.json()).items ?? [])
-      : [];
+    const balanceJson = (await balanceRes.json()) as { balance?: unknown };
+    const txJson = (await txRes.json()) as { items?: TransactionItem[] };
+    const balance =
+      typeof balanceJson.balance === "string" ? balanceJson.balance : "0";
 
-    return { balance, currency: CURRENCY, transactions };
+    return {
+      status: "ok",
+      data: { balance, currency: CURRENCY, transactions: txJson.items ?? [] },
+    };
   } catch {
-    return fallback;
+    return { status: "error" };
   }
 }
 
 export default async function WalletPage() {
-  const { balance, currency, transactions } = await loadWallet();
+  const result = await loadWallet();
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
@@ -106,6 +101,23 @@ export default async function WalletPage() {
         </p>
       </header>
 
+      {result.status === "unauthenticated" ? (
+        <SignedOutNotice resource="wallet" />
+      ) : result.status === "error" ? (
+        <RetryError
+          title="We couldn't load your wallet"
+          message="The balance service didn't respond. Your funds are safe — please try again."
+        />
+      ) : (
+        <WalletContent {...result.data} />
+      )}
+    </main>
+  );
+}
+
+function WalletContent({ balance, currency, transactions }: WalletData) {
+  return (
+    <>
       {/* Balance + Add funds (SC#6 — the Add funds button is DISABLED) */}
       <Card>
         <CardHeader>
@@ -170,6 +182,6 @@ export default async function WalletPage() {
           </ul>
         )}
       </section>
-    </main>
+    </>
   );
 }

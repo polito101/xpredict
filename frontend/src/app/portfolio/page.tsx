@@ -1,22 +1,17 @@
 /**
  * Phase 5 (SC#7) — Player portfolio page.
  *
- * A Server Component that shows the logged-in player:
- *   - OPEN positions: stake, the odds locked at placement, and the POTENTIAL payout / P&L
- *     if that outcome wins (at the locked odds), and
- *   - SETTLED positions: stake, the won/lost result, the payout, and the REALIZED P&L.
+ * A Server Component that shows the logged-in player their OPEN positions
+ * (stake, locked odds, potential payout / P&L) and SETTLED positions (stake,
+ * won/lost, payout, realized P&L).
  *
- * Money + odds are rendered exactly as the backend serialized them — STRINGS (SC#4); we
- * never parse them to a JS number (floats would lose the NUMERIC precision, PITFALLS #4).
- * Copy is ENGLISH and avoids "deposit"/casino framing (PITFALLS #3 — this is play money).
+ * Money + odds are rendered exactly as the backend serialized them — STRINGS
+ * (SC#4); never parsed to a JS number (floats would lose NUMERIC precision,
+ * PITFALLS #4). Copy avoids "deposit"/casino framing (PITFALLS #3 — play money).
  *
- * Data fetch mirrors the wallet page: read `BACKEND_URL` server-side (no `NEXT_PUBLIC_`
- * prefix, so it never leaks into the client bundle) and forward the player's
- * `xpredict_session` cookie to `GET /bets/me/portfolio`. On any failure it degrades to an
- * empty portfolio rather than crashing. The live unrealized P&L at CURRENT odds (SC#7)
- * arrives once the backend enriches open positions at integration (the market read port is
- * wired then); today the OPEN view is the locked-odds potential. `loadPortfolio()` is
- * isolated so tests can mock it.
+ * Failure handling (v1.1 Fase C): the fetch result is a discriminated union, so
+ * a backend failure shows a non-silent RetryError and a signed-out visitor sees
+ * a sign-in prompt — neither is degraded to a misleading "empty portfolio".
  */
 import { cookies } from "next/headers";
 
@@ -27,6 +22,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RetryError } from "@/components/retry-error";
+import { SignedOutNotice } from "@/components/signed-out-notice";
 
 const CURRENCY = "PLAY_USD";
 
@@ -53,32 +50,42 @@ type SettledPosition = {
 
 type Portfolio = { open: OpenPosition[]; settled: SettledPosition[] };
 
+type PortfolioResult =
+  | { status: "ok"; data: Portfolio }
+  | { status: "error" }
+  | { status: "unauthenticated" };
+
 function getBackendUrl(): string {
   return process.env.BACKEND_URL || "http://localhost:8000";
 }
 
 /**
- * Fetch the player's portfolio server-side, forwarding the session cookie. Degrades to an
- * empty portfolio on any failure so the page always renders (the read is cookie-gated
- * server-side).
+ * Fetch the player's portfolio server-side, forwarding the session cookie.
+ * Returns a discriminated result so the page can tell apart a signed-out
+ * visitor, a backend failure, and a genuinely empty portfolio.
  */
-async function loadPortfolio(): Promise<Portfolio> {
-  const fallback: Portfolio = { open: [], settled: [] };
-  try {
-    const store = await cookies();
-    const session = store.get("xpredict_session")?.value;
-    if (!session) return fallback;
+async function loadPortfolio(): Promise<PortfolioResult> {
+  const store = await cookies();
+  const session = store.get("xpredict_session")?.value;
+  if (!session) return { status: "unauthenticated" };
 
+  try {
     const res = await fetch(`${getBackendUrl()}/bets/me/portfolio`, {
       headers: { Cookie: `xpredict_session=${session}` },
       cache: "no-store",
     });
-    if (!res.ok) return fallback;
+    if (!res.ok) return { status: "error" };
 
-    const data = await res.json();
-    return { open: data.open ?? [], settled: data.settled ?? [] };
+    const data = (await res.json()) as {
+      open?: OpenPosition[];
+      settled?: SettledPosition[];
+    };
+    return {
+      status: "ok",
+      data: { open: data.open ?? [], settled: data.settled ?? [] },
+    };
   } catch {
-    return fallback;
+    return { status: "error" };
   }
 }
 
@@ -100,7 +107,7 @@ function PnL({ value }: { value: string }) {
 }
 
 export default async function PortfolioPage() {
-  const { open, settled } = await loadPortfolio();
+  const result = await loadPortfolio();
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
@@ -111,6 +118,23 @@ export default async function PortfolioPage() {
         </p>
       </header>
 
+      {result.status === "unauthenticated" ? (
+        <SignedOutNotice resource="portfolio" />
+      ) : result.status === "error" ? (
+        <RetryError
+          title="We couldn't load your portfolio"
+          message="The positions service didn't respond. Please try again."
+        />
+      ) : (
+        <PortfolioContent {...result.data} />
+      )}
+    </main>
+  );
+}
+
+function PortfolioContent({ open, settled }: Portfolio) {
+  return (
+    <>
       {/* Open positions — potential payout / P&L at the odds locked when you bet. */}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium tracking-tight">Open positions</h2>
@@ -172,6 +196,6 @@ export default async function PortfolioPage() {
           </ul>
         )}
       </section>
-    </main>
+    </>
   );
 }
