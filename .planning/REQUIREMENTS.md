@@ -56,11 +56,11 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 
 ## Stretch (P2 — in-scope if time, NOT blocking the milestone)
 
-High "looks-real" payoff; fold into the relevant phase only after its P1 core is stable.
+High "looks-real" payoff; fold into the relevant phase only after its P1 core is stable. All three land in Phase 17 (UI) after its P1 core is stable.
 
-- **P2-01**: Combined event chart — overlaid top-outcome price histories on event detail.
-- **P2-02**: Live odds on event rows via WebSocket, with an on-screen subscription cap (lazy-subscribe — avoids a WS connection storm on 60-outcome events).
-- **P2-03**: Featured "Top events" home shelf + category count chips (e.g. "Politics 12").
+- **P2-01**: Combined event chart — overlaid top-outcome price histories on event detail. *(Phase 17 stretch)*
+- **P2-02**: Live odds on event rows via WebSocket, with an on-screen subscription cap (lazy-subscribe — avoids a WS connection storm on 60-outcome events). *(Phase 17 stretch)*
+- **P2-03**: Featured "Top events" home shelf + category count chips (e.g. "Politics 12"). *(Phase 17 stretch)*
 
 ## Future Requirements
 
@@ -90,17 +90,53 @@ Explicitly excluded for v1.2. Documented to prevent scope creep (per research an
 
 ## Traceability
 
-Which phases cover which requirements. **Populated during roadmap creation** (gsd-roadmapper).
+Which phases cover which requirements. Populated during roadmap creation (gsd-roadmapper, 2026-06-04). Phases continue the numbered grid from v1.0 (last numbered phase was 12; v1.1 ran off-grid as Fases A–E).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _(filled by roadmap)_ | — | Pending |
+| EVT-01 | Phase 13 (Model) | Pending |
+| EVT-02 | Phase 17 (UI) | Pending |
+| EVT-03 | Phase 17 (UI) | Pending |
+| EVT-04 | Phase 17 (UI) | Pending |
+| EVT-05 | Phase 17 (UI) | Pending |
+| EVT-06 | Phase 15 (Settlement) | Pending |
+| EVT-07 | Phase 14 (Sync) | Pending |
+| CAT-01 | Phase 14 (Sync) | Pending |
+| CAT-02 | Phase 14 (Sync) | Pending |
+| CAT-03 | Phase 14 (Sync) | Pending |
+| CAT-04 | Phase 14 (Sync) | Pending |
+| CAT-05 | Phase 14 (Sync) | Pending |
+| CAT-06 | Phase 14 (Sync) | Pending |
+| BRW-01 | Phase 16 (API) | Pending |
+| BRW-02 | Phase 16 (API) | Pending |
+| BRW-03 | Phase 16 (API) | Pending |
+| BRW-04 | Phase 16 (API) | Pending |
+| BRW-05 | Phase 16 (API) | Pending |
+| BRW-06 | Phase 17 (UI) | Pending |
+| EVA-01 | Phase 16 (API) | Pending |
+| EVA-02 | Phase 16 (API) | Pending |
+| EVA-03 | Phase 15 (Settlement) | Pending |
+| EVA-04 | Phase 15 (Settlement) | Pending |
+| EVA-05 | Phase 15 (Settlement) | Pending |
+| EVA-06 | Phase 15 (Settlement) | Pending |
+| DEMO-01 | Phase 18 (Seed/Demo) | Pending |
+| DEMO-02 | Phase 18 (Seed/Demo) | Pending |
+| DEMO-03 | Phase 18 (Seed/Demo) | Pending |
+| DEMO-04 | Phase 18 (Seed/Demo) | Pending |
 
 **Coverage:**
 - v1.2 P1 requirements: 29 total (EVT 7 · CAT 6 · BRW 6 · EVA 6 · DEMO 4)
-- Mapped to phases: 0 ⚠️ (pending roadmap)
-- Stretch (P2): 3 (not counted in coverage)
+- Mapped to phases: 29 ✓ (0 unmapped)
+- Stretch (P2): 3 (Phase 17, not counted in coverage)
+
+**Per-phase requirement counts:**
+- Phase 13 (Model): 1 — EVT-01
+- Phase 14 (Sync): 7 — CAT-01..06, EVT-07
+- Phase 15 (Settlement): 5 — EVT-06, EVA-03..06
+- Phase 16 (API): 7 — BRW-01..05, EVA-01, EVA-02
+- Phase 17 (UI): 6 — EVT-02..05, BRW-06 (+ P2-01..03 stretch)
+- Phase 18 (Seed/Demo): 4 — DEMO-01..04
 
 ---
 *Requirements defined: 2026-06-04*
-*Last updated: 2026-06-04 after scoping v1.2 Credible Catalog*
+*Last updated: 2026-06-04 — roadmap traceability populated (Phases 13–18); 29/29 P1 mapped, 0 unmapped.*

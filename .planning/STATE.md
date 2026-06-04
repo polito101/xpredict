@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-06-04T18:35:21.319Z"
 last_activity: 2026-06-04
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,16 +18,19 @@ progress:
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-06-04)
+Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** v1.2 Credible Catalog — defining requirements (multi-outcome events + curated category catalog)
+**Current focus:** v1.2 Credible Catalog — roadmap created (6 phases, 13-18); Phase 13 (Multi-outcome Model & Catalog Indexes) ready to plan.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-06-04 — Milestone v1.2 started
+Phase: 13 of 18 (Multi-outcome Model & Catalog Indexes) — first v1.2 phase
+Plan: — (none yet)
+Status: Ready to plan
+Last activity: 2026-06-04 — v1.2 roadmap created; 29/29 P1 requirements mapped to Phases 13-18, 0 unmapped
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Milestones Shipped
 
