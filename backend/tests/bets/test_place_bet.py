@@ -28,7 +28,7 @@ import pytest_asyncio
 from sqlalchemy import select, text
 
 from app.bets.constants import BET_PENDING, KIND_MARKET_LIABILITY, TRANSFER_BET_PLACED
-from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound
+from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound, StakeOutOfRange
 from app.bets.market_port import MARKET_CLOSED, MARKET_OPEN, MarketView, OutcomeView
 from app.bets.models import Bet
 from app.bets.service import BetService
@@ -89,6 +89,8 @@ def _market(
     deadline: datetime | None = None,
     yes_price: Decimal = Decimal("0.5"),
     no_price: Decimal = Decimal("0.5"),
+    min_stake: Decimal | None = None,
+    max_stake: Decimal | None = None,
 ) -> MarketView:
     return MarketView(
         id=uuid4(),
@@ -98,6 +100,8 @@ def _market(
             OutcomeView(id=uuid4(), label="YES", price=yes_price),
             OutcomeView(id=uuid4(), label="NO", price=no_price),
         ),
+        min_stake=min_stake,
+        max_stake=max_stake,
     )
 
 
@@ -394,6 +398,109 @@ async def test_place_bet_rejected_nonpositive_stake() -> None:
                 stake=Decimal("0"),
                 market_source=src,
             )
+
+
+# --------------------------------------------------------------------------- #
+# 3b) Per-market stake limits (BET-06) — per-market bounds preferred; NULL -> global
+# --------------------------------------------------------------------------- #
+async def test_place_bet_rejects_below_per_market_min_preferring_market_over_config() -> None:
+    """A per-market min_stake=10 rejects a stake of 5 (above the global min of 1) — the
+    per-market bound is PREFERRED over the global config; no money moves, no bet recorded."""
+    user_id, wallet_id = await _seed_wallet(Decimal("100.0000"))
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN, min_stake=Decimal("10"), max_stake=Decimal("50")))
+    sm = _get_session_maker()
+    with pytest.raises(StakeOutOfRange):
+        async with sm() as session:
+            await BetService.place_bet(
+                session,
+                user_id=user_id,
+                market_id=m.id,
+                outcome_id=m.outcomes[0].id,
+                stake=Decimal("5.0000"),  # above global min (1) but below per-market min (10)
+                market_source=src,
+            )
+    assert await _balance(wallet_id) == Decimal("100.0000")
+    assert await _bets_for_user(user_id) == []
+
+
+async def test_place_bet_rejects_above_per_market_max_preferring_market_over_config() -> None:
+    """A per-market max_stake=50 rejects a stake of 60 (far below the global max of 100000)."""
+    user_id, wallet_id = await _seed_wallet(Decimal("100.0000"))
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN, min_stake=Decimal("10"), max_stake=Decimal("50")))
+    sm = _get_session_maker()
+    with pytest.raises(StakeOutOfRange):
+        async with sm() as session:
+            await BetService.place_bet(
+                session,
+                user_id=user_id,
+                market_id=m.id,
+                outcome_id=m.outcomes[0].id,
+                stake=Decimal("60.0000"),  # below global max (100000) but above per-market max (50)
+                market_source=src,
+            )
+    assert await _balance(wallet_id) == Decimal("100.0000")
+    assert await _bets_for_user(user_id) == []
+
+
+async def test_place_bet_accepts_within_per_market_range() -> None:
+    """A stake of 25 inside the per-market [10, 50] range is accepted and moves money."""
+    user_id, wallet_id = await _seed_wallet(Decimal("100.0000"))
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN, min_stake=Decimal("10"), max_stake=Decimal("50")))
+    sm = _get_session_maker()
+    async with sm() as session:
+        await BetService.place_bet(
+            session,
+            user_id=user_id,
+            market_id=m.id,
+            outcome_id=m.outcomes[0].id,
+            stake=Decimal("25.0000"),
+            market_source=src,
+        )
+    assert await _balance(wallet_id) == Decimal("75.0000")
+    assert len(await _bets_for_user(user_id)) == 1
+
+
+async def test_place_bet_null_market_limits_fall_back_to_global_config() -> None:
+    """A market with NULL min/max_stake uses the global BET_MIN_STAKE/BET_MAX_STAKE: a stake
+    BELOW the global min is rejected, and a stake just at the global min is accepted — proving
+    the fallback path reads the config (no behavior change for existing NULL-limit markets)."""
+    from app.core.config import get_settings
+
+    cfg = get_settings()
+    user_id, wallet_id = await _seed_wallet(Decimal("100.0000"))
+    src = StubMarketSource()
+    m = src.add(_market(MARKET_OPEN))  # NULL min/max -> global fallback
+
+    # Below the global min -> rejected via the fallback (no per-market bound set).
+    sm = _get_session_maker()
+    below = cfg.BET_MIN_STAKE / Decimal("2")  # 0.5 by default, < global min (1)
+    with pytest.raises(StakeOutOfRange):
+        async with sm() as session:
+            await BetService.place_bet(
+                session,
+                user_id=user_id,
+                market_id=m.id,
+                outcome_id=m.outcomes[0].id,
+                stake=below,
+                market_source=src,
+            )
+    assert await _balance(wallet_id) == Decimal("100.0000")
+    assert await _bets_for_user(user_id) == []
+
+    # Exactly at the global min -> accepted (the fallback bound is inclusive).
+    async with sm() as session:
+        await BetService.place_bet(
+            session,
+            user_id=user_id,
+            market_id=m.id,
+            outcome_id=m.outcomes[0].id,
+            stake=cfg.BET_MIN_STAKE,
+            market_source=src,
+        )
+    assert len(await _bets_for_user(user_id)) == 1
 
 
 # --------------------------------------------------------------------------- #

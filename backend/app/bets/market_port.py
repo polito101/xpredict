@@ -43,6 +43,12 @@ class MarketView:
     status: str  # MARKET_OPEN | MARKET_CLOSED | MARKET_RESOLVED
     deadline: datetime
     outcomes: tuple[OutcomeView, ...]
+    # BET-06 per-market stake limits (NULL = use the global BET_MIN/MAX_STAKE default).
+    # Defaults are mandatory so every existing ``MarketView(...)`` construction site (the
+    # 6 test stubs + the prod adapter) stays valid; ``place_bet`` prefers these bounds and
+    # falls back to ``settings.BET_MIN_STAKE`` / ``BET_MAX_STAKE`` when either is ``None``.
+    min_stake: Decimal | None = None
+    max_stake: Decimal | None = None
 
     def is_open(self, now: datetime) -> bool:
         """A market accepts bets only while ``OPEN`` and strictly before its deadline."""

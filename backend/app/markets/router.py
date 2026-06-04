@@ -161,7 +161,14 @@ async def get_market_public(
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> MarketRead:
     market = await MarketService.get_market_by_slug(session, slug)
-    if not market or market.status not in (MarketStatus.OPEN.value, MarketStatus.CLOSED.value):
+    # STL-06: RESOLVED markets are now public (the player must see the winner + justification
+    # on the resolved panel). MarketRead exposes only the 3 designed-public resolution fields
+    # (winner/source/justification) — no resolver UUID / admin identity / per-user payout.
+    if not market or market.status not in (
+        MarketStatus.OPEN.value,
+        MarketStatus.CLOSED.value,
+        MarketStatus.RESOLVED.value,
+    ):
         raise HTTPException(status_code=404, detail="Market not found")
     return MarketRead.model_validate(market)
 

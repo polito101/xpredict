@@ -26,22 +26,36 @@ export const BET_MIN_STAKE = 1;
 export const BET_MAX_STAKE = 100000;
 
 /**
- * Pre-flight bet schema. `stake` is validated as a positive decimal STRING
- * within the tenant min/max (we keep it a string — money/odds are never
- * parsed to a float for storage, SP-1; the bound check parses only to compare).
+ * Build a pre-flight bet schema bounded on the given [min, max] range (BET-06).
+ *
+ * `stake` is validated as a positive decimal STRING within `min`/`max` (we keep
+ * it a string — money/odds are never parsed to a float for storage, SP-1; the
+ * bound check parses only to compare). Callers pass the per-market `min_stake`/
+ * `max_stake` when present, else the global `BET_MIN_STAKE`/`BET_MAX_STAKE`
+ * defaults. The backend `place_bet` re-checks these bounds and is authoritative —
+ * this factory is a UX mirror only (T-12-08).
  */
-export const BetSchema = z.object({
-  outcome: z.enum(["YES", "NO"]),
-  stake: z
-    .string()
-    .min(1, "Enter a stake")
-    .refine((v) => /^\d+(\.\d+)?$/.test(v.trim()), {
-      message: "Enter a valid amount",
-    })
-    .refine((v) => Number(v) >= BET_MIN_STAKE && Number(v) <= BET_MAX_STAKE, {
-      message: `Stake must be between ${BET_MIN_STAKE} and ${BET_MAX_STAKE} PLAY_USD.`,
-    }),
-});
+export function makeBetSchema(min: number, max: number) {
+  return z.object({
+    outcome: z.enum(["YES", "NO"]),
+    stake: z
+      .string()
+      .min(1, "Enter a stake")
+      .refine((v) => /^\d+(\.\d+)?$/.test(v.trim()), {
+        message: "Enter a valid amount",
+      })
+      .refine((v) => Number(v) >= min && Number(v) <= max, {
+        message: `Stake must be between ${min} and ${max} PLAY_USD.`,
+      }),
+  });
+}
+
+/**
+ * Pre-flight bet schema at the GLOBAL tenant min/max — the default used where no
+ * per-market bounds apply. Kept exported so existing importers stay valid; the
+ * per-market form builds its resolver via `makeBetSchema(...)` instead.
+ */
+export const BetSchema = makeBetSchema(BET_MIN_STAKE, BET_MAX_STAKE);
 
 export type BetValues = z.infer<typeof BetSchema>;
 

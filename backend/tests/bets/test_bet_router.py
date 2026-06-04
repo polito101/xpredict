@@ -91,7 +91,13 @@ class _User:
         self.banned_at = banned_at
 
 
-def _market(status: str = MARKET_OPEN, *, yes_price: Decimal = Decimal("0.5")) -> MarketView:
+def _market(
+    status: str = MARKET_OPEN,
+    *,
+    yes_price: Decimal = Decimal("0.5"),
+    min_stake: Decimal | None = None,
+    max_stake: Decimal | None = None,
+) -> MarketView:
     return MarketView(
         id=uuid4(),
         status=status,
@@ -100,6 +106,8 @@ def _market(status: str = MARKET_OPEN, *, yes_price: Decimal = Decimal("0.5")) -
             OutcomeView(id=uuid4(), label="YES", price=yes_price),
             OutcomeView(id=uuid4(), label="NO", price=Decimal("0.5")),
         ),
+        min_stake=min_stake,
+        max_stake=max_stake,
     )
 
 
@@ -282,25 +290,67 @@ async def test_get_portfolio_returns_open_and_settled_with_pnl(api: httpx.AsyncC
 
 
 # --------------------------------------------------------------------------- #
-# Stake limits + sell->405 (SC#3, server-side).
+# Stake limits — global fallback + per-market overrides (BET-06, server-side).
+#
+# The stake check moved from the router into BetService.place_bet (RESEARCH A4) because
+# only the service loads the market. A market with NULL min/max_stake therefore falls back
+# to the global BET_MIN_STAKE/BET_MAX_STAKE config; a market with explicit limits is checked
+# against those. All cases wire a stub market (the check needs the market in hand).
 # --------------------------------------------------------------------------- #
-async def test_post_bets_422_when_stake_below_min(api: httpx.AsyncClient) -> None:
-    """A stake below the configured minimum is rejected server-side (422), before any DB work."""
-    _auth_as(_User(uuid4()))  # limit check runs first — no market/wallet needed
-    r = await api.post(
-        "/bets",
-        json={"market_id": str(uuid4()), "outcome_id": str(uuid4()), "stake": "0.5"},
-    )
+async def test_post_bets_422_when_stake_below_global_min(api: httpx.AsyncClient) -> None:
+    """A market with NULL limits falls back to the global min — stake below it is 422."""
+    _auth_as(_User(await _seed_wallet(Decimal("100.0000"))))
+    src = StubMarketSource()
+    m = src.add(_market())  # NULL min/max -> global default (1..100000)
+    _wire_market(src)
+    r = await api.post("/bets", json=_payload(m, stake="0.5"))
     assert r.status_code == 422
 
 
-async def test_post_bets_422_when_stake_above_max(api: httpx.AsyncClient) -> None:
-    _auth_as(_User(uuid4()))
-    r = await api.post(
-        "/bets",
-        json={"market_id": str(uuid4()), "outcome_id": str(uuid4()), "stake": "999999"},
-    )
+async def test_post_bets_422_when_stake_above_global_max(api: httpx.AsyncClient) -> None:
+    """A market with NULL limits falls back to the global max — stake above it is 422."""
+    _auth_as(_User(await _seed_wallet(Decimal("1000000.0000"))))
+    src = StubMarketSource()
+    m = src.add(_market())  # NULL min/max -> global default (1..100000)
+    _wire_market(src)
+    r = await api.post("/bets", json=_payload(m, stake="999999"))
     assert r.status_code == 422
+
+
+async def test_post_bets_rejects_below_per_market_min(api: httpx.AsyncClient) -> None:
+    """A per-market min_stake=10 rejects a stake of 5 at the PER-MARKET limit (422),
+    even though 5 is above the global min of 1."""
+    _auth_as(_User(await _seed_wallet(Decimal("100.0000"))))
+    src = StubMarketSource()
+    m = src.add(_market(min_stake=Decimal("10"), max_stake=Decimal("50")))
+    _wire_market(src)
+    r = await api.post("/bets", json=_payload(m, stake="5"))
+    assert r.status_code == 422
+    # The 422 detail carries the per-market bounds (not the global ones).
+    assert "10" in r.json()["detail"] and "50" in r.json()["detail"]
+
+
+async def test_post_bets_rejects_above_per_market_max(api: httpx.AsyncClient) -> None:
+    """A per-market max_stake=50 rejects a stake of 60 at the PER-MARKET limit (422),
+    even though 60 is well below the global max of 100000."""
+    _auth_as(_User(await _seed_wallet(Decimal("100.0000"))))
+    src = StubMarketSource()
+    m = src.add(_market(min_stake=Decimal("10"), max_stake=Decimal("50")))
+    _wire_market(src)
+    r = await api.post("/bets", json=_payload(m, stake="60"))
+    assert r.status_code == 422
+
+
+async def test_post_bets_accepts_within_per_market_range(api: httpx.AsyncClient) -> None:
+    """A stake of 25 inside the per-market [10, 50] range is accepted (201)."""
+    user_id = await _seed_wallet(Decimal("100.0000"))
+    _auth_as(_User(user_id))
+    src = StubMarketSource()
+    m = src.add(_market(min_stake=Decimal("10"), max_stake=Decimal("50")))
+    _wire_market(src)
+    r = await api.post("/bets", json=_payload(m, stake="25.0000"))
+    assert r.status_code == 201
+    assert Decimal(r.json()["stake"]) == Decimal("25.0000")
 
 
 async def test_sell_position_returns_405(api: httpx.AsyncClient) -> None:

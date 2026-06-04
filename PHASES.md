@@ -17,6 +17,7 @@
 | 9 | User App UX Polish & Real-Time | Agustin | ✅ Done | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | [#13](https://github.com/polito101/xpredict/pull/13) |
 | 10 | Admin KPI Dashboard & Branding | Pol | ✅ Done | `gsd/phase-10-admin-kpi-dashboard-configurable-branding` | [#15](https://github.com/polito101/xpredict/pull/15) |
 | 11 | Hardening & Operator-Demo Gate | Agustin | ✅ Done | `gsd/phase-11-hardening-operator-demo-gate` | [#17](https://github.com/polito101/xpredict/pull/17) |
+| 12 | Admin Market Ops UI & Player Resolution Display | Pol | 👀 In review | `gsd/phase-12-admin-market-operations-ui-and-player-resolution-display` | [#20](https://github.com/polito101/xpredict/pull/20) |
 
 ## Status legend
 
@@ -31,6 +32,10 @@
 ## Notes
 
 <!-- Add per-phase notes here if needed, e.g. blockers, spike results, handoff context -->
+
+### Phase 12 — v1.0 closure phase (added 2026-06-03)
+
+The `/gsd-audit-milestone v1.0` audit (report: `.planning/v1.0-MILESTONE-AUDIT.md`, status `gaps_found`) found the v1.0 backend is ~complete and tested, but **3 UI/integration blockers** break every demoable flow — endpoints exist + admin-gated + tested, with **no frontend consumer**: (1) **STL-06** player resolution display missing (winner never persisted to a column; `get_market_public` 404s RESOLVED markets); (2) no admin UI to resolve/reverse/force-settle; (3) no admin market-management UI at all (`admin-nav` "Markets" is a disabled placeholder). Phase 12 closes all three + BET-06. **Mostly frontend + one additive migration** (`markets.winning_outcome_id`/`resolution_source`/`resolution_justification`). Owner TBD — whoever takes it marks this row `🔄 In progress` + branch before touching code. The v1.0 milestone is **not** archived until Phase 12 ships and a re-audit passes.
 
 ### ⚠️ Tracker drift — needs Pol's reconciliation (flagged 2026-05-29, by Agustin)
 

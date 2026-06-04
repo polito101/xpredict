@@ -25,13 +25,22 @@ class MarketResolvePort(Protocol):
     """The write contract settlement needs from the market domain (Phase 4 satisfies it)."""
 
     async def mark_resolved(
-        self, session: AsyncSession, *, market_id: UUID, winning_outcome_id: UUID
+        self,
+        session: AsyncSession,
+        *,
+        market_id: UUID,
+        winning_outcome_id: UUID,
+        resolution_source: str,
+        justification: str,
     ) -> None:
         """Mark ``market_id`` RESOLVED with ``winning_outcome_id`` on the given session.
 
-        Called INSIDE the settlement transaction so the status change commits atomically
-        with the payouts. Implementations MUST use ``session`` (not their own) and MUST NOT
-        commit — the caller owns the unit of work.
+        Also persists ``resolution_source`` (a stable token, e.g. ``"HOUSE"`` /
+        ``"POLYMARKET_UMA"``) and ``justification`` onto the market row so the player-facing
+        resolved panel can render the winner + source + justification WITHOUT reading the
+        admin-gated audit log (STL-06). Called INSIDE the settlement transaction so the status
+        change commits atomically with the payouts. Implementations MUST use ``session`` (not
+        their own) and MUST NOT commit — the caller owns the unit of work.
         """
         ...
 

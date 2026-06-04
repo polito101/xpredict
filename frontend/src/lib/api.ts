@@ -47,10 +47,28 @@ export type PriceWindow = "24h" | "7d" | "30d";
 
 /**
  * The market-detail payload (`GET /api/v1/markets/{slug}`). The backend
- * `MarketRead` already returns `resolution_criteria` alongside the list fields.
+ * `MarketRead` returns `resolution_criteria` alongside the list fields, plus —
+ * after Plan 12-01 — the resolution projection (`winning_outcome_id` /
+ * `resolution_source` / `resolution_justification` / `resolved_at`) and the
+ * per-market stake bounds (`min_stake` / `max_stake`).
+ *
+ * The resolution fields are non-null only once a market is RESOLVED; before
+ * that the backend serializes them as `null`. `fetchMarket` keeps its 404 logic
+ * unchanged — Plan 12-01 stopped 404ing RESOLVED markets, so a resolved slug now
+ * returns 200 carrying this shape (the player resolution panel reads it).
+ *
+ * Money is a STRING on the wire (`Numeric(18,4)` serialized as a string — SP-1);
+ * `min_stake`/`max_stake` are `string | null` (NULL = the platform default) and
+ * are consumed by the order-form per-market bounds (BET-06 / Plan 12-03).
  */
 export interface MarketDetail extends MarketItem {
   resolution_criteria: string;
+  winning_outcome_id: string | null;
+  resolution_source: string | null;
+  resolution_justification: string | null;
+  resolved_at: string | null;
+  min_stake: string | null;
+  max_stake: string | null;
 }
 
 /** The price-history endpoint response (`GET .../price-history?window=`). */
