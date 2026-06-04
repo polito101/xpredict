@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import httpx
 import pytest
@@ -311,5 +312,217 @@ async def test_close_already_closed_returns_409(engine: AsyncEngine) -> None:
                 headers=_auth(token),
             )
         assert resp.status_code == 409
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+# ---------------------------------------------------------------------------
+# BET-06 per-market stake limits — REAL create/update path (CR-01/WR-01/WR-02)
+#
+# These deliberately round-trip stake limits through the actual MarketService
+# create/update path (POST/PATCH /api/v1/admin/markets -> service -> DB -> read
+# back via MarketRead). The original BET-06 tests drove an in-memory MarketView
+# stub that bypassed MarketService, so the limits-are-never-persisted bug (CR-01)
+# shipped green. Asserting the read-back here is what catches the regression.
+# ---------------------------------------------------------------------------
+
+
+async def test_create_persists_stake_limits(engine: AsyncEngine) -> None:
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            create_resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(min_stake="5", max_stake="500"),
+                headers=_auth(token),
+            )
+            assert create_resp.status_code == 201, create_resp.text
+            market_id = create_resp.json()["id"]
+            # The create response itself must already carry the persisted bounds.
+            # Compare by Decimal value, not exact string: the Numeric(18,4) column
+            # round-trips "5" as "5.0000" — the load-bearing assertion is "persisted,
+            # not NULL" (CR-01), not the trailing-zero form.
+            assert Decimal(create_resp.json()["min_stake"]) == Decimal("5")
+            assert Decimal(create_resp.json()["max_stake"]) == Decimal("500")
+            # ...and an independent read-back must agree (not NULL — CR-01).
+            read_resp = await c.get(
+                f"/api/v1/admin/markets/{market_id}",
+                headers=_auth(token),
+            )
+        assert read_resp.status_code == 200, read_resp.text
+        body = read_resp.json()
+        assert body["min_stake"] is not None
+        assert body["max_stake"] is not None
+        assert Decimal(body["min_stake"]) == Decimal("5")
+        assert Decimal(body["max_stake"]) == Decimal("500")
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+async def test_create_without_stake_limits_persists_null(engine: AsyncEngine) -> None:
+    # Omitting the bounds keeps them NULL (global-default fallback) — the create
+    # path must not invent a value.
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            create_resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(),
+                headers=_auth(token),
+            )
+            assert create_resp.status_code == 201, create_resp.text
+            market_id = create_resp.json()["id"]
+            read_resp = await c.get(
+                f"/api/v1/admin/markets/{market_id}",
+                headers=_auth(token),
+            )
+        assert read_resp.status_code == 200, read_resp.text
+        body = read_resp.json()
+        assert body["min_stake"] is None
+        assert body["max_stake"] is None
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+async def test_update_persists_stake_limits(engine: AsyncEngine) -> None:
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            create_resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(),
+                headers=_auth(token),
+            )
+            market_id = create_resp.json()["id"]
+            patch_resp = await c.patch(
+                f"/api/v1/admin/markets/{market_id}",
+                json={"min_stake": "10", "max_stake": "1000"},
+                headers=_auth(token),
+            )
+            assert patch_resp.status_code == 200, patch_resp.text
+            assert Decimal(patch_resp.json()["min_stake"]) == Decimal("10")
+            assert Decimal(patch_resp.json()["max_stake"]) == Decimal("1000")
+            # Independent read-back confirms the PATCH actually persisted (CR-01).
+            read_resp = await c.get(
+                f"/api/v1/admin/markets/{market_id}",
+                headers=_auth(token),
+            )
+        assert read_resp.status_code == 200, read_resp.text
+        body = read_resp.json()
+        assert body["min_stake"] is not None
+        assert body["max_stake"] is not None
+        assert Decimal(body["min_stake"]) == Decimal("10")
+        assert Decimal(body["max_stake"]) == Decimal("1000")
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+async def test_update_can_clear_stake_limit_to_null(engine: AsyncEngine) -> None:
+    # Explicitly sending null reverts a bound to the global default (PATCH uses
+    # model_fields_set, not `is not None`), and an omitted bound is left untouched.
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            create_resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(min_stake="5", max_stake="500"),
+                headers=_auth(token),
+            )
+            market_id = create_resp.json()["id"]
+            # Clear only min_stake; leave max_stake unmentioned.
+            patch_resp = await c.patch(
+                f"/api/v1/admin/markets/{market_id}",
+                json={"min_stake": None},
+                headers=_auth(token),
+            )
+            assert patch_resp.status_code == 200, patch_resp.text
+            read_resp = await c.get(
+                f"/api/v1/admin/markets/{market_id}",
+                headers=_auth(token),
+            )
+        assert read_resp.status_code == 200, read_resp.text
+        body = read_resp.json()
+        assert body["min_stake"] is None  # explicitly cleared
+        assert body["max_stake"] is not None  # omitted -> untouched
+        assert Decimal(body["max_stake"]) == Decimal("500")
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+async def test_create_inverted_stake_range_returns_422(engine: AsyncEngine) -> None:
+    # WR-01: min_stake > max_stake is rejected server-side (a direct API caller
+    # can bypass the client refine).
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(min_stake="500", max_stake="5"),
+                headers=_auth(token),
+            )
+        assert resp.status_code == 422, resp.text
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+async def test_update_inverted_stake_range_returns_422(engine: AsyncEngine) -> None:
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            create_resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(),
+                headers=_auth(token),
+            )
+            market_id = create_resp.json()["id"]
+            resp = await c.patch(
+                f"/api/v1/admin/markets/{market_id}",
+                json={"min_stake": "500", "max_stake": "5"},
+                headers=_auth(token),
+            )
+        assert resp.status_code == 422, resp.text
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+async def test_create_zero_stake_bound_returns_422(engine: AsyncEngine) -> None:
+    # WR-02: a bound of 0 is out of domain (stake must be > 0).
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(min_stake="0", max_stake="500"),
+                headers=_auth(token),
+            )
+        assert resp.status_code == 422, resp.text
+    finally:
+        await _cleanup_user(engine, _ADMIN_EMAIL)
+
+
+async def test_update_zero_stake_bound_returns_422(engine: AsyncEngine) -> None:
+    await _seed_user(engine, _ADMIN_EMAIL, is_superuser=True)
+    try:
+        async with await _client() as c:
+            token = await _get_admin_token(c)
+            create_resp = await c.post(
+                "/api/v1/admin/markets",
+                json=_market_body(),
+                headers=_auth(token),
+            )
+            market_id = create_resp.json()["id"]
+            resp = await c.patch(
+                f"/api/v1/admin/markets/{market_id}",
+                json={"max_stake": "0"},
+                headers=_auth(token),
+            )
+        assert resp.status_code == 422, resp.text
     finally:
         await _cleanup_user(engine, _ADMIN_EMAIL)

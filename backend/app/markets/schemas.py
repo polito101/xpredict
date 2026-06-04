@@ -35,15 +35,41 @@ class PaginatedResponse(BaseModel, Generic[T]):
     pages: int
 
 
-class MarketCreate(BaseModel):
+class _StakeLimitFields(BaseModel):
+    """Shared per-market stake-limit fields + cross-field validation (BET-06).
+
+    Mixed into both ``MarketCreate`` and ``MarketUpdate`` so the bound constraints
+    (WR-02: ``gt=0`` — a stake bound of 0 is out of domain; stake must be > 0) and
+    the ``min_stake <= max_stake`` cross-field check (WR-01) live in ONE place. Both
+    bounds stay Optional/nullable — NULL means "fall back to the global
+    ``BET_MIN_STAKE`` / ``BET_MAX_STAKE``". The client `refine` already enforces the
+    same range, but a direct API caller could bypass it, so the server re-validates.
+    """
+
+    # BET-06 per-market stake limits (optional; NULL = global default).
+    min_stake: Decimal | None = Field(default=None, gt=0)
+    max_stake: Decimal | None = Field(default=None, gt=0)
+
+    @model_validator(mode="after")
+    def _validate_stake_range(self) -> _StakeLimitFields:
+        # Only meaningful when BOTH bounds are supplied. An inverted range would make
+        # every bet impossible once the limits are actually persisted (CR-01) — reject
+        # it at the edge with a 422 rather than silently shipping an unbettable market.
+        if (
+            self.min_stake is not None
+            and self.max_stake is not None
+            and self.min_stake > self.max_stake
+        ):
+            raise ValueError("min_stake must be less than or equal to max_stake")
+        return self
+
+
+class MarketCreate(_StakeLimitFields):
     question: str = Field(min_length=1, max_length=500)
     resolution_criteria: str = Field(min_length=1, max_length=2000)
     deadline: datetime
     initial_odds_yes: Decimal = Field(default=Decimal("0.5"), gt=0, lt=1)
     category: str | None = Field(default=None, max_length=100)
-    # BET-06 per-market stake limits (optional; NULL = global default).
-    min_stake: Decimal | None = Field(default=None, ge=0)
-    max_stake: Decimal | None = Field(default=None, ge=0)
 
     @field_validator("deadline")
     @classmethod
@@ -55,14 +81,11 @@ class MarketCreate(BaseModel):
         return v
 
 
-class MarketUpdate(BaseModel):
+class MarketUpdate(_StakeLimitFields):
     resolution_criteria: str | None = Field(default=None, max_length=2000)
     deadline: datetime | None = None
     odds_yes: Decimal | None = Field(default=None, gt=0, lt=1)
     category: str | None = None
-    # BET-06 per-market stake limits (optional; NULL = global default).
-    min_stake: Decimal | None = Field(default=None, ge=0)
-    max_stake: Decimal | None = Field(default=None, ge=0)
 
     @field_validator("deadline")
     @classmethod
