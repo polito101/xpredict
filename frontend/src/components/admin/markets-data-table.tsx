@@ -308,7 +308,7 @@ export function MarketsDataTable({
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
           <Table>
             <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
               {table.getHeaderGroups().map((hg) => (
