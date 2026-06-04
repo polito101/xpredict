@@ -17,7 +17,7 @@
 | 9 | User App UX Polish & Real-Time | Agustin | ✅ Done | `gsd/phase-09-user-app-ux-polish-market-detail-real-time` | [#13](https://github.com/polito101/xpredict/pull/13) |
 | 10 | Admin KPI Dashboard & Branding | Pol | ✅ Done | `gsd/phase-10-admin-kpi-dashboard-configurable-branding` | [#15](https://github.com/polito101/xpredict/pull/15) |
 | 11 | Hardening & Operator-Demo Gate | Agustin | ✅ Done | `gsd/phase-11-hardening-operator-demo-gate` | [#17](https://github.com/polito101/xpredict/pull/17) |
-| 12 | Admin Market Ops UI & Player Resolution Display | Pol | 🔄 In progress | `gsd/phase-12-admin-market-operations-ui-and-player-resolution-display` | — |
+| 12 | Admin Market Ops UI & Player Resolution Display | Pol | 👀 In review | `gsd/phase-12-admin-market-operations-ui-and-player-resolution-display` | [#20](https://github.com/polito101/xpredict/pull/20) |
 
 ## Status legend
 
