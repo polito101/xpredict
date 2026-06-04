@@ -1,9 +1,19 @@
 ---
 phase: 12-admin-market-operations-ui-and-player-resolution-display
 verified: 2026-06-04T12:00:00Z
-status: human_needed
+status: pass
 score: 11/11
 overrides_applied: 0
+pm_signoff:
+  date: 2026-06-04
+  by: Pol (PM)
+  via: /gsd-ship
+  note: >-
+    All 3 human-verification items accepted as non-blocking for the v1.0 ship.
+    STL-06: 'Resolved by Operator' (no name) accepted as the intended UX fallback copy.
+    ADM-06: source-gating is code-verified; the force-settle E2E runtime check is DEFERRED to PR review (not yet run).
+    IN-01: per-keystroke category filter accepted as a non-blocking quality note.
+    SC#5 (E2E-through-UI) was already approved 2026-06-03.
 human_verification:
   - test: "STL-06 operator display name — resolve a HOUSE market, then open the player detail page and confirm the resolution source renders as 'Resolved by Operator' (no name appended). Validate this is the intended UX fallback, not a defect."
     expected: "The panel shows 'Resolved by Operator' without a name. The flag in the 12-04 SUMMARY (UI-SPEC Open Q3) was surfaced to Pol; confirm this is accepted for v1.0."
@@ -24,12 +34,15 @@ display (STL-06); (2) admin market-management UI: list/create/edit/close (ADM-01
 per-market stake limits (BET-06). v1.0 closure phase.
 
 **Verified:** 2026-06-04T12:00:00Z
-**Status:** human_needed
+**Status:** pass (PM sign-off 2026-06-04 — see `pm_signoff`)
 **Re-verification:** No — initial verification
 
-All 11 requirements are VERIFIED at code level. Status is `human_needed` due to three items
-requiring PM confirmation (one accepted UX fallback, one force-settle runtime check, one quality
-note). SC#5 end-to-end-through-UI was already APPROVED by Pol after manual testing on 2026-06-03.
+All 11 requirements are VERIFIED at code level. The three items that required PM confirmation
+(one accepted UX fallback, one force-settle runtime check, one quality note) were **accepted by
+Pol (PM) on 2026-06-04 at `/gsd-ship`** — see `pm_signoff` in the frontmatter. The ADM-06
+force-settle E2E runtime check is **deferred to PR review** (not yet run). SC#5
+end-to-end-through-UI was already APPROVED by Pol after manual testing on 2026-06-03. Status
+updated to `pass`.
 
 ---
 
