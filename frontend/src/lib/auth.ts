@@ -121,6 +121,29 @@ export async function loginAction(
 }
 
 // ---------------------------------------------------------------------------
+// logoutAction (v1.1 Fase C) — revoke server-side + clear the session cookie.
+// ---------------------------------------------------------------------------
+
+export async function logoutAction(): Promise<void> {
+  const store = await cookies();
+  const session = store.get("xpredict_session")?.value;
+  // Best-effort revoke on the backend (fastapi-users cookie /auth/logout). If
+  // it fails, the cookie is still cleared below, so the browser is logged out.
+  if (session) {
+    try {
+      await fetch(`${getBackendUrl()}/auth/logout`, {
+        method: "POST",
+        headers: { cookie: `xpredict_session=${session}` },
+      });
+    } catch {
+      // Network/endpoint hiccup — fall through to the local cookie clear.
+    }
+  }
+  store.delete("xpredict_session");
+  redirect("/");
+}
+
+// ---------------------------------------------------------------------------
 // registerAction
 // ---------------------------------------------------------------------------
 

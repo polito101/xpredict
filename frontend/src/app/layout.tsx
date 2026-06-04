@@ -1,12 +1,27 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { BrandLogo } from "@/components/brand-logo";
+import { PlayerNav } from "@/components/player-nav";
 import {
   fetchBrandingPublic,
   DEFAULT_BRANDING,
 } from "@/lib/branding-public";
+import { pickReadableForeground } from "@/lib/brand-color";
+
+/**
+ * Premium body typeface (v1.1 Fase A) — replaces the OS system-font stack with
+ * Inter, exposed as the `--font-sans` CSS variable that globals.css consumes.
+ * `display: "swap"` avoids invisible text while the font loads.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "XPredict",
@@ -46,16 +61,24 @@ export default async function RootLayout({
     // /branding/current unreachable → keep DEFAULT_BRANDING (safe fallback).
   }
 
+  // Session presence drives the nav (Log in/Sign up vs Log out). Only this
+  // server-side boolean crosses into the tree — the cookie value never does.
+  const isAuthenticated = Boolean(
+    (await cookies()).get("xpredict_session")?.value,
+  );
+
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <head>
-        {/* Only the two validated opaque hex tokens are interpolated here. */}
-        <style>{`:root{--brand-primary:${b.primary_hex};--brand-secondary:${b.secondary_hex};}`}</style>
+        {/* Validated opaque hex tokens + a foreground derived from primary
+            (one of two safe constant literals — never untrusted input). */}
+        <style>{`:root{--brand-primary:${b.primary_hex};--brand-primary-foreground:${pickReadableForeground(b.primary_hex)};--brand-secondary:${b.secondary_hex};}`}</style>
       </head>
       <body className="min-h-full flex flex-col">
         <header className="border-b border-zinc-200 bg-white">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center px-4 sm:px-6">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
             <BrandLogo brandName={b.brand_name} logoUrl={b.logo_url} />
+            <PlayerNav isAuthenticated={isAuthenticated} />
           </div>
         </header>
         {children}

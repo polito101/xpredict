@@ -17,7 +17,7 @@ export function OddsDisplay({ yes, no }: OddsDisplayProps) {
           <span className="text-xs uppercase tracking-wide text-zinc-500">
             YES
           </span>{" "}
-          <span className="text-sm font-normal text-emerald-700 dark:text-emerald-400">
+          <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             {yes}%
           </span>
         </div>
@@ -25,7 +25,7 @@ export function OddsDisplay({ yes, no }: OddsDisplayProps) {
           <span className="text-xs uppercase tracking-wide text-zinc-500">
             NO
           </span>{" "}
-          <span className="text-sm font-normal text-rose-700 dark:text-rose-400">
+          <span className="text-sm font-normal text-zinc-500">
             {no}%
           </span>
         </div>
@@ -36,11 +36,11 @@ export function OddsDisplay({ yes, no }: OddsDisplayProps) {
         aria-label={`YES ${yes}%, NO ${no}%`}
       >
         <div
-          className="bg-emerald-500"
+          className="bg-brand-primary"
           style={{ width: `${yes}%` }}
         />
         <div
-          className="bg-rose-500"
+          className="bg-zinc-200 dark:bg-zinc-700"
           style={{ width: `${no}%` }}
         />
       </div>

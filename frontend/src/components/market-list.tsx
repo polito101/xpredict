@@ -4,6 +4,7 @@
  * Handles empty, error, and populated states.
  */
 import { MarketCard } from "@/components/market-card";
+import { MarketGrid } from "@/components/market-grid";
 import { fetchMarkets } from "@/lib/api";
 
 export default async function MarketList() {
@@ -38,10 +39,10 @@ export default async function MarketList() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <MarketGrid>
       {markets.map((market) => (
         <MarketCard key={market.id} market={market} />
       ))}
-    </div>
+    </MarketGrid>
   );
 }

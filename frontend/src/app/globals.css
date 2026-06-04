@@ -10,6 +10,7 @@
      injecting a <style>:root{...}</style> block from the server-validated
      hexes. */
   --brand-primary: #4f46e5;
+  --brand-primary-foreground: #fafafa;
   --brand-secondary: #0ea5e9;
 }
 
@@ -19,6 +20,7 @@
   /* Maps the brand tokens into Tailwind v4 so they are usable as
      bg-brand-primary / text-brand-primary / border-brand-primary etc. */
   --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-foreground: var(--brand-primary-foreground);
   --color-brand-secondary: var(--brand-secondary);
 }
 
@@ -32,5 +34,6 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    sans-serif;
 }

@@ -1,11 +1,11 @@
 /**
  * Phase 5 (SC#7) — Portfolio page rendering tests.
+ * Updated v1.1 Fase C: a backend failure / signed-out visitor no longer degrades
+ * to a misleading "empty portfolio" — the page distinguishes three states.
  *
- * Runs under jsdom. Mirrors the wallet-page test: PortfolioPage is an async Server
- * Component that reads the session cookie (next/headers) + fetches GET /bets/me/portfolio
- * server-side; we mock BOTH so the test runs fully OFFLINE. We await the component, render
- * the resolved element, and assert on the DOM — both the live-data path and the empty
- * fallback. Money/odds are rendered as STRINGS (SC#4).
+ * Runs under jsdom. PortfolioPage is an async Server Component reading the
+ * session cookie (next/headers) + fetching GET /bets/me/portfolio; both mocked
+ * so it runs OFFLINE. next/navigation is mocked for the error-state RetryError.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -17,6 +17,7 @@ const cookieGet = vi.hoisted(() =>
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({ get: cookieGet })),
 }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 import PortfolioPage from "../page";
 
@@ -65,45 +66,49 @@ describe("PortfolioPage", () => {
       ],
     };
 
-    const fetchMock = vi.fn(async () => {
-      return {
-        ok: true,
-        json: async () => body,
-        clone: () => ({ json: async () => body }),
-      } as unknown as Response;
-    });
+    const fetchMock = vi.fn(
+      async () => ({ ok: true, json: async () => body }) as unknown as Response,
+    );
     vi.stubGlobal("fetch", fetchMock);
 
-    const ui = await PortfolioPage();
-    render(ui);
+    render(await PortfolioPage());
 
     const text = document.body.textContent ?? "";
-    // Open position — potential payout/P&L at the locked odds, money as STRINGS.
     expect(text).toContain("Potential payout 80.0000 PLAY_USD");
-    // Settled — won + lost results with realized P&L and payouts.
     expect(text).toContain("Won");
     expect(text).toContain("Lost");
-    expect(text).toContain("payout 0.0000 PLAY_USD"); // loser payout
-    expect(text).toContain("-60.0000 PLAY_USD"); // loser realized P&L
-    // No empty states when there is data.
+    expect(text).toContain("payout 0.0000 PLAY_USD");
+    expect(text).toContain("-60.0000 PLAY_USD");
     expect(screen.queryByTestId("portfolio-open-empty")).toBeNull();
     expect(screen.queryByTestId("portfolio-settled-empty")).toBeNull();
-    // Play money — never "deposit" (PITFALLS #3).
     expect(text.toLowerCase()).not.toContain("deposit");
   });
 
-  it("renders empty states when offline (no session cookie)", async () => {
+  it("prompts to sign in when there is no session — not an empty portfolio", async () => {
     cookieGet.mockReturnValue(undefined);
     const fetchMock = vi.fn(async () => {
       throw new Error("network should not be reached");
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const ui = await PortfolioPage();
-    render(ui);
+    render(await PortfolioPage());
 
-    expect(screen.getByTestId("portfolio-open-empty")).toBeInTheDocument();
-    expect(screen.getByTestId("portfolio-settled-empty")).toBeInTheDocument();
+    expect(screen.getByText(/sign in to see your portfolio/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /log in/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("portfolio-open-empty")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a non-silent retry error when the backend fails", async () => {
+    cookieGet.mockReturnValue({ value: "test-session-token" });
+    const fetchMock = vi.fn(
+      async () => ({ ok: false, status: 503, json: async () => ({}) }) as unknown as Response,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(await PortfolioPage());
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/couldn't load your portfolio/i);
+    expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
   });
 });
