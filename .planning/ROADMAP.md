@@ -395,7 +395,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. User App UX Polish (Market Detail & Real-Time) | 4/4 | Complete   | 2026-05-29 |
 | 10. Admin KPI Dashboard & Configurable Branding | 5/5 | Complete   | 2026-05-31 |
 | 11. Hardening & Operator-Demo Gate | 6/6 | In review | 2026-06-02 |
-| 12. Admin Market Operations UI & Player Resolution Display | 6/6 | Complete   | 2026-06-03 |
+| 12. Admin Market Operations UI & Player Resolution Display | 6/6 | Complete    | 2026-06-04 |
 
 ## Coverage
 
