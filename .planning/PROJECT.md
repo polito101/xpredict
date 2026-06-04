@@ -8,6 +8,18 @@ XPredict es una plataforma white-label de mercados de predicción. Los usuarios 
 
 El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de mercados de Polymarket y propios de la casa) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
 
+## Current Milestone: v1.2 Credible Catalog
+
+**Goal:** Replicar fielmente el catálogo de Polymarket — mercados multi-outcome (modelados como eventos de binarios) y navegación creíble por categorías con búsqueda y filtros — para que el producto se vea como la referencia real. Sigue play-money y single-tenant.
+
+**Target features:**
+- **Multi-outcome (evento de binarios)** — eventos que agrupan N outcomes YES/NO; mirror de Polymarket + creados por el admin (house). Reusa el settlement binario existente.
+- **Catálogo curado por categorías** — sync ampliado a top-N por categoría (con piso de volumen), reemplaza el top-25 global; categorías derivadas de tags de la Gamma API.
+- **Browse creíble** — búsqueda por texto, filtros por categoría, filtros de estado + ordenación (volumen, cierre, novedad). Sin paginación pesada.
+- **Admin multi-outcome** — crear/editar/resolver eventos house (resolución = elegir outcome ganador → settle de los binarios constituyentes).
+- **Player multi-outcome UX** — ver y apostar en eventos N-outcome (precio por outcome, detalle del evento, charts por outcome).
+- **Seed/demo actualizado** — el harness de seed/demo de v1.1 siembra eventos multi-outcome + categorías para el demo.
+
 ## Requirements
 
 ### Validated
@@ -34,9 +46,15 @@ El operador puede ofrecer un catálogo creíble de mercados de predicción (mezc
 
 ### Active
 
-<!-- Current scope. Empty between milestones — populate when v2.0 is scoped. -->
+<!-- Current scope (v1.2 Credible Catalog). Detailed REQ-IDs in REQUIREMENTS.md. -->
 
-Ninguno activo — v1.0 + v1.1 enviados. Próximo milestone (v2.0) sin definir. Candidatos diferidos en Out of Scope (multi-tenancy real, dinero real, multi-outcome). Ejecuta `/gsd-new-milestone` para definir el siguiente.
+**v1.2 Credible Catalog** (scoped 2026-06-04):
+- [ ] Multi-outcome markets como eventos de binarios (mirror Polymarket + house)
+- [ ] Catálogo curado por categorías (top-N por categoría con piso de volumen, reemplaza top-25 global)
+- [ ] Browse: búsqueda por texto + filtros por categoría + estado/ordenación
+- [ ] Admin: crear/editar/resolver eventos multi-outcome house
+- [ ] Player: ver y apostar en eventos N-outcome (precio por outcome, detalle, charts)
+- [ ] Seed/demo actualizado con eventos multi-outcome + categorías
 
 ### Out of Scope
 
@@ -46,7 +64,8 @@ Ninguno activo — v1.0 + v1.1 enviados. Próximo milestone (v2.0) sin definir. 
 - **Multi-tenancy real** — single-tenant en v1. Cuando entre el primer operador haremos refactor explícito. (Riesgo aceptado: trabajo extra en v2.)
 - **Aplicaciones móviles nativas** — solo web responsive en v1. iOS/Android cuando haya validación comercial.
 - **Integración live-bets** — defer hasta que live-bets v3 esté disponible. Source separado que se enchufa después.
-- **Catálogo completo de Polymarket** — solo top 25 al inicio. Catálogo grande añade UX (búsqueda, filtros, paginación) que no aporta a la venta inicial.
+- **Catálogo "todos los activos" (firehose completo)** — v1.2 amplía el top-25 a catálogo curado por categorías (top-N por categoría con piso de volumen), NO los miles de mercados activos. La cola larga de mercados ilíquidos añade ruido al demo y sync pesado sin aportar a la venta.
+- **Scalar / range markets** — v1.2 hace multi-outcome solo categórico (eventos de binarios YES/NO). Mercados de rango numérico (ej. franja de precio BTC) se difieren: añaden modelo + UI sin ser el grueso del catálogo de Polymarket.
 - **Wallets cripto / on-chain / USDC** — Polymarket es solo fuente de datos/oráculo, no participamos en su economía on-chain.
 - **Trading secundario / orderbook** — solo apuesta simple a precio actual (no se puede vender una posición antes de la resolución). Simplifica enormemente la lógica financiera.
 - **Notificaciones push / email transaccional avanzado** — emails básicos sí (verificación, password reset). Marketing/engagement por email, no.
@@ -113,4 +132,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-04 after v1.0 + v1.1 milestone close. v1.0 MVP (Phases 1-12) and v1.1 Demo Polish (Fases A-E) both shipped and archived — see MILESTONES.md; phase history in milestones/v1.0-phases/. Reconciliation: v1.1 was executed off the formal grid (worktrees + PRs #19/#22/#23/#24) and is now recorded. Next: scope v2.0 via /gsd-new-milestone. Carried-forward items in STATE.md › Deferred Items (incl. non-deferrable Spanish legal review of ToS/token policy before any live operator demo).*
+*Last updated: 2026-06-04 after scoping milestone v1.2 Credible Catalog (multi-outcome events + curated category catalog). v1.0 MVP (Phases 1-12) and v1.1 Demo Polish (Fases A-E) shipped and archived — see MILESTONES.md; phase history in milestones/v1.0-phases/. v1.2 continues phase numbering from Phase 13 (play-money, single-tenant — no architectural change). Carried-forward items in STATE.md › Deferred Items (incl. non-deferrable Spanish legal review of ToS/token policy before any live operator demo).*
