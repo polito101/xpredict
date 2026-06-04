@@ -6,7 +6,8 @@ ATOMICALLY with the ledger postings + the audit row (SC#5 — resolution is all-
 Phase 4 has no resolve method (resolution is Phase 5's responsibility), so this writes the status
 transition directly on the ``Market`` row, mirroring ``MarketService.close_market``:
 
-  - ``mark_resolved``   : status -> RESOLVED, ``resolved_at`` = now.
+  - ``mark_resolved``   : status -> RESOLVED, ``resolved_at`` = now, and persists
+    ``winning_outcome_id`` / ``resolution_source`` / ``resolution_justification`` (STL-06).
   - ``mark_unresolved`` : status -> CLOSED, ``resolved_at`` = None (re-resolvable after a reversal).
 
 Wired into the settlement admin router's ``get_market_resolver`` at integration so
@@ -29,13 +30,24 @@ class HouseMarketResolveAdapter:
     """Satisfies ``MarketResolvePort`` using Phase 4's market domain (caller-session writes)."""
 
     async def mark_resolved(
-        self, session: AsyncSession, *, market_id: UUID, winning_outcome_id: UUID
+        self,
+        session: AsyncSession,
+        *,
+        market_id: UUID,
+        winning_outcome_id: UUID,
+        resolution_source: str,
+        justification: str,
     ) -> None:
         market = await session.get(Market, market_id)
         if market is None:
             raise NoResultFound(f"no market {market_id}")
         market.status = MarketStatus.RESOLVED.value
         market.resolved_at = datetime.now(UTC)
+        # STL-06: persist the winner + source + justification on the SAME session so they
+        # commit atomically with the payouts (no separate commit — caller owns the tx).
+        market.winning_outcome_id = winning_outcome_id
+        market.resolution_source = resolution_source
+        market.resolution_justification = justification
 
     async def mark_unresolved(self, session: AsyncSession, *, market_id: UUID) -> None:
         market = await session.get(Market, market_id)

@@ -17,7 +17,13 @@ class _FakeResolver:
     """Minimal structural implementation of the resolve port."""
 
     async def mark_resolved(
-        self, session, *, market_id: UUID, winning_outcome_id: UUID
+        self,
+        session,
+        *,
+        market_id: UUID,
+        winning_outcome_id: UUID,
+        resolution_source: str,
+        justification: str,
     ) -> None:  # pragma: no cover - exercised in the integration suite
         return None
 

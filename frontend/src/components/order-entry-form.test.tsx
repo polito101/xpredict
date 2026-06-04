@@ -144,4 +144,35 @@ describe("OrderEntryForm — backend-status → inline-copy mapping", () => {
     );
     expect(screen.getByRole("button", { name: "Place bet" })).toBeDisabled();
   });
+
+  // BET-06 — per-market bounds (client mirror, UX-only; server authoritative).
+  it("per-market bounds → a stake below the passed min shows the range message and does NOT submit", async () => {
+    const user = userEvent.setup();
+    renderForm({ minStake: "10.0000", maxStake: "50.0000" });
+    // 5 is above the global min (1) but below the per-market min (10).
+    await user.type(screen.getByLabelText(/stake/i), "5");
+    await user.click(screen.getByRole("button", { name: "Place bet" }));
+    // The inline FormMessage shows the per-market range copy with PLAY_USD…
+    expect(
+      await screen.findByText("Stake must be between 10 and 50 PLAY_USD."),
+    ).toBeInTheDocument();
+    // …and the client zod blocked the flow — the confirm dialog never opened, so
+    // the Server Action was never fired.
+    expect(
+      screen.queryByRole("button", { name: "Confirm bet" }),
+    ).not.toBeInTheDocument();
+    expect(placeBetAction).not.toHaveBeenCalled();
+  });
+
+  it("per-market bounds → a stake above the passed max shows the range message", async () => {
+    const user = userEvent.setup();
+    renderForm({ minStake: "10.0000", maxStake: "50.0000" });
+    // 60 is far below the global max (100000) but above the per-market max (50).
+    await user.type(screen.getByLabelText(/stake/i), "60");
+    await user.click(screen.getByRole("button", { name: "Place bet" }));
+    expect(
+      await screen.findByText("Stake must be between 10 and 50 PLAY_USD."),
+    ).toBeInTheDocument();
+    expect(placeBetAction).not.toHaveBeenCalled();
+  });
 });

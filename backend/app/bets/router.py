@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import current_active_player
 from app.auth.models import User
 from app.bets.adapters import HouseMarketReadAdapter
-from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound
+from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound, StakeOutOfRange
 from app.bets.market_port import MarketReadPort
 from app.bets.schemas import (
     BetResponse,
@@ -39,7 +39,6 @@ from app.bets.schemas import (
     SettledPositionItem,
 )
 from app.bets.service import BetService
-from app.core.config import get_settings
 from app.db.session import get_async_session
 from app.wallet.exceptions import InsufficientBalance
 
@@ -86,16 +85,13 @@ async def place_bet(
     Gated to verified, non-banned players (SC#2). The placement is one ACID transaction
     (``BetService.place_bet``); domain errors map to 4xx (never a raw 500), and money/odds
     serialize as JSON strings (SC#4).
-    """
-    # Server-side stake limits (SC#3) — checked before any DB work. Tenant-level here;
-    # per-market overrides are Phase 10 (TenantConfig). The client enforces the same range.
-    settings = get_settings()
-    if not (settings.BET_MIN_STAKE <= body.stake <= settings.BET_MAX_STAKE):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Stake must be between {settings.BET_MIN_STAKE} and {settings.BET_MAX_STAKE}.",
-        )
 
+    Stake limits (BET-06) are enforced INSIDE ``place_bet`` (where the validated market is
+    in hand) — it prefers the per-market ``min_stake`` / ``max_stake`` and falls back to the
+    global ``BET_MIN_STAKE`` / ``BET_MAX_STAKE`` config; a violation surfaces as
+    :class:`StakeOutOfRange` mapped to 422 here. (The former router-level global-only check
+    is superseded — RESEARCH A4 — because the router does not load the market.)
+    """
     try:
         bet = await BetService.place_bet(
             session,
@@ -110,6 +106,8 @@ async def place_bet(
     except MarketClosed as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except InvalidOutcome as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    except StakeOutOfRange as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
     except InsufficientBalance as exc:
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc

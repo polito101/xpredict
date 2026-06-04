@@ -51,6 +51,11 @@ class MarketService:
                 category=body.category,
                 source=MarketSourceEnum.HOUSE.value,
                 status=MarketStatus.OPEN.value,
+                # BET-06 per-market stake limits (CR-01). NULL = fall back to the
+                # global BET_MIN_STAKE / BET_MAX_STAKE; persist whatever the admin sent
+                # so the create round-trips instead of silently dropping the bounds.
+                min_stake=body.min_stake,
+                max_stake=body.max_stake,
             )
             session.add(market)
             try:
@@ -152,6 +157,18 @@ class MarketService:
         if "category" in body.model_fields_set:
             market.category = body.category
             changed_fields.append("category")
+        # BET-06 per-market stake limits (CR-01). Use model_fields_set (not `is not
+        # None`) so the PATCH can EXPLICITLY clear a bound back to NULL — i.e. revert
+        # to the global default — without an omitted field clobbering an existing
+        # value. Same nullable-PATCH semantics as `category` above. The schema's
+        # model_validator already enforced min_stake <= max_stake (WR-01) and gt=0
+        # (WR-02) before we reach here.
+        if "min_stake" in body.model_fields_set:
+            market.min_stake = body.min_stake
+            changed_fields.append("min_stake")
+        if "max_stake" in body.model_fields_set:
+            market.max_stake = body.max_stake
+            changed_fields.append("max_stake")
         if body.odds_yes is not None:
             odds_no = Decimal("1") - body.odds_yes
             stmt = select(Outcome).where(Outcome.market_id == market.id)

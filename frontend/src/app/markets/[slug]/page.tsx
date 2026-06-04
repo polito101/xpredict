@@ -37,6 +37,11 @@ import { RecentActivityFeed } from "@/components/recent-activity-feed";
 import { MarketDetailSkeleton } from "@/components/market-detail-skeleton";
 import { MarketDetailLiveOdds } from "@/components/market-detail-live-odds";
 import { PriceHistorySection } from "@/components/price-history-section";
+import { MarketStatusBadge } from "@/components/admin/market-status-badge";
+import {
+  MarketResolutionPanel,
+  type ResolutionResult,
+} from "@/components/market-resolution-panel";
 import {
   OrderEntryForm,
   type OrderEntryOutcome,
@@ -92,6 +97,44 @@ function normalizeOutcomes(market: MarketDetail): OrderEntryOutcome[] {
   }));
 }
 
+/**
+ * Server-side backend base for the cookie-forwarded portfolio read (mirrors
+ * `portfolio/page.tsx:56-58`). `BACKEND_URL` has no `NEXT_PUBLIC_` prefix, so it
+ * never leaks into the client bundle.
+ */
+function getBackendUrl(): string {
+  return process.env.BACKEND_URL || "http://localhost:8000";
+}
+
+/**
+ * Reads the logged-in player's OWN settled result for this market (STL-06).
+ *
+ * SECURITY (T-12-11 / T-12-13): self-scoped by the player's own HttpOnly
+ * `xpredict_session` cookie forwarded server-side to `/bets/me/portfolio` — there
+ * is NO `user_id` parameter, so another user's payout is structurally
+ * unreachable. The cookie value never reaches the client; only the rendered
+ * result does. Mirrors `portfolio/page.tsx:65-83` and degrades to `null` on any
+ * failure (a non-bettor or a logged-out visitor simply gets `null`).
+ */
+async function loadMyResult(
+  session: string | undefined,
+  marketId: string,
+): Promise<ResolutionResult | null> {
+  if (!session) return null;
+  try {
+    const res = await fetch(`${getBackendUrl()}/bets/me/portfolio`, {
+      headers: { Cookie: `xpredict_session=${session}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const settled: ResolutionResult[] = data.settled ?? [];
+    return settled.find((p) => p.market_id === marketId) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function MarketDetailBody({ slug }: { slug: string }) {
   let market: MarketDetail;
   let points: PricePoint[] = [];
@@ -128,9 +171,23 @@ async function MarketDetailBody({ slug }: { slug: string }) {
 
   // `isAuthenticated` is derived from the HttpOnly session cookie presence
   // (the order form shows the login affordance when absent). The cookie value
-  // never reaches the client — only the boolean does.
+  // never reaches the client — only the boolean (and, server-side, the
+  // self-scoped portfolio read below) does.
   const store = await cookies();
-  const isAuthenticated = Boolean(store.get("xpredict_session")?.value);
+  const session = store.get("xpredict_session")?.value;
+  const isAuthenticated = Boolean(session);
+
+  // STL-06: when the market is RESOLVED, the right column shows the resolution
+  // panel instead of the order form. Load the player's OWN result (self-scoped
+  // by their cookie) so they see their Won/Lost + P&L; non-bettors / logged-out
+  // visitors get `null` (the panel shows only the public facts).
+  const isResolved = market.status === "RESOLVED";
+  const myResult = isResolved
+    ? await loadMyResult(session, market.id)
+    : null;
+  const winningOutcomeLabel =
+    market.outcomes.find((o) => o.id === market.winning_outcome_id)?.label ??
+    null;
 
   return (
     <main className={PAGE_SHELL}>
@@ -140,6 +197,7 @@ async function MarketDetailBody({ slug }: { slug: string }) {
           {market.question}
         </h1>
         <SourceBadge source={market.source} sourceUrl={market.source_url} />
+        <MarketStatusBadge status={market.status} />
       </header>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -188,21 +246,36 @@ async function MarketDetailBody({ slug }: { slug: string }) {
           </section>
         </div>
 
-        {/* RIGHT: sticky order panel */}
+        {/* RIGHT: sticky panel — resolution display when RESOLVED, else order entry. */}
         <div className="lg:col-span-1">
-          <Card className="lg:sticky lg:top-8">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Order entry</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <OrderEntryForm
-                marketId={market.id}
-                outcomes={outcomes}
-                marketStatus={market.status}
-                isAuthenticated={isAuthenticated}
-              />
-            </CardContent>
-          </Card>
+          {isResolved ? (
+            <MarketResolutionPanel
+              winningOutcomeLabel={winningOutcomeLabel}
+              resolutionSource={market.resolution_source}
+              justification={market.resolution_justification}
+              resolvedAt={market.resolved_at}
+              sourceUrl={market.source_url}
+              source={market.source}
+              myResult={myResult}
+              isAuthenticated={isAuthenticated}
+            />
+          ) : (
+            <Card className="lg:sticky lg:top-8">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold">Order entry</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OrderEntryForm
+                  marketId={market.id}
+                  outcomes={outcomes}
+                  marketStatus={market.status}
+                  isAuthenticated={isAuthenticated}
+                  minStake={market.min_stake}
+                  maxStake={market.max_stake}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </main>

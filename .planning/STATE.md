@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-last_updated: "2026-06-02T14:30:00Z"
-last_activity: 2026-06-02 -- Phase 11 plan 11-06 Task 1 done (executed the "Looks Done But Isnt" audit -> docs/LOOKS-DONE-CHECKLIST.md, 32 rows, SC#2/PLT-07; commit df0038d); Task 2 PENDING blocking human-verify (Pol signs off the audit + 4 external deferrals). 11-05 Task 2 visual-QA also still PENDING.
+status: milestone_complete
+last_updated: 2026-06-04T06:36:06.935Z
+last_activity: 2026-06-03
 progress:
-  total_phases: 11
-  completed_phases: 8
-  total_plans: 41
-  completed_plans: 33
-  percent: 75
+  total_phases: 12
+  completed_phases: 10
+  total_plans: 47
+  completed_plans: 44
+  percent: 83
+stopped_at: Milestone complete (Phase 12 was final phase)
 ---
 
 # Project State
@@ -20,22 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 11 — Hardening and Operator-Demo Gate
+**Current focus:** Milestone complete
 
 ## Current Position
 
-Phase: 11 (Hardening and Operator-Demo Gate) — EXECUTING
-Plan: 6 of 6 (11-01, 11-02 complete; 11-03 + 11-04 + 11-05 + 11-06 IN-PROGRESS — autonomous work done, each awaiting a human-verify gate)
-Status: Executing Phase 11 — plan 11-06 Task 1 done (executed "Looks Done But Isnt" audit -> docs/LOOKS-DONE-CHECKLIST.md, 32 rows, SC#2/PLT-07; commit df0038d), blocked on the Task-2 blocking human gate (Pol signs off the audit + acknowledges the 4 external deferrals); 11-05 still awaiting its visual-QA gate; 11-04 still awaiting its counsel-deferral gate; 11-03 still awaiting its Sentry round-trip gate
-Last activity: 2026-06-02 -- Phase 11 plan 11-06 Task 1 done (executed the "Looks Done But Isnt" audit as docs/LOOKS-DONE-CHECKLIST.md — 32 rows, one per PITFALLS item, each VERIFIED/CLOSED/VERIFY-ONLY(Pol track)/DEFERRED with evidence; wallet/ledger/concurrency verify-only vs existing tests + Pol's DEF-03-01 track, never re-implemented; cites dry-run 11-01 + security-scan 11-02 + Sentry runbook 11-03 + regulatory scaffold 11-04; SC#2/PLT-07; commit df0038d on gsd/phase-11-hardening-operator-demo-gate); Task 2 PENDING blocking human sign-off
+Phase: 12
+Plan: Not started
+Status: Milestone complete
+Last activity: 2026-06-04
 
-Progress: [█████████░] 92%
+Progress: [█████████░] 94%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 16
+- Total plans completed: 22
 - Average duration: ~21min
 - Total execution time: ~83min
 
@@ -57,6 +58,7 @@ Progress: [█████████░] 92%
 | 01 | 4 | - | - |
 | 02 | 5 | - | - |
 | 08 | 3 | - | - |
+| 12 | 6 | - | - |
 
 **Recent Trend:**
 
@@ -85,8 +87,18 @@ Progress: [█████████░] 92%
 | Phase 11 P11-02 | ~18 min | 4 tasks | 4 files |
 | Phase 11 P11-05 | ~15 min | 1 of 2 tasks | 4 files |
 | Phase 11 P11-06 | ~14 min | 1 of 2 tasks | 1 file |
+| Phase 12 P12-01 | ~30min | 3 tasks | 13 files |
+| Phase 12 P12-02 | 6min | 3 tasks | 5 files |
+| Phase 12 P12-03 | ~12min | 2 tasks | 10 files |
+| Phase 12 P12-04 | 18min | 3 tasks | 4 files |
+| Phase 12 P12-05 | 5min | 2 tasks | 6 files |
+| Phase 12 P12-06 | ~20min | 3 tasks | 9 files |
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- 2026-06-03: **Phase 12 added** — "Admin Market Operations UI & Player Resolution Display", the **v1.0 closure phase** mandated by `.planning/v1.0-MILESTONE-AUDIT.md` (status: `gaps_found`). Closes 3 UI/integration blockers found by the milestone audit: STL-06 (player resolution display — winner not persisted + 404 on RESOLVED markets), admin market-management UI (ADM-01..04, ADM-07), admin resolve/reverse/force-settle UI (STL-02, STL-07, ADM-05, ADM-06), plus BET-06 per-market limits. Backends already merged + tested across Phases 4/5/7; phase is mostly frontend + one additive migration. Milestone NOT archived until this closes and re-audit passes.
 
 ### Decisions
 
@@ -140,6 +152,17 @@ Recent decisions affecting current work:
 - [Phase 11]: 2026-06-02 (Plan 11-05 Task 1, autonomous): SC#1/PLT-07 responsive CSS/layout-only pass shipped (Task 2 human visual-QA PENDING). Audited the six player surfaces at 360/390/414/768px; FOUR needed a fix, FOUR were already mobile-first. Fixes (all Tailwind className / container-width, ZERO prop/import/fetch/component changes — CONSTRAINT 1 / RESEARCH Pitfall 6): wallet/page.tsx (px-6→px-4 sm:px-6 gutter; transaction <li> gap-3 + min-w-0/truncate reason + shrink-0/whitespace-nowrap amount); portfolio/page.tsx (px-4 sm:px-6 gutter; both card rows flex-wrap gap-x-3 gap-y-1 + min-w-0 label so P&L wraps below its label); markets/[slug]/page.tsx (min-w-0 on the left lg:col-span-2 column so the Recharts ResponsiveContainer chart can't force the grid past the viewport — grid items default min-width:auto); market-card.tsx (footer gap-2 + min-w-0/truncate meta + shrink-0 source badge so long volume/deadline shrinks instead of pushing the badge off-screen). Already-correct + untouched: page.tsx (w-full max-w-6xl mx-auto px-4 sm:px-6), market-list.tsx (grid-cols-1 sm:grid-cols-2 lg:grid-cols-3), (auth)/layout.tsx (centered Card w-full max-w-md p-6), order-entry-form.tsx (full-width Select/Input + w-full submit). frontend/src/app/layout.tsx NOT touched (11-04 ownership boundary). Verify gate = `pnpm typecheck` exit 0 + strict hunk-by-hunk CSS-only diff review (4 files, 18 ins/16 del) — NOT `pnpm build` (DEF-FE-BUILD-01: Turbopack/pnpm-symlink build fails identically on pristine HEAD in this deep-path Windows worktree; real CI builds clean per PR #16). 1 atomic commit (fix `dac111e`). SC#1 of 6 — visual QA gate (Pol) outstanding.
 - [Phase 11]: 2026-06-02 (Plan 11-06 Task 1, autonomous): SC#2/PLT-07 "Looks Done But Isnt" audit EXECUTED (Task 2 Pol sign-off PENDING). NEW `docs/LOOKS-DONE-CHECKLIST.md` (110 lines, docs-only diff, commit `df0038d`): one audit row per PITFALLS.md checklist item (exactly 32 items, lines 447-478), columns `# | Item | Class | Result | Evidence`, each VERIFIED / CLOSED BY PHASE 11 / VERIFY-ONLY (Pol track) / DEFERRED — NO blank rows. Dispositions: 17 VERIFIED base invariants, 6 CLOSED BY PHASE 11, 6 VERIFY-ONLY (Pol track) wallet/ledger/concurrency, 4 DEFERRED (rows 13+31 double-tokened). Cites every Phase-11 deliverable as closing evidence: `prod-migration-dry-run.yml` (11-01, row 32), `security-scan.yml`+`.zap/rules.tsv` (11-02, rows 11-14+21), `docs/runbooks/sentry-alerts.md` (11-03, rows 24+28), regulatory scaffold `docs/regulatory.md`+`terms-of-service.md`+`operator-agreement.md` (11-04, row 31). CONSTRAINT-3 honored verbatim: the 5 wallet/ledger/concurrency rows (1,2,4,5,6) are VERIFY-ONLY, cite existing `tests/wallet/test_concurrent_transfers.py` / `test_atomicity.py` / `app/wallet/reconcile.py` / migration `0004_phase3_wallet_ledger.py`, and explicitly name Pol's `DEF-03-01` (`test_50_concurrent_overdraft` isolation residual, PR #16 follow-up) as out-of-scope — NONE re-implemented (every `re-implemented`/`re-fixed` match is a negative assertion). Two evidence-accuracy decisions (NOT scope changes): (a) item 19 self-bet-ban recorded VERIFIED-by-architecture (v1 has no user-created-market path; admins use the separate `current_active_admin` CRM, players the `current_active_player` `/bets` surface -> "bet on a market you created" is structurally unreachable; recording the plan-example's non-existent "Phase 5 self-bet firewall" would be a falsely-green row per T-11-06-01; v2 note added); (b) cited the wallet-ledger migration as the real on-disk `0004_phase3_wallet_ledger.py` (plan example "0003" is the logical/STATE name). Verify gate green: file present, result-token grep=47 (>=28), 110 lines (>=50), 32 data rows, key-links prod-migration-dry-run=2/security-scan=6/sentry-alerts=8, git diff docs-only (110 ins/0 del, no source/test). 1 atomic commit (docs `df0038d`). SC#2 of 6 — Pol sign-off (Task 2, blocking) outstanding: 4 genuinely-external deferrals to acknowledge (backup-restore/PITR rows 26/27 = infra; Sentry round-trip rows 24/28 = Pol per runbook §5; Spanish-counsel ToS review row 31 = external counsel; Postgres metrics row 25 = infra).
 - [Phase 11]: 2026-06-02 (Plan 11-01): SC#3 prod-migration-dry-run gate shipped. `bin/check_no_dev_config.sh` (90-line bash, mirrors bin/dev) targets THIS codebase's config shape — `ENVIRONMENT=dev` + hardcoded `localhost`/`127.0.0.1` in `backend/app`+`frontend/src` only (the app has NO `DEBUG` flag). Pitfall-1 allow-list: compose healthchecks / `.env.example` / tests / `.zap` / docs are structurally out of scan scope (grep `-r` rooted at the two app dirs). The clean tree already carries intentional `localhost` (the `process.env.X || "http://localhost:8000"` dev-fallback idiom across Server Components + lib helpers, the `FRONTEND_BASE_URL="http://localhost:3000"` config default, the `redis://localhost:6379/0` docstring) — so localhost is filtered through a 4-class `grep -vE` allow-list (||-fallback, multi-line continuation, comment/docstring incl. RST ``..``, typed `NAME:<type>="..."` default) per the plan's NOTE FOR EXECUTOR; a NEW bare `host="localhost"` still fails (verified clean→0, injected→1). `ENVIRONMENT=dev` rule runs across both roots with no allow-list (zero legit occurrences; config.py's typed annotation default is not matched). `.github/workflows/prod-migration-dry-run.yml` mirrors backend-ci.yml: `docker compose up -d --wait` (8 healthchecks) → `uv run alembic upgrade head` → reused Phase-5 `test_phase5_e2e.py` under `-e ENVIRONMENT=staging` (compose `x-backend-env` anchor hardcodes `ENVIRONMENT: dev`, so staging is applied per-exec — functional bet→settle path is load-bearing) → guard → always-`docker compose down -v`. Ephemeral staging `.env` heredoc, contents never echoed (T-11-01-01), gitignored. NO `services:` block (Pitfall 4 — compose owns Postgres/Redis). ZERO package installs (YAML-validity verified through the backend uv venv's bundled PyYAML 6.0.3, honoring the RULE 3 install exclusion), NO migration, NO app-code change; backend-ci/frontend-ci/security workflows byte-identical (constraint 4); backend tests untouched (constraint 3). 2 atomic commits (feat `1e1a39d`, ci `d244962`). PLT-07 row touched; SC#3 of 6.
+- [Phase ?]: 2026-06-03 (Plan 12-01): STL-06 winner now persisted on the markets row INSIDE the settlement ACID tx — HouseMarketResolveAdapter.mark_resolved writes winning_outcome_id/resolution_source/resolution_justification (was audit-log-only); get_market_public returns 200 for RESOLVED (was 404). resolution_source is a stable token (HOUSE if actor set, POLYMARKET_UMA if None). Ledger math + audit block byte-unchanged; idempotency preserved.
+- [Phase ?]: 2026-06-03 (Plan 12-01): BET-06 stored as nullable markets.min_stake/max_stake columns (Numeric(18,4), nullable-money exception), NOT TenantConfig (single-row global table, structurally unfit for per-market values) — DIVERGES from the 'via TenantConfig' requirement wording, on RESEARCH A1 evidence; global BET_MIN/MAX_STAKE config kept as default (NULL=fallback). No backfill of pre-Phase-12 RESOLVED markets (additive+reversible). Rule-1 fix: migration 0010 revision id shortened to 0010_phase12_resolution_stakes (varchar(32) limit); filename keeps the long form. Migration APPLIED to project Postgres (alembic current==0010, 5 cols live).
+- [Phase 12]: 2026-06-03 (Plan 12-02): admin-markets frontend foundation shipped (Wave-1). admin-markets-api.ts ('use server') Bearer-forwards the admin_jwt HttpOnly cookie and encodes the TWO-PREFIX SPLIT (Pitfall 1): market CRUD (fetchMarkets/fetchMarketAdmin/createMarket/updateMarket/closeMarket) under /api/v1/admin/markets, settlement (resolveMarket/reverseSettlement/forceSettle) under BARE /admin/markets/{id}/... — confirmed at markets/router.py:32 vs settlement/router.py:46. admin-markets-api.test.ts is the Wave-0 URL-contract guard (10 tests: CRUD keeps /api/v1, settlement asserts not.toContain('/api/v1'), Bearer forwarded). admin-markets-types.ts holds all shapes ('use server' exports only async fns); money/odds typed string (SP-1); MarketDetail is an explicit interface matching backend MarketRead (not extends MarketListItem); create uses initial_odds_yes, update uses odds_yes (verified field-name discrepancy encoded). MarketStatusBadge: shared 5-state chip (OPEN=emerald/CLOSED=amber/RESOLVED=zinc-900/CANCELLED=red/DRAFT=zinc + dark) built TDD, neutral fallback for unknown tokens. 25/25 vitest green; typecheck exit 0; 4 atomic commits (feat 56b9cf2, test b5a0467, test/RED 80c2d55, feat/GREEN a089b73). Wave-2 (12-03/04/05/06) imports all three with zero collision; LOAD-BEARING: never hand-build a settlement URL with /api/v1.
+- [Phase ?]: 2026-06-03 (Plan 12-03): BET-06 per-market stake limits enforced server-side INSIDE BetService.place_bet (RESEARCH A4 — the router has no market loaded; only the service fetches it via MarketReadPort). Effective bound = market.min/max_stake if not None else settings.BET_MIN/MAX_STAKE (NULL columns => global fallback, no behavior change). New StakeOutOfRange(BetError) -> 422; the former router-level global-only check (the 'Phase 10 (TenantConfig)' deferral block) was REMOVED. MarketView carries nullable min/max_stake; HouseMarketReadAdapter populates them. Client mirror: makeBetSchema(min,max) factory + optional minStake/maxStake props on OrderEntryForm (global fallback), copy 'Stake must be between {min} and {max} PLAY_USD.'; server authoritative (T-12-08), money string (SP-1). 46 backend + 9 order-form tests green. Tooling: corepack pnpm drifted to 11.5.1 and is destructive on this host — used standalone pnpm 9.15.0 + node-direct vitest; NO lockfile/workspace change committed (DEF-FE-PNPM11).
+- [Phase ?]: 2026-06-03 (Plan 12-04): STL-06 player resolution display shipped. MarketResolutionPanel composes the order-panel Card + portfolio PnL (loss neutral zinc-700, A-LOSS-NEUTRAL) + won/lost copy; renders in markets/[slug] RIGHT column when status===RESOLVED (order form replaced, LEFT untouched), MarketStatusBadge in header. Own result self-scoped from /bets/me/portfolio (cookie-forwarded, no user_id, filtered by market_id; T-12-11/13); justification escaped React text, NO dangerouslySetInnerHTML (T-12-12). MarketDetail +4 resolution +2 stake fields; OrderEntryForm fed minStake/maxStake. FLAG: HOUSE shows bare 'Operator' (token-only per 12-01; panel has operatorName prop ready). 10/10 panel tests + typecheck green; standalone pnpm 9.15.0 no lock churn.
+- [Phase ?]: 12-05: MarketForm is shared create/edit via a mode prop; the odds wire-name split (initial_odds_yes create / odds_yes edit) is applied only at submit-time body construction
+- [Phase ?]: 12-05: BET-06 stake fields stay strings (Number() only for the min<=max compare); blank optional fields omitted from the body so the backend applies the platform default
+- [Phase ?]: 2026-06-03 (Plan 12-06): admin settlement dialogs call ONLY the 12-02 wrappers (resolveMarket/reverseSettlement/forceSettle on the BARE /admin/markets/{id}/... prefix, closeMarket on /api/v1), never a hand-built URL — the settlement-prefix split is structurally impossible to break from the UI (T-12-19).
+- [Phase ?]: 2026-06-03 (Plan 12-06): /admin/markets/[id] is a thin Server Component (fetchMarketAdmin + not-found degrade) that hands the market to a sibling 'use client' island (market-detail-actions.tsx) hosting the 12-05 MarketForm edit + the status/source-gated Resolve/Force-settle/Reverse/Close buttons + dialogs; mirrors the shipped admin/users/[id] hosts-actions convention; dialog success -> router.refresh().
+- [Phase ?]: 2026-06-03 (Plan 12-06): action gating = OPEN/CLOSED+HOUSE -> Resolve; OPEN/CLOSED+POLYMARKET -> Force-settle; RESOLVED -> Reverse; OPEN -> Close. Reverse dialog body uses the UI-SPEC copy guard verbatim and does NOT promise clean re-resolution (Pitfall 5 / T-12-21 — the v1 idempotency-key-collision limitation is surfaced, not invited). close-market-dialog has no reason field; resolve/force-settle add a YES/NO outcome Select above the mandatory justification. Shared copy + the 401/403->session-expired status branch live in settlement-dialog-utils.ts.
+- [Phase ?]: 2026-06-03 (Plan 12-06): SC#5 end-to-end-through-the-UI acceptance APPROVED by Pol — the full operator->player resolution loop (create/list/bet/criteria-lock/resolve/player-display/reverse/force-settle/KPI-deep-link) passes with no raw-API step. Closing acceptance for the v1.0-closure phase; Phase 12 is 6/6 and ready_for_verification. KPI Pending-resolutions card deep-links to /admin/markets?status=CLOSED.
 
 ### Pending Todos
 
@@ -165,6 +188,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-02T14:30:00Z
-Stopped at: Phase 11 plan 11-06 Task 1 complete (executed the "Looks Done But Isnt" audit -> docs/LOOKS-DONE-CHECKLIST.md, 32 rows / SC#2 / PLT-07; commit df0038d on gsd/phase-11-hardening-operator-demo-gate). Task 2 (checkpoint:human-verify, gate=blocking) PENDING — Pol must read docs/LOOKS-DONE-CHECKLIST.md and confirm every item is VERIFIED/CLOSED (evidence) or DEFERRED (reason+owner), confirm the wallet/ledger/concurrency rows are VERIFY-ONLY vs existing tests + his separate backend-test-isolation track (DEF-03-01, not re-implemented), and acknowledge the 4 genuinely-external deferrals (backup-restore/PITR = infra; Sentry round-trip = Pol per docs/runbooks/sentry-alerts.md §5; Spanish-counsel ToS review = external counsel; Postgres metrics = infra). Resume signal: 'approved — audit accepted, deferrals acknowledged' (or list any item that must be closed before the operator demo). ALL Phase-11 human gates now open together for one coordinated Pol review: 11-03 Sentry round-trip, 11-04 counsel deferral, 11-05 visual QA, 11-06 audit sign-off. Phase 11 autonomous work is COMPLETE across all 6 plans.
+Last session: 2026-06-03T15:47:25.321Z
+Stopped at: Completed 12-06-PLAN.md — Phase 12 ready_for_verification (6/6 plans)
 Resume file: None

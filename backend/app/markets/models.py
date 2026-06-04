@@ -11,6 +11,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
     func,
@@ -120,6 +121,34 @@ class Market(Base):
     )
     uma_resolved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
+        nullable=True,
+    )
+    # --- STL-06 resolution projection (persisted inside the settlement ACID tx) ----------
+    # The winner/source/justification are written by HouseMarketResolveAdapter.mark_resolved
+    # on the settlement session so they commit atomically with the payouts + audit row.
+    # Previously the winner lived ONLY in the admin-gated audit log -> the player saw no
+    # winner and get_market_public 404'd a RESOLVED market.
+    winning_outcome_id: Mapped[PyUUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+    )
+    resolution_source: Mapped[str | None] = mapped_column(
+        String(40),
+        nullable=True,
+    )
+    resolution_justification: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+    # --- BET-06 per-market stake limits (NULL = use the global BET_MIN/MAX_STAKE default) -
+    # Documented NULLABLE-money exception (db/types.py, Pitfall 4): Mapped[Decimal | None]
+    # + Numeric(18, 4), NOT Mapped[Money] (which is NOT-NULL). money-lint accepts this form.
+    min_stake: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 4),
+        nullable=True,
+    )
+    max_stake: Mapped[Decimal | None] = mapped_column(
+        Numeric(18, 4),
         nullable=True,
     )
     tenant_id: Mapped[PyUUID | None] = mapped_column(

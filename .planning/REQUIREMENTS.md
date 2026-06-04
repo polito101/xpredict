@@ -61,18 +61,18 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 - [ ] **BET-03**: Bet placement is a single ACID transaction: lock wallet row → check balance → insert bet → insert ledger entries (debit wallet, credit market liability) → update balance cache → commit
 - [ ] **BET-04**: Player sees bet confirmation modal with stake, current odds, expected payout, and explicit confirm step before bet is created
 - [ ] **BET-05**: Player cannot sell a position before resolution (no cash-out in v1; locked at API level)
-- [ ] **BET-06**: Configurable bet limits per market — global minimum and maximum stake (operator-set via TenantConfig); UI rejects below/above the range
+- [x] **BET-06**: Configurable bet limits per market — global minimum and maximum stake (operator-set via TenantConfig); UI rejects below/above the range
 - [ ] **BET-07**: Player can view portfolio with open positions (stake, current odds, unrealized P&L) and settled positions (stake, outcome, realized P&L)
 
 ### Settlement & Resolution (STL)
 
 - [ ] **STL-01**: When a Polymarket market reaches confirmed-resolved status (not just `closed`) PLUS internal grace period (UMA dispute window safety margin), system auto-settles the mirrored market via SettlementService
-- [ ] **STL-02**: Admin can manually resolve a house market by selecting winning outcome with mandatory justification text and a two-step confirm flow
+- [x] **STL-02**: Admin can manually resolve a house market by selecting winning outcome with mandatory justification text and a two-step confirm flow
 - [ ] **STL-03**: Settlement is idempotent: re-running settlement on a settled market is a no-op (`WHERE settled_at IS NULL` guard + `(bet_id, event_type)` UNIQUE on ledger entries)
 - [ ] **STL-04**: Settlement credits winners' wallets and debits market liability in a single ACID transaction (no split commits, no orphan ledger entries)
 - [ ] **STL-05**: Settlement writes audit log entry with: market_id, source, resolver (admin_user_id or `polymarket-uma`), winning_outcome, total_payout, settlement_timestamp
-- [ ] **STL-06**: Player sees resolution display on each settled market: winning outcome, resolution source ("Polymarket UMA" or "Operator: {admin_display_name}"), justification text (public), settlement timestamp, their own payout/loss
-- [ ] **STL-07**: Admin can reverse a settlement via compensating ledger entries (never DELETE/UPDATE); reversal requires justification and writes audit log entry
+- [x] **STL-06**: Player sees resolution display on each settled market: winning outcome, resolution source ("Polymarket UMA" or "Operator: {admin_display_name}"), justification text (public), settlement timestamp, their own payout/loss
+- [x] **STL-07**: Admin can reverse a settlement via compensating ledger entries (never DELETE/UPDATE); reversal requires justification and writes audit log entry
 
 ### Admin — User CRM (ADU)
 
@@ -85,13 +85,13 @@ All requirements satisfy the "production-grade architecture, play-money UX" mand
 
 ### Admin — Markets (ADM)
 
-- [ ] **ADM-01**: Admin can view paginated list of all markets across sources with filters (source, status, category)
-- [ ] **ADM-02**: Admin can create a house market with question, resolution criteria text, deadline, initial odds (default 50/50), and optional category
-- [ ] **ADM-03**: Admin can edit a house market's odds, deadline, and resolution criteria while it has zero bets
-- [ ] **ADM-04**: Admin can close a house market early (stops accepting new bets) before resolving it
-- [ ] **ADM-05**: Admin can resolve a house market manually (see STL-02)
-- [ ] **ADM-06**: Admin can force-settle a stuck Polymarket-mirrored market via two-step confirm with mandatory justification (emergency override; audit-logged)
-- [ ] **ADM-07**: After first bet is placed on a house market, resolution criteria are locked (UI disabled + API rejects) to prevent rule-changes mid-game
+- [x] **ADM-01**: Admin can view paginated list of all markets across sources with filters (source, status, category)
+- [x] **ADM-02**: Admin can create a house market with question, resolution criteria text, deadline, initial odds (default 50/50), and optional category
+- [x] **ADM-03**: Admin can edit a house market's odds, deadline, and resolution criteria while it has zero bets
+- [x] **ADM-04**: Admin can close a house market early (stops accepting new bets) before resolving it
+- [x] **ADM-05**: Admin can resolve a house market manually (see STL-02)
+- [x] **ADM-06**: Admin can force-settle a stuck Polymarket-mirrored market via two-step confirm with mandatory justification (emergency override; audit-logged)
+- [x] **ADM-07**: After first bet is placed on a house market, resolution criteria are locked (UI disabled + API rejects) to prevent rule-changes mid-game
 
 ### Admin — Dashboard & Branding (ADD)
 
@@ -210,28 +210,28 @@ Populated by gsd-roadmapper on 2026-05-25 (ROADMAP.md creation).
 | BET-03 | Phase 5 | Pending |
 | BET-04 | Phase 5 | Pending |
 | BET-05 | Phase 5 | Pending |
-| BET-06 | Phase 5 | Pending |
+| BET-06 | Phase 5 | Complete |
 | BET-07 | Phase 5 | Pending |
 | STL-01 | Phase 7 | Pending |
-| STL-02 | Phase 5 | Pending |
+| STL-02 | Phase 5 | Complete |
 | STL-03 | Phase 5 | Pending |
 | STL-04 | Phase 5 | Pending |
 | STL-05 | Phase 5 | Pending |
-| STL-06 | Phase 5 | Pending |
-| STL-07 | Phase 5 | Pending |
+| STL-06 | Phase 5 | Complete |
+| STL-07 | Phase 5 | Complete |
 | ADU-01 | Phase 8 | Complete |
 | ADU-02 | Phase 8 | Complete |
 | ADU-03 | Phase 5 | Pending |
 | ADU-04 | Phase 8 | Complete |
 | ADU-05 | Phase 8 | Complete |
 | ADU-06 | Phase 8 | Complete |
-| ADM-01 | Phase 4 | Pending |
-| ADM-02 | Phase 4 | Pending |
-| ADM-03 | Phase 4 | Pending |
-| ADM-04 | Phase 4 | Pending |
-| ADM-05 | Phase 5 | Pending |
-| ADM-06 | Phase 7 | Pending |
-| ADM-07 | Phase 4 | Pending |
+| ADM-01 | Phase 4 | Complete |
+| ADM-02 | Phase 4 | Complete |
+| ADM-03 | Phase 4 | Complete |
+| ADM-04 | Phase 4 | Complete |
+| ADM-05 | Phase 5 | Complete |
+| ADM-06 | Phase 7 | Complete |
+| ADM-07 | Phase 4 | Complete |
 | ADD-01 | Phase 10 | Complete |
 | ADD-02 | Phase 10 | Complete |
 | ADD-03 | Phase 10 | Complete |

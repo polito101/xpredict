@@ -5,8 +5,8 @@
  *
  * Extracted from `app/admin/layout.tsx` (which stays a Server Component) so it
  * can use `usePathname()` to highlight the active link per UI-SPEC §Layout
- * Contract. "Dashboard", "Users", "Audit log" and "Branding" are real links;
- * "Markets" stays a disabled placeholder (deferred).
+ * Contract. "Dashboard", "Users", "Audit log", "Branding" and "Markets" are all
+ * real links (Plan 12-05 enabled "Markets" → /admin/markets, BLOCKER-3).
  *
  * Active:   text-zinc-900 font-semibold underline underline-offset-4 (dark: zinc-50)
  * Inactive: text-zinc-500 hover:text-zinc-900 (dark: zinc-400 hover:zinc-50)
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 const LINKS: { href: string; label: string; exact?: boolean }[] = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/users", label: "Users" },
+  { href: "/admin/markets", label: "Markets" },
   { href: "/admin/audit-log", label: "Audit log" },
   { href: "/admin/branding", label: "Branding" },
 ];
@@ -53,8 +54,6 @@ export function AdminNav() {
           </Link>
         );
       })}
-      {/* Markets stays a disabled placeholder (Phase 10 / deferred). */}
-      <span className="cursor-default text-zinc-400">Markets</span>
       <Link
         href="/admin/logout"
         className="text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"

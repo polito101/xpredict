@@ -35,9 +35,10 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.bets.constants import BET_PENDING, KIND_MARKET_LIABILITY, TRANSFER_BET_PLACED
-from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound
+from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound, StakeOutOfRange
 from app.bets.models import Bet
 from app.bets.portfolio import Portfolio, PositionInput, build_portfolio
+from app.core.config import get_settings
 from app.wallet.constants import OWNER_MARKET, PLAY_USD
 from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account
@@ -70,9 +71,11 @@ class BetService:
         """Place ``stake`` by ``user_id`` on ``outcome_id`` of ``market_id`` (SC#1).
 
         Raises :class:`MarketNotFound` / :class:`MarketClosed` / :class:`InvalidOutcome`
-        on an ineligible market, :class:`~app.wallet.exceptions.InsufficientBalance` if
-        the wallet cannot cover the stake, and ``ValueError`` on a non-positive stake —
-        in every rejection case NO money moves and NO bet is recorded.
+        on an ineligible market, :class:`StakeOutOfRange` when the stake falls outside the
+        effective per-market (or global-fallback) limits,
+        :class:`~app.wallet.exceptions.InsufficientBalance` if the wallet cannot cover the
+        stake, and ``ValueError`` on a non-positive stake — in every rejection case NO money
+        moves and NO bet is recorded.
         """
         if stake <= 0:
             raise ValueError("stake must be > 0")
@@ -86,6 +89,16 @@ class BetService:
         chosen = market.outcome(outcome_id)
         if chosen is None:
             raise InvalidOutcome(f"outcome {outcome_id} not in market {market_id}")
+
+        # 1b. Per-market stake limits (BET-06, server-authoritative) — checked with the
+        # market in hand, BEFORE any DB work. Prefer the per-market bound; fall back to the
+        # global config when the market column is NULL (no behavior change for existing
+        # markets). The router maps StakeOutOfRange to HTTP 422; the client mirror is UX-only.
+        settings = get_settings()
+        min_stake = market.min_stake if market.min_stake is not None else settings.BET_MIN_STAKE
+        max_stake = market.max_stake if market.max_stake is not None else settings.BET_MAX_STAKE
+        if not (min_stake <= stake <= max_stake):
+            raise StakeOutOfRange(f"Stake must be between {min_stake} and {max_stake}.")
 
         # 2. Ensure the per-market liability account exists (race-safe, own unit of work).
         liability_id = await cls._ensure_market_liability_account(session, market_id=market_id)

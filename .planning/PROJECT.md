@@ -103,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-27 after Phase 02 (Auth & Identity) — player + admin auth surfaces complete, 107 tests green*
+*Last updated: 2026-06-04 after Phase 12 (Admin Market Operations UI & Player Resolution Display) — v1.0 closure phase complete: STL-06 player resolution display, admin market-management UI (list/create/edit/close), admin resolve/reverse/force-settle two-step dialogs, and per-market stake limits (BET-06). All 11 phase requirements verified at code level; code-review blocker CR-01 (BET-06 persistence) fixed in cb55197; 3 PM-accepted human-verify items tracked in 12-HUMAN-UAT.md. Pending before archive: /gsd-secure-phase 12 → ship (rebase onto diverged origin/main) → v1.0 re-audit.*

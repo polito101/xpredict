@@ -216,9 +216,17 @@ class SettlementService:
 
             # 6. Mark the market RESOLVED on THIS session so the status flip is atomic with
             #    the payouts (a fake records it during parallel dev; Phase 4's service writes
-            #    the markets row at integration).
+            #    the markets row at integration). STL-06: also persist the winner + source +
+            #    justification on the markets row so the player panel renders without the
+            #    admin-gated audit log. resolution_source is a stable token derived from the
+            #    resolver: None actor => the auto/Polymarket path, set => an admin/house resolve.
+            resolution_source = "POLYMARKET_UMA" if actor_user_id is None else "HOUSE"
             await market_resolver.mark_resolved(
-                session, market_id=market_id, winning_outcome_id=winning_outcome_id
+                session,
+                market_id=market_id,
+                winning_outcome_id=winning_outcome_id,
+                resolution_source=resolution_source,
+                justification=justification,
             )
 
             # 7. One immutable audit row, on THIS session so it commits atomically with the

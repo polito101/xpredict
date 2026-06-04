@@ -37,4 +37,8 @@ class HouseMarketReadAdapter:
                     OutcomeView(id=o.id, label=o.label, price=o.current_odds)
                     for o in market.outcomes
                 ),
+                # BET-06: carry the per-market stake limits (added by 12-01). They are
+                # eager-available on the loaded Market row; NULL => global fallback.
+                min_stake=market.min_stake,
+                max_stake=market.max_stake,
             )
