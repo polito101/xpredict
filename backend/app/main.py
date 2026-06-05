@@ -182,9 +182,11 @@ from app.admin.kpi_router import kpi_router  # noqa: E402
 from app.admin.router import admin_crm_router  # noqa: E402
 from app.branding.admin_router import tenant_config_admin_router  # noqa: E402
 from app.branding.router import branding_router  # noqa: E402
+from app.catalog.router import public_catalog_router  # noqa: E402
 from app.core.audit.router import audit_admin_router  # noqa: E402
 from app.markets.router import admin_market_router, public_market_router  # noqa: E402
 from app.realtime.router import realtime_router  # noqa: E402
+from app.settlement.event_router import event_admin_router  # noqa: E402
 
 app.include_router(health.router)
 app.include_router(build_auth_routers())
@@ -195,10 +197,12 @@ app.include_router(audit_admin_router)
 app.include_router(admin_market_router)
 app.include_router(tenant_config_admin_router)
 app.include_router(public_market_router)
+app.include_router(public_catalog_router)
 app.include_router(wallet_admin_router)
 app.include_router(wallet_router)
 app.include_router(bets_router)
 app.include_router(settlement_admin_router)
+app.include_router(event_admin_router)
 app.include_router(realtime_router)
 app.include_router(branding_router)
 

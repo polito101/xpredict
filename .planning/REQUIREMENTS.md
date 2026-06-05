@@ -31,17 +31,17 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 
 ### Browse & Discovery (BRW) — new
 
-- [ ] **BRW-01**: Player can text-search the catalog by event/market title (indexed substring search via `pg_trgm` GIN + ILIKE).
-- [ ] **BRW-02**: Player can browse by category via tabs/chips; empty categories are not rendered.
-- [ ] **BRW-03**: Player can filter the catalog by status (open / closing soon / resolved).
-- [ ] **BRW-04**: Player can sort the catalog by volume / closing soonest / newest.
-- [ ] **BRW-05**: Browse is bounded (curated — no heavy pagination/infinite scroll); every filter combination has an explicit empty/zero state.
+- [x] **BRW-01**: Player can text-search the catalog by event/market title (indexed substring search via `pg_trgm` GIN + ILIKE).
+- [x] **BRW-02**: Player can browse by category via tabs/chips; empty categories are not rendered.
+- [x] **BRW-03**: Player can filter the catalog by status (open / closing soon / resolved).
+- [x] **BRW-04**: Player can sort the catalog by volume / closing soonest / newest.
+- [x] **BRW-05**: Browse is bounded (curated — no heavy pagination/infinite scroll); every filter combination has an explicit empty/zero state.
 - [ ] **BRW-06**: All new catalog / browse / event surfaces respect the operator's white-label branding (`--brand-*`).
 
 ### Admin: Event Operations (EVA) — extends ADM/STL
 
-- [ ] **EVA-01**: Admin can create a house multi-outcome event: title, category, and N outcomes each with a per-outcome label (`group_item_title`) and initial odds.
-- [ ] **EVA-02**: Admin can edit a house event's outcomes/metadata while it has zero bets; edits lock after the first bet (mirrors ADM-07).
+- [x] **EVA-01**: Admin can create a house multi-outcome event: title, category, and N outcomes each with a per-outcome label (`group_item_title`) and initial odds.
+- [x] **EVA-02**: Admin can edit a house event's outcomes/metadata while it has zero bets; edits lock after the first bet (mirrors ADM-07).
 - [x] **EVA-03**: Admin can resolve a house event by selecting the winning outcome (mandatory justification + two-step confirm); resolution loops the existing `SettlementService` per child (winner→YES settled, losers→NO settled), idempotently.
 - [x] **EVA-04**: Admin can void a house event (no winner): every child resolves on NO (YES bettors lose, NO bettors win) — explicitly NOT a stake refund (true refund-on-cancel is out of scope).
 - [x] **EVA-05**: Admin can reverse an event resolution via compensating ledger entries (mirrors STL-07), audit-logged.
@@ -107,14 +107,14 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | CAT-04 | Phase 14 (Sync) | Complete |
 | CAT-05 | Phase 14 (Sync) | Complete |
 | CAT-06 | Phase 14 (Sync) | Complete |
-| BRW-01 | Phase 16 (API) | Pending |
-| BRW-02 | Phase 16 (API) | Pending |
-| BRW-03 | Phase 16 (API) | Pending |
-| BRW-04 | Phase 16 (API) | Pending |
-| BRW-05 | Phase 16 (API) | Pending |
+| BRW-01 | Phase 16 (API) | Complete |
+| BRW-02 | Phase 16 (API) | Complete |
+| BRW-03 | Phase 16 (API) | Complete |
+| BRW-04 | Phase 16 (API) | Complete |
+| BRW-05 | Phase 16 (API) | Complete |
 | BRW-06 | Phase 17 (UI) | Pending |
-| EVA-01 | Phase 16 (API) | Pending |
-| EVA-02 | Phase 16 (API) | Pending |
+| EVA-01 | Phase 16 (API) | Complete |
+| EVA-02 | Phase 16 (API) | Complete |
 | EVA-03 | Phase 15 (Settlement) | Complete |
 | EVA-04 | Phase 15 (Settlement) | Complete |
 | EVA-05 | Phase 15 (Settlement) | Complete |
