@@ -273,6 +273,11 @@ async def _run_poll_events(
                     log.info("poll_events.category_empty", category=entry.name)
                     continue
 
+                # CR-02: reset per category so the post-commit publish below sees
+                # ONLY this category's deltas. One adapter instance is reused across
+                # all 7 categories; without this reset each category re-publishes
+                # every prior category's accumulated deltas. (14-REVIEW CR-02)
+                adapter.changed_markets = []
                 synced = await adapter.sync_events(session, curated, category=entry.name)
                 await session.commit()  # commit THIS category (CAT-05 keep-last-good)
                 log.info(

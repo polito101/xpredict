@@ -194,6 +194,14 @@ class PolymarketAdapter:
         description = parsed.description or "Resolution via Polymarket UMA oracle"
 
         # --- DB upsert (IntegrityError handled separately) ---
+        # CR-01: run THIS child's upsert inside a SAVEPOINT. A conflict on one
+        # child must roll back only its own work — NEVER the parent market_groups
+        # row or prior siblings already written in the outer transaction. A bare
+        # ``session.rollback()`` here discarded the whole per-category transaction,
+        # orphaning the group row and FK-violating the per-category commit. (14-REVIEW CR-01)
+        market_deltas: list[dict[str, str]] = []
+        market: Market | None = None
+        nested = await session.begin_nested()
         try:
             # Upsert market
             market_values = {
@@ -240,13 +248,13 @@ class PolymarketAdapter:
             )
             market = market_row.scalar_one_or_none()
             if market is None:
+                await nested.rollback()
                 return False
 
             # Upsert YES and NO outcomes with current odds.
             # Track per-market odds CHANGES for the real-time publish: only an
             # existing outcome whose current_odds actually differs from the
             # synced price counts (Pitfall 4 — no publish on an unchanged tick).
-            market_deltas: list[dict[str, str]] = []
             if parsed.outcomes_raw and parsed.outcome_prices_raw:
                 for idx, label in enumerate(parsed.outcomes_raw[:2]):
                     price = (
@@ -283,24 +291,27 @@ class PolymarketAdapter:
                         )
 
             await session.flush()
-            # Record this market's deltas only AFTER a successful flush (a
-            # market that hits IntegrityError below rolls back + returns, so
-            # its deltas are never recorded — published state == committed state).
-            if market_deltas:
-                self.changed_markets.append((str(market.id), market_deltas))
-            log.info(
-                "market.synced",
-                source_market_id=parsed.id,
-                status=parsed.internal_status.value,
-            )
+            await nested.commit()
         except IntegrityError:
-            await session.rollback()
+            # Roll back ONLY this child's SAVEPOINT — the parent group row and
+            # prior siblings in the outer transaction survive (CR-01).
+            await nested.rollback()
             log.warning(
                 "gamma.upsert_conflict",
                 source_market_id=parsed.id,
             )
             return False
 
+        # Record deltas only AFTER the SAVEPOINT commits — published state ==
+        # committed state. A child that hit IntegrityError returned above and
+        # never reaches here, so its deltas are never published (Pitfall 4).
+        if market_deltas:
+            self.changed_markets.append((str(market.id), market_deltas))
+        log.info(
+            "market.synced",
+            source_market_id=parsed.id,
+            status=parsed.internal_status.value,
+        )
         return True
 
     async def _upsert_market_group(
@@ -349,23 +360,22 @@ class PolymarketAdapter:
             await session.flush()
 
         try:
-            nested = await session.begin_nested()
-            await _do_upsert(slug)
-            await nested.commit()
+            async with session.begin_nested():
+                await _do_upsert(slug)
         except IntegrityError:
             # Slug collision across a DIFFERENT event (ON CONFLICT is on
-            # source_event_id, not slug). Roll back just this SAVEPOINT and retry
-            # once with a uuid-suffixed slug.
-            await nested.rollback()
+            # source_event_id, not slug). The failed SAVEPOINT is already rolled
+            # back by the context manager; retry once with a uuid-suffixed slug in
+            # a FRESH SAVEPOINT (WR-04 — never re-issue _do_upsert against an
+            # already-aborted SAVEPOINT).
             log.warning(
                 "gamma.group_slug_collision",
                 source_event_id=ev.id,
                 slug=slug,
             )
             slug = f"{base_slug[:93]}-{uuid4().hex[:6]}"
-            nested = await session.begin_nested()
-            await _do_upsert(slug)
-            await nested.commit()
+            async with session.begin_nested():
+                await _do_upsert(slug)
 
         row = await session.execute(
             select(MarketGroup.id).where(
