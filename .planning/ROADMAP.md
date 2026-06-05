@@ -69,7 +69,7 @@
   3. The migration enables `pg_trgm` (`CREATE EXTENSION IF NOT EXISTS pg_trgm`) and creates the GIN trigram indexes on `market_groups.title` and `markets.question`, the `market_groups` partial-unique `(source, source_event_id) WHERE source_event_id IS NOT NULL`, the `(category)` and `(status, volume_24hr)` indexes, and the `odds_snapshots (outcome_id, snapshot_at)` composite index.
   4. The `MarketGroup` ORM model and its `MarketGroup ↔ Market` relationship load via the async session and round-trip a parent group with ≥2 children.
 **Plans**: 2 plans
-- [ ] 13-01-PLAN.md — Schema + ORM: reversible migration `0011_phase13_market_groups` (table + 2 nullable Market columns + pg_trgm + all 6 indexes) and the `MarketGroup` ORM model + `Market.group` seam
+- [x] 13-01-PLAN.md — Schema + ORM: reversible migration `0011_phase13_market_groups` (table + 2 nullable Market columns + pg_trgm + all 6 indexes) and the `MarketGroup` ORM model + `Market.group` seam
 - [ ] 13-02-PLAN.md — Tests: NEW `test_migration_0011.py` (apply/reversibility/chain/pg_trgm/6 indexes) + extend `test_models.py` (MarketGroup round-trip, `lazy="raise"`, `group_id IS NULL` regression)
 
 ### Phase 14: Curated Per-Category Gamma Sync
@@ -139,7 +139,7 @@
 |-------|-----------|----------------|--------|-----------|
 | 1-12. v1.0 MVP | v1.0 | 44/44 | ✅ Complete | 2026-06-04 |
 | A-E. Demo Polish | v1.1 | — | ✅ Complete | 2026-06-04 |
-| 13. Multi-outcome Model & Catalog Indexes | v1.2 | 0/TBD | Not started | - |
+| 13. Multi-outcome Model & Catalog Indexes | v1.2 | 1/2 | In Progress|  |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 0/TBD | Not started | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/TBD | Not started | - |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
