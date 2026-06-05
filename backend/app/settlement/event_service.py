@@ -47,21 +47,28 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import func, select
+from fastapi import HTTPException
+from sqlalchemy import delete, exists, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.core.audit.service import AuditService
 from app.db.session import _get_session_maker
 from app.markets.enums import MarketSourceEnum, MarketStatus
-from app.markets.models import Market, MarketGroup, Outcome
+from app.markets.models import Market, MarketGroup, Outcome, generate_slug
 from app.settlement.adapters import HouseMarketResolveAdapter
 from app.settlement.service import SettlementService
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.settlement.event_schemas import CreateEventRequest, UpdateEventRequest
 
 logger = logging.getLogger(__name__)
 
@@ -617,3 +624,196 @@ class EventService:
                 )
                 child_statuses.append(ChildStatus(status=child.status, is_yes_winner=is_yes_winner))
         return derive_event_status(child_statuses)
+
+    # --------------------------------------------------------------------- #
+    # EVA-01 / EVA-02 — house-event create + pre-bet edit (Phase 16 service path).
+    # Plain ORM inserts on the REQUEST session (NOT a settle loop -> no 23505
+    # dangling-tx landmine), one commit. Mirrors MarketService.create_market's
+    # slug-retry + YES/NO seeding; does NOT touch resolve/void/reverse above.
+    # --------------------------------------------------------------------- #
+    @classmethod
+    async def create_house_event(
+        cls,
+        session: AsyncSession,
+        *,
+        admin_id: UUID,
+        body: CreateEventRequest,
+    ) -> MarketGroup:
+        """Create one HOUSE ``MarketGroup`` + N binary YES/NO children (EVA-01).
+
+        Inserts the group (unique slug via the ``begin_nested()`` + IntegrityError
+        retry copied from ``MarketService.create_market``), then per outcome a child
+        ``Market`` (``group_id`` set, ``group_item_title=label``, OPEN, shared
+        ``deadline``) with exactly a YES (seeded at ``initial_odds``) + NO pair, writes
+        one ``event.created`` audit row, commits once, and returns the group.
+        """
+        for _attempt in range(3):
+            group = MarketGroup(
+                title=body.title,
+                source=MarketSourceEnum.HOUSE.value,
+                category=body.category,
+                slug=body.slug or generate_slug(body.title),
+            )
+            session.add(group)
+            try:
+                nested = await session.begin_nested()
+                await session.flush()
+                break
+            except IntegrityError:
+                await nested.rollback()
+                session.expunge(group)
+        else:
+            raise HTTPException(status_code=409, detail="Slug collision — try again")
+
+        for outcome in body.outcomes:
+            await _add_event_child(
+                session,
+                group=group,
+                label=outcome.label,
+                initial_odds=outcome.initial_odds,
+                deadline=body.deadline,
+                category=body.category,
+                resolution_criteria=body.resolution_criteria,
+            )
+
+        # Capture the id BEFORE commit so a later read survives expire-on-commit
+        # (re-touching an expired ORM attribute in async would raise MissingGreenlet).
+        new_group_id = group.id
+        await AuditService.record(
+            session,
+            actor=f"user:{admin_id}",
+            event_type="event.created",
+            payload={
+                "group_id": str(new_group_id),
+                "title": body.title,
+                "child_count": len(body.outcomes),
+            },
+        )
+        await session.commit()
+        reloaded = await _load_group_with_children(session, new_group_id)
+        assert reloaded is not None  # noqa: S101 — just committed above
+        return reloaded
+
+    @classmethod
+    async def update_house_event(
+        cls,
+        session: AsyncSession,
+        *,
+        group_id: UUID,
+        body: UpdateEventRequest,
+    ) -> MarketGroup:
+        """Pre-bet edit of a house event (EVA-02). The 423 edit-lock is enforced upstream.
+
+        Mutates ``title`` (group), ``category`` (group + children), and ``deadline``
+        (children — the group has none). When ``body.outcomes`` is supplied it REPLACES
+        the children wholesale (children cascade their outcomes on delete). Commits and
+        returns the reloaded group.
+        """
+        group = await _load_group_with_children(session, group_id)
+        if group is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+
+        children = list(group.markets)
+        existing_deadline = children[0].deadline if children else None
+
+        if body.title is not None:
+            group.title = body.title
+        if body.category is not None:
+            group.category = body.category
+        for child in children:
+            if body.category is not None:
+                child.category = body.category
+            if body.deadline is not None:
+                child.deadline = body.deadline
+
+        if body.outcomes is not None:
+            await session.execute(delete(Market).where(Market.group_id == group_id))
+            await session.flush()
+            new_deadline = body.deadline or existing_deadline
+            new_category = body.category if body.category is not None else group.category
+            for outcome in body.outcomes:
+                await _add_event_child(
+                    session,
+                    group=group,
+                    label=outcome.label,
+                    initial_odds=outcome.initial_odds,
+                    deadline=new_deadline,
+                    category=new_category,
+                    resolution_criteria=None,
+                )
+
+        await session.commit()
+        refreshed = await _load_group_with_children(session, group_id)
+        assert refreshed is not None  # noqa: S101 — just committed above
+        return refreshed
+
+
+# Synthesized child resolution criteria — ``Market.resolution_criteria`` is NOT NULL
+# even when the admin supplies none for the event.
+_DEFAULT_EVENT_CHILD_CRITERIA = (
+    "Resolves YES if this outcome occurs, per the event's official source."
+)
+
+
+async def _add_event_child(
+    session: AsyncSession,
+    *,
+    group: MarketGroup,
+    label: str,
+    initial_odds: Decimal,
+    deadline: datetime,
+    category: str | None,
+    resolution_criteria: str | None = None,
+) -> Market:
+    """Insert ONE binary YES/NO child market under ``group`` (binary-trigger-safe).
+
+    Exactly a YES (seeded at ``initial_odds``) + NO (``1 - initial_odds``) pair — never
+    a 3rd outcome (``trg_binary_outcomes_only``). ``group_item_title`` carries the
+    label; writes ride the caller's session (``flush`` only). Returns the child.
+    """
+    child = Market(
+        question=f"{group.title} — {label}?",
+        slug=generate_slug(f"{group.title} {label}"),
+        resolution_criteria=resolution_criteria or _DEFAULT_EVENT_CHILD_CRITERIA,
+        category=category,
+        source=MarketSourceEnum.HOUSE.value,
+        status=MarketStatus.OPEN.value,
+        deadline=deadline,
+        group_id=group.id,
+        group_item_title=label,
+    )
+    session.add(child)
+    await session.flush()
+
+    odds_no = Decimal("1") - initial_odds
+    session.add_all(
+        [
+            Outcome(
+                market_id=child.id,
+                label="YES",
+                initial_odds=initial_odds,
+                current_odds=initial_odds,
+            ),
+            Outcome(
+                market_id=child.id,
+                label="NO",
+                initial_odds=odds_no,
+                current_odds=odds_no,
+            ),
+        ]
+    )
+    await session.flush()
+    return child
+
+
+async def event_has_bets(session: AsyncSession, group_id: UUID) -> bool:
+    """True if ANY child market of ``group_id`` has a bet (the EVA-02 edit-lock signal).
+
+    ``EXISTS(SELECT 1 FROM bets WHERE market_id IN (children))`` — the real per-child
+    bet signal, NOT the dead denormalised counter column (never incremented in app
+    code). ``Bet`` is imported lazily to avoid any settlement<->bets import cycle.
+    """
+    from app.bets.models import Bet
+
+    child_ids = select(Market.id).where(Market.group_id == group_id)
+    return bool(await session.scalar(select(exists().where(Bet.market_id.in_(child_ids)))))
