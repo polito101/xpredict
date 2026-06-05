@@ -100,7 +100,9 @@
   1. Resolving a house event by winning outcome settles every child via `SettlementService` (winner→YES settled, losers→NO settled) as per-child transactions (Option A), and re-running the resolution is a safe no-op (idempotent replay) — the spike-004 double-entry integrity check passes green after every resolution path.
   2. Voiding a house event resolves every child on NO (YES bettors lose, NO bettors win) — explicitly NOT a stake refund — and a resolution can be reversed via compensating ledger entries (mirrors STL-07), audit-logged.
   3. Event status (open / partially-resolved / resolved / void) is computed as a read-projection derived from the constituent markets' states — there is no authoritative `winning_outcome` column on the group; settlement never routes through `closed=true` alone (still requires the spike-002 `closed` + `umaResolutionStatus="resolved"` + clear-winner guard).
-  4. Mirrored (Polymarket) event children auto-settle through the existing `detect_polymarket_resolutions` path (verified, not rebuilt), and mirrored events stay admin-read-only except the existing emergency force-settle (mirrors ADM-06).**Plans**: 3 plans
+  4. Mirrored (Polymarket) event children auto-settle through the existing `detect_polymarket_resolutions` path (verified, not rebuilt), and mirrored events stay admin-read-only except the existing emergency force-settle (mirrors ADM-06).
+
+**Plans**: 3 plans
 
 **Wave 1**
 
@@ -125,8 +127,20 @@
   2. `GET /categories` lists only non-empty categories and `GET /events/{slug}` returns an event with its per-outcome child markets and prices.
   3. An admin can create a house multi-outcome event (title, category, N outcomes each with a `group_item_title` label + initial odds) via `POST /admin/events`, and edit its outcomes/metadata via `PATCH` only while it has zero bets — edits lock after the first bet (mirrors ADM-07).
   4. The admin resolve/reverse endpoints enforce mandatory justification + a two-step confirm (mirroring the existing market pattern), and the legacy `GET /markets` endpoint still works for back-compat.
+**Plans**: 5 plans
+**Wave 1**
 
-**Plans**: TBD
+- [ ] 16-01-PLAN.md — Wave 0 test scaffolding: `tests/catalog/` package (httpx AsyncClient + ASGITransport fixture) + seed factories (markets, multi-state events, ledger-backed bets)
+- [ ] 16-02-PLAN.md — Catalog read API (BRW-01..05): `CatalogService` Approach B (two bounded LIMIT 100 queries merged in Python) + `public_catalog_router` (`/catalog`, `/events/{slug}`, `/categories`) + local pg_trgm search + derived-status mapping
+- [ ] 16-03-PLAN.md — Admin house-event create + edit-lock (EVA-01/02): `event_admin_router` POST `/admin/events` (group + N binary YES/NO children) + PATCH edit-lock via EXISTS(bets) → HTTP 423
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 16-04-PLAN.md — Admin resolve/void/reverse HTTP surface (EVA-03..06 endpoints): stateless two-step confirm (preview vs execute) over the Phase-15 `EventService` + the ValueError→HTTP map (mirrored 409 / blank 422 / bad-outcome 422 / missing 404)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 16-05-PLAN.md — Router registration in `main.py` (deferred-import) + live-app wiring smoke test + legacy `GET /markets` back-compat assertion
 
 ### Phase 17: Catalog Browse UI, Event Detail & Admin Event Ops
 
@@ -171,7 +185,7 @@
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 3/3 | Complete — PR #29, CI green, merge-ready | 2026-06-05 |
-| 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
+| 16. Catalog & Event API + House Event CRUD | v1.2 | 0/5 | Planned (5 plans, 4 waves) | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
 
