@@ -44,6 +44,7 @@ all children resolved with exactly one YES-winner ⟺ ``resolved``.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -61,6 +62,8 @@ from app.settlement.service import SettlementService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -263,6 +266,20 @@ class EventService:
                     f"one child of group {group_id}."
                 )
             winner_market_id = winner_market_ids[0]
+
+            # CR-01: resolve settles the winner on its YES leg, so the supplied
+            # outcome MUST be that child's YES outcome. Without this guard a caller
+            # passing the child's NO leg would settle EVERY child on NO (deriving
+            # "void") while the audit row still claims "event.resolved" — an
+            # inconsistent, financially wrong state (the intended winner's YES
+            # bettors would lose). Use void_event to settle every child on NO.
+            winner_yes_id = await _yes_outcome_id(read_session, winner_market_id)
+            if winning_outcome_id != winner_yes_id:
+                raise ValueError(
+                    f"winning_outcome_id {winning_outcome_id} is not the YES outcome of "
+                    f"its child market {winner_market_id}; resolve_event settles the winner "
+                    f"on YES (use void_event to settle every child on NO)."
+                )
 
             # The winning child settles on the supplied YES; every other child on
             # its NO leg (event-of-binaries: exactly one child can be YES — A1).
@@ -472,6 +489,13 @@ class EventService:
                         actor_user_id=actor_user_id,
                     )
                 except Exception:  # best-effort partial failure (CONTEXT)
+                    # WR-01: financial code — never swallow silently. Log with full
+                    # traceback so a child-settle failure is diagnosable; the child is
+                    # recorded as failed and the loop continues (siblings intact).
+                    logger.exception(
+                        "event resolve: child %s failed (best-effort; continuing)",
+                        child_market_id,
+                    )
                     failed.append(child_market_id)
                     continue  # siblings intact -> the event derives partially_resolved
         return failed
@@ -508,6 +532,13 @@ class EventService:
                         actor_user_id=actor_user_id,
                     )
                 except Exception:  # CHECK(balance>=0) floor / best-effort (Pitfall 3)
+                    # WR-01: log with traceback (e.g. the CHECK(balance>=0) floor when a
+                    # winner already spent winnings) so the per-child reversal failure is
+                    # diagnosable; that child rolls back alone and the loop continues.
+                    logger.exception(
+                        "event reverse: child %s failed (best-effort; continuing)",
+                        child_market_id,
+                    )
                     failed.append(child_market_id)
                     continue  # siblings already reversed stay reversed
         return failed
@@ -542,13 +573,27 @@ class EventService:
             "children_failed": [str(x) for x in failed],
             "justification": justification,
         }
+        # WR-04: this event-level summary row is written AFTER the per-child sessions
+        # have each committed, so the children cannot be rolled back if it fails. The
+        # authoritative audit trail is the per-child settlement.resolved/reversed rows
+        # SettlementService already committed; this row is an aggregate convenience.
+        # Log with traceback before re-raising so an audit-write failure is never silent.
         async with session_maker() as audit_session, audit_session.begin():
-            await AuditService.record(
-                audit_session,
-                actor=f"user:{actor_user_id}" if actor_user_id is not None else "system",
-                event_type=event_type,
-                payload=payload,
-            )
+            try:
+                await AuditService.record(
+                    audit_session,
+                    actor=f"user:{actor_user_id}" if actor_user_id is not None else "system",
+                    event_type=event_type,
+                    payload=payload,
+                )
+            except Exception:
+                logger.exception(
+                    "event audit %s for group %s failed AFTER children settled; the "
+                    "per-child settlement.* rows remain the authoritative audit trail",
+                    event_type,
+                    group_id,
+                )
+                raise
 
     @staticmethod
     async def _derive_status(

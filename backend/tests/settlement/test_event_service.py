@@ -621,6 +621,13 @@ async def test_void_event_rejects_blank_justification() -> None:
         await EventService.void_event(group_id=group_id, justification="")
 
 
+async def test_reverse_event_rejects_blank_justification() -> None:
+    """WR-02: reverse_event enforces the same non-blank justification guard as resolve/void."""
+    group_id, _children, _src = await _seed_house_event(2)
+    with pytest.raises(ValueError, match="(?i)justification"):
+        await EventService.reverse_event(group_id=group_id, justification="   ")
+
+
 # --------------------------------------------------------------------------- #
 # Defensive winning-outcome guard (Open Q2) — an outcome not in the group raises.
 # --------------------------------------------------------------------------- #
@@ -631,6 +638,22 @@ async def test_resolve_event_rejects_foreign_winning_outcome() -> None:
             group_id=group_id,
             winning_outcome_id=uuid4(),  # belongs to no child of this group
             justification="winner not in group",
+        )
+
+
+async def test_resolve_event_rejects_no_outcome_as_winner() -> None:
+    """WR-03 / CR-01: resolve settles the winner on its YES leg, so a child's NO outcome is
+    NOT a valid ``winning_outcome_id`` (that is what ``void_event`` is for). Passing a NO leg
+    would otherwise settle every child on NO while the audit claims ``event.resolved`` — an
+    inconsistent, financially wrong state (the intended winner's YES bettors would lose). The
+    service rejects it (a defensive guard; authoritative validation is the Phase-16 endpoint).
+    """
+    group_id, children, _src = await _seed_house_event(2)
+    with pytest.raises(ValueError, match="(?i)yes outcome"):
+        await EventService.resolve_event(
+            group_id=group_id,
+            winning_outcome_id=children[0].no_id,  # a child's NO leg — not a valid winner
+            justification="winner must be a YES outcome",
         )
 
 
