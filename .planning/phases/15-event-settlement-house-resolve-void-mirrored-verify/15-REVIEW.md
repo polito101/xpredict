@@ -13,7 +13,11 @@ findings:
   warning: 4
   info: 2
   total: 7
-status: issues_found
+status: resolved
+resolution_commit: 5c2add9
+resolution:
+  fixed: [CR-01, WR-01, WR-02, WR-03, WR-04]
+  deferred_info: [IN-01, IN-02]
 ---
 
 # Phase 15: Code Review Report
@@ -21,7 +25,17 @@ status: issues_found
 **Reviewed:** 2026-06-05T00:00:00Z
 **Depth:** standard
 **Files Reviewed:** 4
-**Status:** issues_found
+**Status:** resolved (1 critical + 4 warnings fixed in `5c2add9`; 2 info deferred)
+
+## Resolution (2026-06-05)
+
+- **CR-01 — FIXED:** `resolve_event` now validates the supplied `winning_outcome_id` is the winner child's YES outcome (reuses the existing `_yes_outcome_id` helper), raising otherwise. Regression test `test_resolve_event_rejects_no_outcome_as_winner` added (WR-03).
+- **WR-01 — FIXED:** `_settle_children` / `_reverse_children` now `logger.exception(...)` each best-effort child failure — no more silent swallow in financial code.
+- **WR-02 — FIXED:** `test_reverse_event_rejects_blank_justification` added.
+- **WR-04 — FIXED:** `_record_event_audit` logs (with traceback) before re-raising on an audit-write failure, and documents that the per-child `settlement.*` rows are the authoritative audit trail.
+- **IN-01 / IN-02 — DEFERRED (info, non-blocking):** the opaque `scalar_one()` error context and the test-helper `conftest.py` dedup are quality nice-to-haves for a follow-up.
+
+Validation after fixes: `pytest tests/settlement/{test_event_service,test_derive_event_status,test_event_mirrored}.py` → **28 passed**; `ruff check` + `ruff format --check` clean; `mypy app/settlement/event_service.py` → Success.
 
 ## Summary
 
