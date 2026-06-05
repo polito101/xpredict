@@ -57,7 +57,7 @@ from app.settlement.adapters import HouseMarketResolveAdapter
 from app.settlement.service import SettlementService
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @dataclass(frozen=True, slots=True)
@@ -364,7 +364,7 @@ class EventService:
     # ----------------------------------------------------------------------- #
     @staticmethod
     async def _settle_children(
-        session_maker,
+        session_maker: async_sessionmaker[AsyncSession],
         ordered_children: Sequence[tuple[UUID, UUID]],
         justification: str,
         actor_user_id: UUID | None,
@@ -396,7 +396,7 @@ class EventService:
 
     @staticmethod
     async def _record_event_audit(
-        session_maker,
+        session_maker: async_sessionmaker[AsyncSession],
         *,
         event_type: str,
         group_id: UUID,
@@ -433,7 +433,9 @@ class EventService:
             )
 
     @staticmethod
-    async def _derive_status(session_maker, group_id: UUID) -> str:
+    async def _derive_status(
+        session_maker: async_sessionmaker[AsyncSession], group_id: UUID
+    ) -> str:
         """Project the event's derived status from its (committed) child rows (EVT-06).
 
         Re-loads each child's ``status`` + ``winning_outcome_id`` and computes
