@@ -394,3 +394,184 @@ class TestSyncEventsIntegration:
             )
         ).scalar_one()
         assert slug_count == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+class TestSyncEventsConditionIdDedup:
+    """Regression for 14-AUDIT C-2 — child dedup keys on ``id``, NEVER ``condition_id``.
+
+    BIDIRECTIONAL: each test asserts a 2-child event syncs as a GROUP OF 2. Reverting
+    the dedup key to ``condition_id`` would, in both scenarios below, collapse the two
+    children to a single deduped child → the ``len(children) == 1`` standalone branch
+    fires → NO ``market_groups`` row + only one child stamped. So a revert flips
+    "group of 2" to "standalone 1" and these assertions fail.
+
+    ``Gamma`` leaves ``conditionId=""`` on not-yet-deployed markets and can repeat a
+    ``conditionId`` across distinct markets; only the market ``id`` (= the
+    ``source_market_id`` ON CONFLICT persistence key) is a reliable per-child grain.
+    Each child carries a DISTINCT ``slug`` so neither trips the ``Market.slug`` UNIQUE
+    index — both are genuine upserts and the test isolates the dedup behaviour alone.
+    """
+
+    async def test_blank_condition_id_child_not_dropped(
+        self,
+        async_session: AsyncSession,
+    ) -> None:
+        """2-child event, ONE child ``conditionId=""`` → BOTH sync as a group of 2.
+
+        Under the reverted ``condition_id`` dedup the blank-id child would be dropped
+        (falsy) → the event collapses to standalone (1 child, no group). Under the
+        ``id`` dedup both distinct ids survive → group of 2.
+        """
+        from sqlalchemy import select
+
+        from app.integrations.polymarket.schemas import GammaEvent
+        from app.markets.models import Market, MarketGroup
+
+        adapter = PolymarketAdapter()
+        event_raw = {
+            "id": "c2-blank-evt",
+            "slug": "c2-blank-event",
+            "title": "C-2 blank conditionId event",
+            "closed": False,
+            "volume24hr": 50_000.0,
+            "volume": 50_000.0,
+            "tags": [{"id": "21", "label": "Crypto", "slug": "crypto"}],
+            "markets": [
+                {
+                    "id": "c2-blank-mkt-A",
+                    "question": "Will A resolve YES?",
+                    "conditionId": "c2-cond-A",  # present
+                    "slug": "c2-blank-slug-A",  # DISTINCT slug (no UNIQUE clash)
+                    "outcomes": '["Yes","No"]',
+                    "outcomePrices": '["0.6","0.4"]',
+                    "clobTokenIds": '["a1","a2"]',
+                    "volume": "100000",
+                    "groupItemTitle": "A",
+                    "closed": False,
+                },
+                {
+                    "id": "c2-blank-mkt-B",
+                    "question": "Will B resolve YES?",
+                    "conditionId": "",  # BLANK — would be dropped by condition_id dedup
+                    "slug": "c2-blank-slug-B",  # DISTINCT slug
+                    "outcomes": '["Yes","No"]',
+                    "outcomePrices": '["0.3","0.7"]',
+                    "clobTokenIds": '["b1","b2"]',
+                    "volume": "100000",
+                    "groupItemTitle": "B",
+                    "closed": False,
+                },
+            ],
+        }
+        event = GammaEvent.model_validate(event_raw)
+        assert len(event.markets) == 2
+
+        synced = await adapter.sync_events(async_session, [event], category="Crypto")
+        # BOTH children upserted — proves the blank-id child was NOT dropped.
+        assert synced == 2
+
+        # A market_groups row EXISTS (the event did NOT collapse to standalone).
+        grp = (
+            await async_session.execute(
+                select(MarketGroup).where(MarketGroup.source_event_id == "c2-blank-evt"),
+            )
+        ).scalar_one()
+        assert grp.category == "Crypto"
+
+        # Exactly 2 children stamped with that group_id.
+        kids = (
+            (
+                await async_session.execute(
+                    select(Market).where(Market.group_id == grp.id),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(kids) == 2
+        assert {k.source_market_id for k in kids} == {"c2-blank-mkt-A", "c2-blank-mkt-B"}
+        # The blank-conditionId child persisted its (empty) condition_id verbatim.
+        by_id = {k.source_market_id: k for k in kids}
+        assert by_id["c2-blank-mkt-B"].condition_id == ""
+
+    async def test_duplicate_condition_id_distinct_ids_both_sync(
+        self,
+        async_session: AsyncSession,
+    ) -> None:
+        """2-child event, SAME ``conditionId`` but DISTINCT ``id`` → BOTH sync (dedup by id).
+
+        Under the reverted ``condition_id`` dedup the second (duplicate-conditionId)
+        child would be dropped → standalone collapse. Under the ``id`` dedup both
+        distinct ids are kept → group of 2.
+        """
+        from sqlalchemy import select
+
+        from app.integrations.polymarket.schemas import GammaEvent
+        from app.markets.models import Market, MarketGroup
+
+        adapter = PolymarketAdapter()
+        event_raw = {
+            "id": "c2-dupcond-evt",
+            "slug": "c2-dupcond-event",
+            "title": "C-2 duplicate conditionId event",
+            "closed": False,
+            "volume24hr": 50_000.0,
+            "volume": 50_000.0,
+            "tags": [{"id": "21", "label": "Crypto", "slug": "crypto"}],
+            "markets": [
+                {
+                    "id": "c2-dup-mkt-A",
+                    "question": "Will A resolve YES?",
+                    "conditionId": "c2-shared-cond",  # SAME conditionId as B
+                    "slug": "c2-dup-slug-A",  # DISTINCT slug
+                    "outcomes": '["Yes","No"]',
+                    "outcomePrices": '["0.6","0.4"]',
+                    "clobTokenIds": '["a1","a2"]',
+                    "volume": "100000",
+                    "groupItemTitle": "A",
+                    "closed": False,
+                },
+                {
+                    "id": "c2-dup-mkt-B",
+                    "question": "Will B resolve YES?",
+                    "conditionId": "c2-shared-cond",  # SAME conditionId → dropped pre-fix
+                    "slug": "c2-dup-slug-B",  # DISTINCT slug
+                    "outcomes": '["Yes","No"]',
+                    "outcomePrices": '["0.3","0.7"]',
+                    "clobTokenIds": '["b1","b2"]',
+                    "volume": "100000",
+                    "groupItemTitle": "B",
+                    "closed": False,
+                },
+            ],
+        }
+        event = GammaEvent.model_validate(event_raw)
+        assert len(event.markets) == 2
+
+        synced = await adapter.sync_events(async_session, [event], category="Crypto")
+        # BOTH children upserted — the duplicate-conditionId child was NOT dropped.
+        assert synced == 2
+
+        # A market_groups row EXISTS (no standalone collapse).
+        grp = (
+            await async_session.execute(
+                select(MarketGroup).where(MarketGroup.source_event_id == "c2-dupcond-evt"),
+            )
+        ).scalar_one()
+
+        # Exactly 2 children stamped with that group_id, both carrying the shared
+        # conditionId verbatim (dedup keyed on id, not condition_id).
+        kids = (
+            (
+                await async_session.execute(
+                    select(Market).where(Market.group_id == grp.id),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(kids) == 2
+        assert {k.source_market_id for k in kids} == {"c2-dup-mkt-A", "c2-dup-mkt-B"}
+        assert {k.condition_id for k in kids} == {"c2-shared-cond"}
