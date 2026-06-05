@@ -1,0 +1,9 @@
+[
+  { "id": "2", "label": "Politics", "slug": "politics" },
+  { "id": "1", "label": "Sports", "slug": "sports" },
+  { "id": "21", "label": "Crypto", "slug": "crypto" },
+  { "id": "596", "label": "Culture", "slug": "pop-culture" },
+  { "id": "100328", "label": "Economy", "slug": "economy" },
+  { "id": "1401", "label": "Tech", "slug": "tech" },
+  { "id": "101970", "label": "World", "slug": "world" }
+]
