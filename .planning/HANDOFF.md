@@ -1,62 +1,59 @@
 # HANDOFF — live operational state
 
-> **Updated:** 2026-06-05 (Phase 14 closeout) · **Milestone:** v1.2 Credible Catalog · **Phase 14 of 18 — executed, audited, PR #28 awaiting Pol's merge**
+> **Updated:** 2026-06-05 (Phase 15 closeout — PR opened + CI green) · **Milestone:** v1.2 Credible Catalog · **Phase 15 of 18 — DONE: PR [#29](https://github.com/polito101/xpredict/pull/29) OPEN, CI 7/7 GREEN, MERGEABLE → MERGE READY, awaiting Pol's review/merge**
 > Read this first. STATE.md + ROADMAP.md are the formal GSD truth; this is the live "what's happening NOW + what NOT to touch."
-> Verify live state from git (`gh pr view 28`, `gh pr checks 28`, `origin/main`), not these docs alone — they can drift.
+> Verify live state from git (`git log`, `origin/main`, `gh pr ...` once a PR exists), not these docs alone — they can drift.
 
 ---
 
 ## TL;DR
 
-**Phase 14 (Curated Per-Category Gamma Sync) is COMPLETE from an engineering standpoint: executed, verified 11/11, code-reviewed, hardened by a final 4-lens audit, and GREEN on backend CI. PR [#28](https://github.com/polito101/xpredict/pull/28) is OPEN + MERGEABLE — the ONLY thing left is Pol's review/merge.** No code work remains in Phase-14 scope.
+**Phase 15 (Event Settlement — House Resolve/Void + Mirrored Verify) is COMPLETE: executed (3/3 plans), code-reviewed (1 critical + 4 warnings found AND fixed), verified 13/13 must-haves / 5-of-5 requirements / 4-of-4 success criteria — and shipped to PR [#29](https://github.com/polito101/xpredict/pull/29).** **The PR is OPEN, all 7 CI checks are GREEN, `mergeable=MERGEABLE` with 0 drift vs `origin/main` — the only remaining action is Pol's review/merge** (`reviewDecision=REVIEW_REQUIRED`; `main` is protected, only Pol approves+merges). No code work remains in Phase-15 scope. **Status: MERGE READY.**
 
 ---
 
-## Phase 14 — exact status
+## Phase 15 — exact status
 
-- **Branch:** `gsd/phase-14-curated-per-category-gamma-sync` (HEAD `9e36246`, pushed; PR head == local head). 34 commits ahead of `origin/main`, **0 behind** (merged `origin/main` in — clean).
-- **Delivers (CAT-01..06 + EVT-07):** Gamma `GET /events` per-category curated sync replaces the flat top-25 poll; writes `market_groups` rows + stamps `Market.group_id`/`group_item_title`/`category`; dedup → `volume24hr` floor → top-N; keep-last-good per category; `len==1` → standalone; beat swap `poll_polymarket_top25`@30s → `poll_polymarket_events`@300s. **Zero new deps.**
-- **Verification:** `14-VERIFICATION.md` = 11/11 must-haves · 4/4 SC · 7/7 reqs (verified against real code). Status `human_needed` ONLY for 2 post-deploy checks (below) — NOT code gaps.
-- **Code review** (`14-REVIEW.md`): found + fixed 2 blockers — CR-01 (child IntegrityError did a full-tx rollback orphaning the group → SAVEPOINT fix) and CR-02 (changed_markets not reset per category). Bidirectional regression tests added.
-- **Final multi-lens audit** (`14-AUDIT.md`, 4 opus reviewers): found + fixed 2 more CRITICAL bugs the first review missed — **NaN `volume24hr`** (detonated the floor → `is_finite` guard) and **blank/duplicate `conditionId`** (dropped/collapsed events → dedup by market `id`). Plus lock-TTL race (280→600s) and dead-code cleanup. 7 regression/coverage tests added (CR-01/CR-02/NaN/conditionId bidirectional).
-- **Local gate (full CI surface):** `ruff check` ✓ · `ruff format --check` ✓ · `mypy app/` (94 files) ✓ · 63 polymarket tests ✓.
+- **Branch / PR:** `gsd/phase-15-event-settlement-house-resolve-void-mirrored-verify` (forked clean off `origin/main` @ `1437257` = the #28 merge). **PR [#29](https://github.com/polito101/xpredict/pull/29) OPEN** (22 commits ahead, 0 behind — no drift); `mergeable=MERGEABLE`, `mergeStateStatus=BLOCKED` ONLY by `reviewDecision=REVIEW_REQUIRED` (branch protection awaiting Pol's approval — NOT a conflict). Opened via `gh` (the worktree session lacked the `create_pull_request` MCP — the documented GOTCHA; repo CLAUDE.md permits `gh pr create`; only Pol merges).
+- **Delivers (EVT-06 + EVA-03..06):** a NEW `backend/app/settlement/event_service.py` (the ONLY production file) — `EventService.resolve_event` / `void_event` / `reverse_event` LOOP the UNCHANGED `SettlementService.resolve_market` / `reverse_settlement` over a `MarketGroup`'s children, **one FRESH `_get_session_maker()` session per child** (Option A — the 23505 dangling-tx landmine forbids chaining two self-committing settles on one session). Plus the pure, column-free `derive_event_status(children)` projection (EVT-06 — no migration, no authoritative status/winning_outcome column). Void = every child on NO (not a refund); reverse = compensating `reverse_settlement` per settled child, per-child `CHECK(balance>=0)` floor isolation; mirrored (`source=POLYMARKET`) groups are admin-rejected and auto-settle only through the existing `detect_polymarket_resolutions` path. **Purely additive: settlement primitives + `tasks.py` + migrations are byte-for-byte unchanged (0 diff vs `e9a4ac4`).**
+- **Tests:** 3 new test files (`test_derive_event_status.py` 8 · `test_event_service.py` 18 · `test_event_mirrored.py` 2) = **28 passed** (per-module). Every resolution path asserts the spike-004 `reconcile._reconcile_async` `drift_count == 0`. ruff + `mypy app/settlement/event_service.py` clean.
+- **Code review** (`15-REVIEW.md`, status `resolved`): found + fixed **CR-01** (resolve_event accepted a non-YES `winning_outcome_id` → would settle every child on NO while auditing `event.resolved`; now validates the YES leg via `_yes_outcome_id`), **WR-01/WR-04** (best-effort + audit-write failures now `logger.exception(...)` — no silent swallow in financial code), **WR-02/WR-03** (added the reverse blank-justification + NO-outcome-rejection tests). IN-01 (opaque `scalar_one()` error) + IN-02 (test-helper `conftest.py` dedup) deferred (info, non-blocking). Fix commit `5c2add9`.
+- **Verification** (`15-VERIFICATION.md`): status `passed`, **13/13 must-haves**, 5/5 reqs, 4/4 success criteria — verified against the real code + git invariants.
 
-## PR #28 — exact status (the ONE open thread)
+## Pending — the only remaining action (Pol)
 
-- **State:** OPEN · `mergeable=MERGEABLE` · `mergeStateStatus=BLOCKED` (blocked ONLY by branch protection requiring Pol's review — NOT a conflict).
-- **CI (all GREEN on head `9e36246`):** `backend` ✓ (1m37s — full `pytest tests/` + ruff lint + ruff format-check + mypy app/ on Linux), `bandit` ✓, `gitleaks` ✓, `pip-audit` ✓, `pnpm-audit` ✓, `prod-migration-dry-run` ✓, `zap-baseline` ✓.
-- **No merge conflicts.** `HEAD` contains all of `origin/main` (post-#27); clean-merge probe = 0 markers.
+1. **Pol: review + merge PR [#29](https://github.com/polito101/xpredict/pull/29).** `main` is protected, PR-only — only Pol approves+merges. Everything automatable is done: PR open, CI green, mergeable, no drift, technical review complete.
 
-## Pending — Pol (the only remaining action)
+## Post-PR validation — DONE (the Phase-14 "audit before merge-ready" gate)
 
-1. **Review + merge PR #28.** `main` is protected, PR-only — **only Pol merges.** Engineering is done; this is a review/approval gate.
-
-## Pending — deploy (post-merge, tracked in `14-HUMAN-UAT.md`)
-
-1. **Restart the beat process** on deploy — redbeat persists the schedule in Redis, so the swap (`poll_polymarket_top25`→`poll_polymarket_events`) is inert until beat restarts and re-syncs. Then confirm `poll_polymarket_events` fires @300s, top-25 no longer fires, and `market_groups` rows appear. (Code-side swap verified green by `test_beat_schedule_entries`; only the live reload is manual.)
-2. **Re-verify the 7 `tag_id`s** at deploy via the live `GET /tags/slug/{slug}` loop (Politics=2, Sports=1, Crypto=21, Pop Culture=596, Economy=100328, Tech=1401, World=101970) — pinned 2026-06-05; a drifted id would mis-route/empty a category.
-
-## Residual risks (real, accepted — documented in `14-AUDIT.md`)
-
-- **Lock TTL=600s:** a *crashed* cycle blocks sync for ≤600s (catalog keeps last-good meanwhile). Conscious trade-off vs the overlap risk.
-- **Float-derived event volume floor:** the $10k credibility gate compares `Decimal(str(float))` (soft curation threshold — not money/payouts). Non-corruptive.
-- **W-2 (theoretical):** an event returned under a `tag_id` filter without that tag in its `tags[]` is stamped with the fetch category (+ drift-logged). Not observed in live data.
-- Standing v1.0/v1.1 deferred items (in STATE.md): 3 human-UAT, 3 missing VERIFICATION.md, and the **non-deferrable Spanish legal review** of ToS/token policy before any live operator demo.
+- **Drift:** 0 behind `origin/main` (22 ahead) — clean fork, no drift. ✓
+- **CI: 7/7 GREEN** on the PR head — `backend` ✓ (full Linux `uv run pytest` + ruff + mypy, 1m50s), `bandit` ✓, `pip-audit` ✓, `pnpm-audit` ✓, `gitleaks (full history)` ✓, `prod-migration-dry-run` ✓, `zap-baseline` ✓. The Linux `backend` job confirms the whole suite green — the Windows-worktree full-suite flake was environmental, as expected. ✓
+- **Mergeability:** `mergeable=MERGEABLE`, no conflicts; `BLOCKED` only by the required review (Pol's approval). ✓
+- **Technical review:** code-review (CR-01 + 4 warnings fixed) + verifier (13/13) + a final red-flag scan of the diff (no debug/skips/secrets/stray files). ✓
+- **Invariants:** purely additive — 1 new prod file; settlement primitives + `tasks.py` + migrations 0 diff. ✓
 
 ## CI / environment notes
 
-- `backend-ci.yml` is **path-filtered** (`paths: backend/**` + the workflow file + `.gitleaks.toml`) — `.planning/`-only commits do NOT re-run the backend job, so this docs commit leaves the green backend result on `9e36246` intact.
-- **Windows worktree is unreliable for backend verification:** the full `uv run pytest` flakes (testcontainers contention) AND `ruff check`/`format` flip-flop. **Trust Linux CI, not the Windows worktree.** Verify locally per-module only.
+- **Windows worktree is unreliable for full-suite backend verification:** the full `uv run pytest` flakes (testcontainers contention across unrelated modules) AND `ruff check`/`format` flip-flop on the full file set. **Verify per-module (settlement) locally; trust Linux CI for the full suite + ruff + mypy.** (Phase 15 was verified per-module green; CI will confirm the whole suite.)
+- **Execution ran with `workflow.use_worktrees=false`** to avoid nesting a git worktree inside the Windows agent worktree (the documented breakage). That config toggle was reverted (not committed) — the PR contains only the settlement code + tests + `.planning/` docs.
 
 ## What NOT to touch
 
-- Don't re-open / re-verify / re-implement Phase 14 — it's engineering-complete; the only open action is Pol's merge of #28.
+- Don't re-open / re-verify / re-implement Phase 15 — it's engineering-complete; the only open action is push + Pol's merge.
 - Don't push to `main` or self-merge — PR-only; **only Pol merges**.
-- Don't "fix" Windows full-suite test/ruff flip-flop — environmental; Linux CI is the truth.
+- Don't "fix" the Windows full-suite test/ruff flip-flop — environmental; Linux CI is the truth.
+- Don't modify `SettlementService` / `tasks.py` / migrations — Phase 15 deliberately left them byte-for-byte unchanged (the whole point: compose, don't reinvent).
 
-## Recommended next session — Phase 15 (after #28 merges)
+## Recommended next session — Phase 16 (after #15's PR merges)
 
-- **Phase 15 = Event Settlement (House Resolve/Void + Mirrored Verify)** — reqs EVT-06, EVA-03..06. `EventService` resolve-as-a-loop over the existing `SettlementService` per child; void = all-children-NO; reverse via compensating ledger; derived event status (no authoritative winning_outcome column); mirrored children auto-settle via the existing UMA detection (verify, no new code). Depends on Phase 13 (group model) + benefits from Phase 14's real mirrored data.
-- **Prereq:** start ONLY after Pol merges #28, from a fresh `origin/main` checkout (so Phase 14's `market_groups` writer + sync are in main). New session, repo-rooted (workspace = `Documents\XPredict\xpredict`, not home).
-- **Kickoff:** `/gsd-autonomous phase 15` (single-phase, 1 PR — same flow that worked for Phases 13 + 14). And per the Phase-14 lesson: after "ship", AUDIT the PR (re-check vs `origin/main` drift, confirm CI actually green via `gh`, run a multi-lens code audit) before declaring merge-ready.
-- **Watch-outs for 15:** run the spike-004 double-entry integrity check green after every resolution path; never settle on `closed=true` alone (spike-002 guard); per-child transactions (Option A), idempotent replay; mirrored events stay admin-read-only except emergency force-settle.
+- **Phase 16 = Catalog & Event API + House Event CRUD** — reqs BRW-01..06, CAT-01..06, EVA-01/02, EVT-01..05/07 (the HTTP contract: browse/search/category/event reads + house-event create/edit/resolve/reverse). Depends on Phase 15 (the resolve/reverse service is the admin event API's engine). The EVA-03 two-step confirm + admin auth surface deferred from Phase 15 lands here.
+- **Prereq:** start ONLY after Pol merges the Phase-15 PR, from a fresh `origin/main` checkout. New session, repo-rooted (workspace = `Documents\XPredict\xpredict`, not home) so the GitHub MCP loads.
+- **Kickoff:** `/gsd-autonomous phase 16` (single-phase, 1 PR — the same flow that worked for 13/14/15).
+
+## Standing deferred items (carried from v1.0/v1.1, unchanged)
+
+| Category | Item | Status |
+|----------|------|--------|
+| legal (gating) | Spanish counsel review of ToS + token policy | Open — **not deferrable** before any live operator demo |
+| human-UAT | Phase 12 `12-HUMAN-UAT.md` | 3 scenarios open |
+| verification | Phases 03 / 04 / 05 | 3 VERIFICATION.md missing (backends shipped) |

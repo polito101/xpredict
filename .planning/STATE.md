@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: in_progress
-last_updated: "2026-06-05T12:00:00.000Z"
-last_activity: 2026-06-05
+status: completed
+stopped_at: "Completed 15-03-PLAN.md (reverse_event EVA-05 + mirrored verify EVA-06). Phase 15 event-settlement layer COMPLETE (resolve/void/reverse + derived status + mirrored verify; all 3 plans done, 72 settlement tests green, spike-004 drift_count==0 on every path). Next: /gsd-verify-work for Phase 15."
+last_updated: "2026-06-05T18:08:19.901Z"
+last_activity: 2026-06-05 -- Phase 15 marked complete
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 17
+  completed_phases: 3
+  total_plans: 9
+  completed_plans: 9
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +22,14 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 14 (Curated Per-Category Gamma Sync) ✅ EXECUTED + verified (11/11) + hardened (final 4-lens audit) + **backend CI GREEN** → **PR #28 OPEN + MERGEABLE**, pending ONLY Pol's review/merge. Engineering-complete; no code work remains in Phase-14 scope. Phase 13 (#25), CI-fix (#26), docs (#27) all MERGED. Next after #28 merges: Phase 15 (Event Settlement).
+**Current focus:** Phase 15 — Event Settlement ✅ COMPLETE → PR [#29](https://github.com/polito101/xpredict/pull/29) OPEN, CI 7/7 green, `mergeable=MERGEABLE`, **MERGE READY** (awaiting Pol's review/merge). Next after merge: Phase 16 (Catalog & Event API + House Event CRUD).
 
 ## Current Position
 
-Phase: 14 (Curated Per-Category Gamma Sync) — ✅ EXECUTED + verified · **PR #28 OPEN** (pending Pol's merge)
-Plan: 4 of 4 complete (parsers+config · fetch_events · adapter sync_events + market_groups writer · poll_polymarket_events curation loop + beat swap)
-Status: VERIFICATION 11/11 must-haves (human_needed: 2 post-deploy checks — redbeat restart + tag drift). Code review found + fixed 2 blockers (CR-01/CR-02); a final 4-lens hardening audit on PR #28 then addressed NaN-volume floor, blank-conditionId dedup, lock-TTL, and dead-code (see `14-AUDIT.md`). `origin/main` (#25/#26/#27) merged into the branch (clean). **backend CI GREEN (full Linux suite + ruff + mypy, all checks pass); PR #28 MERGEABLE.** Only Pol merges #28. Next: Phase 15.
-Last activity: 2026-06-05
+Phase: 15 — COMPLETE
+Plan: 3 of 3
+Status: Phase 15 complete — PR #29 open, CI 7/7 green, mergeable (BLOCKED only by REVIEW_REQUIRED → Pol), MERGE READY
+Last activity: 2026-06-05 -- Phase 15 shipped to PR #29, CI green, merge-ready
 
 Progress: [██████████] 100%
 
@@ -63,8 +64,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T10:09:29.678Z
-Stopped at: Completed 13-02-PLAN.md (Wave 2 tests). Phase 13 both plans done — markets 117 green, bets+settlement 92 green (SC#2), money-lint clean. Ready for /gsd-verify-work.
+Last session: 2026-06-05T17:46:37.568Z
+Stopped at: Completed 15-03-PLAN.md (reverse_event EVA-05 + mirrored verify EVA-06). Phase 15 event-settlement layer COMPLETE (resolve/void/reverse + derived status + mirrored verify; all 3 plans done, 72 settlement tests green, spike-004 drift_count==0 on every path). Next: /gsd-verify-work for Phase 15.
 Resume file: None
 
 ## Performance Metrics
@@ -73,3 +74,16 @@ Resume file: None
 |-------|------|----------|-------|
 | Phase 13 P13-01 | 8min | 2 tasks | 5 files |
 | Phase 13 P13-02 | ~10min | 2 tasks | 2 files (test_migration_0011.py +349, test_models.py +137) |
+| Phase 15 P01 | 3min | 2 tasks | 2 files |
+| Phase 15 P02 | 9min | 2 tasks | 2 files |
+| Phase 15 P03 | 15min | 3 tasks | 3 files (event_service.py +140, test_event_service.py +256 reverse, test_event_mirrored.py +482 new) |
+
+## Decisions
+
+- [Phase 15]: EVT-06: event status is a derived read-time projection (derive_event_status pure free function over ChildStatus); no stored status/winning_outcome column on market_groups, no migration
+- [Phase 15]: derive_event_status + ChildStatus live module-level in backend/app/settlement/event_service.py (Wave 1 pure layer); Wave 2 EventService resolve/void/reverse class extends the same module
+- [Phase 15]: Phase-15 event resolve/void = loop the UNCHANGED SettlementService per child on a FRESH _get_session_maker() session (Option A); never two self-committing settles in one with/begin() (the 23505 dangling-tx landmine). Idempotency/locks/payouts/per-child audit all inherited.
+- [Phase 15]: EventService integration tests seed LEDGER-BACKED wallets (INSERT at 0 + WalletService.recharge) so the literal spike-004 _reconcile_async drift_count==0 gate is faithful; the older raw-balance test shortcut leaves a phantom non-ledger-backed opening balance the reconciler reports as drift.
+- [Phase 15]: EventService.reverse_event (EVA-05) loops the UNCHANGED SettlementService.reverse_settlement per already-settled child on a FRESH session, NO winning_outcome_id (finds SETTLED bets by status). Per-child sessions do double duty: 23505-safe AND isolate the CHECK(balance>=0) floor (a winner who spent winnings makes THAT child roll back alone, siblings stay reversed; full reverse reopens all → event derives "open"). Reverse is restore+audit ONLY; re-resolve-after-reverse is a deferred Pitfall-6 gap (settle:{bet_id}:{leg} collides on 23505), flagged in code, no test.
+- [Phase 15]: EVA-06 is VERIFY-ONLY — backend/app/integrations/polymarket/tasks.py has NO diff. test_event_mirrored.py drives the UNCHANGED _run_detect_resolutions over a source=POLYMARKET market_group's children via its session_override/redis_override seam (settle with zero new code) + asserts reverse_event rejects mirrored. A grace-PRIMER market (uma_resolved_at NULL, committed first) grace-starts+commits in the detect loop to clear the candidate-SELECT read tx so each child's resolve_market opens its own begin() on a real session_override (a real session forbids begin() while a read tx is open — reproduces a real mixed-stage 60s tick); AsyncMock detect-lock (in-repo fakeredis lacks Lua eval).
+- [Phase 15]: Phase 15 event-settlement layer COMPLETE — resolve + void + reverse + derived status + mirrored verify, all with spike-004 drift_count==0 on every path; all 3 EventService mutations reject source=POLYMARKET groups (mirrored settles ONLY via the unchanged UMA detect path).

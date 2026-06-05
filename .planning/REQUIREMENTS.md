@@ -17,7 +17,7 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 - [ ] **EVT-03**: Player can place a bet on a single outcome of an event, reusing the existing bet path on the constituent binary market.
 - [ ] **EVT-04**: Player sees a multi-outcome event card in the catalog (top 2–4 outcomes + %, "+N more"), visually distinct from the binary market card.
 - [ ] **EVT-05**: Player can see per-outcome price history on the event detail (reuses the existing price-history chart per child market).
-- [ ] **EVT-06**: Event status (open / partially-resolved / resolved / void) is derived from its constituent markets' states — never stored as an authoritative winning-outcome column.
+- [x] **EVT-06**: Event status (open / partially-resolved / resolved / void) is derived from its constituent markets' states — never stored as an authoritative winning-outcome column.
 - [x] **EVT-07**: A "single-market event" (len == 1) stays on the standalone binary path; grouping applies only to events with ≥ 2 outcomes.
 
 ### Curated Catalog & Sync (CAT) — extends MKT sync
@@ -42,10 +42,10 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 
 - [ ] **EVA-01**: Admin can create a house multi-outcome event: title, category, and N outcomes each with a per-outcome label (`group_item_title`) and initial odds.
 - [ ] **EVA-02**: Admin can edit a house event's outcomes/metadata while it has zero bets; edits lock after the first bet (mirrors ADM-07).
-- [ ] **EVA-03**: Admin can resolve a house event by selecting the winning outcome (mandatory justification + two-step confirm); resolution loops the existing `SettlementService` per child (winner→YES settled, losers→NO settled), idempotently.
-- [ ] **EVA-04**: Admin can void a house event (no winner): every child resolves on NO (YES bettors lose, NO bettors win) — explicitly NOT a stake refund (true refund-on-cancel is out of scope).
-- [ ] **EVA-05**: Admin can reverse an event resolution via compensating ledger entries (mirrors STL-07), audit-logged.
-- [ ] **EVA-06**: Mirrored (Polymarket) events are read-only to admins except emergency force-settle (mirrors ADM-06); mirrored children auto-settle via the existing UMA detection (verify, no new settlement code).
+- [x] **EVA-03**: Admin can resolve a house event by selecting the winning outcome (mandatory justification + two-step confirm); resolution loops the existing `SettlementService` per child (winner→YES settled, losers→NO settled), idempotently.
+- [x] **EVA-04**: Admin can void a house event (no winner): every child resolves on NO (YES bettors lose, NO bettors win) — explicitly NOT a stake refund (true refund-on-cancel is out of scope).
+- [x] **EVA-05**: Admin can reverse an event resolution via compensating ledger entries (mirrors STL-07), audit-logged.
+- [x] **EVA-06**: Mirrored (Polymarket) events are read-only to admins except emergency force-settle (mirrors ADM-06); mirrored children auto-settle via the existing UMA detection (verify, no new settlement code).
 
 ### Seed & Demo Harness (DEMO) — extends v1.1 harness
 
@@ -99,7 +99,7 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | EVT-03 | Phase 17 (UI) | Pending |
 | EVT-04 | Phase 17 (UI) | Pending |
 | EVT-05 | Phase 17 (UI) | Pending |
-| EVT-06 | Phase 15 (Settlement) | Pending |
+| EVT-06 | Phase 15 (Settlement) | Complete |
 | EVT-07 | Phase 14 (Sync) | Complete |
 | CAT-01 | Phase 14 (Sync) | Complete |
 | CAT-02 | Phase 14 (Sync) | Complete |
@@ -115,10 +115,10 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | BRW-06 | Phase 17 (UI) | Pending |
 | EVA-01 | Phase 16 (API) | Pending |
 | EVA-02 | Phase 16 (API) | Pending |
-| EVA-03 | Phase 15 (Settlement) | Pending |
-| EVA-04 | Phase 15 (Settlement) | Pending |
-| EVA-05 | Phase 15 (Settlement) | Pending |
-| EVA-06 | Phase 15 (Settlement) | Pending |
+| EVA-03 | Phase 15 (Settlement) | Complete |
+| EVA-04 | Phase 15 (Settlement) | Complete |
+| EVA-05 | Phase 15 (Settlement) | Complete |
+| EVA-06 | Phase 15 (Settlement) | Complete |
 | DEMO-01 | Phase 18 (Seed/Demo) | Pending |
 | DEMO-02 | Phase 18 (Seed/Demo) | Pending |
 | DEMO-03 | Phase 18 (Seed/Demo) | Pending |
