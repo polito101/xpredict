@@ -22,14 +22,14 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 15 — Event Settlement (House Resolve/Void + Mirrored Verify)
+**Current focus:** Phase 15 — Event Settlement ✅ COMPLETE → PR [#29](https://github.com/polito101/xpredict/pull/29) OPEN, CI 7/7 green, `mergeable=MERGEABLE`, **MERGE READY** (awaiting Pol's review/merge). Next after merge: Phase 16 (Catalog & Event API + House Event CRUD).
 
 ## Current Position
 
 Phase: 15 — COMPLETE
 Plan: 3 of 3
-Status: Phase 15 complete
-Last activity: 2026-06-05 -- Phase 15 marked complete
+Status: Phase 15 complete — PR #29 open, CI 7/7 green, mergeable (BLOCKED only by REVIEW_REQUIRED → Pol), MERGE READY
+Last activity: 2026-06-05 -- Phase 15 shipped to PR #29, CI green, merge-ready
 
 Progress: [██████████] 100%
 
