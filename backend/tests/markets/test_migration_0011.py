@@ -47,10 +47,7 @@ DOWN_REVISION = "0010_phase12_resolution_stakes"
 
 # Path to the migration module under test — used by the static reversibility parse.
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "alembic"
-    / "versions"
-    / "0011_phase13_market_groups.py"
+    Path(__file__).resolve().parents[2] / "alembic" / "versions" / "0011_phase13_market_groups.py"
 )
 
 
@@ -103,9 +100,9 @@ async def test_markets_has_group_columns(engine: AsyncEngine) -> None:
     async with engine.connect() as conn:
         col_names = await conn.run_sync(_cols)
 
-    assert {"group_id", "group_item_title"}.issubset(col_names), (
-        f"markets missing group columns; have: {sorted(col_names)}"
-    )
+    assert {"group_id", "group_item_title"}.issubset(
+        col_names
+    ), f"markets missing group columns; have: {sorted(col_names)}"
 
 
 # ---------------------------------------------------------------------------
@@ -148,9 +145,7 @@ async def test_markets_group_id_fk_set_null(engine: AsyncEngine) -> None:
 async def test_pg_trgm_enabled(engine: AsyncEngine) -> None:
     """The ``pg_trgm`` extension is installed (SC#3 — GIN trigram indexes depend on it)."""
     async with engine.connect() as conn:
-        result = await conn.execute(
-            text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'")
-        )
+        result = await conn.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'"))
         assert result.scalar_one_or_none() == 1, "pg_trgm extension not enabled"
 
 
@@ -191,9 +186,9 @@ async def test_gin_trgm_indexes_have_opclass(
     # parenthesised column clause (e.g. ``... USING gin (title gin_trgm_ops)``),
     # collapsing internal whitespace so ``title   gin_trgm_ops`` still matches.
     paren = lowered[lowered.index("(") : lowered.rindex(")") + 1]
-    assert f"{column} gin_trgm_ops" in re.sub(r"\s+", " ", paren), (
-        f"{index_name}: gin_trgm_ops not bound to column {column!r}: {ddl}"
-    )
+    assert f"{column} gin_trgm_ops" in re.sub(
+        r"\s+", " ", paren
+    ), f"{index_name}: gin_trgm_ops not bound to column {column!r}: {ddl}"
 
 
 async def test_partial_unique_has_where_clause(engine: AsyncEngine) -> None:
@@ -205,17 +200,17 @@ async def test_partial_unique_has_where_clause(engine: AsyncEngine) -> None:
     lowered = ddl.lower()
     assert "unique" in lowered, f"partial index is not UNIQUE: {ddl}"
     assert "where" in lowered, f"partial index missing WHERE predicate: {ddl}"
-    assert "source_event_id" in lowered, (
-        f"partial index WHERE does not reference source_event_id: {ddl}"
-    )
+    assert (
+        "source_event_id" in lowered
+    ), f"partial index WHERE does not reference source_event_id: {ddl}"
     # WR-01: pin the POLARITY. The index must cover rows where source_event_id
     # IS NOT NULL (so multiple NULL-source_event_id HOUSE groups stay allowed
     # while real external event ids are deduped). The logical inverse
     # ``WHERE source_event_id IS NULL`` would satisfy the token checks above but
     # invert the constraint — assert IS NOT NULL explicitly so it cannot pass.
-    assert "is not null" in lowered, (
-        f"partial index WHERE must be IS NOT NULL (not the inverse), got: {ddl}"
-    )
+    assert (
+        "is not null" in lowered
+    ), f"partial index WHERE must be IS NOT NULL (not the inverse), got: {ddl}"
 
 
 @pytest.mark.parametrize(
@@ -227,9 +222,7 @@ async def test_partial_unique_has_where_clause(engine: AsyncEngine) -> None:
         "ix_odds_snapshots_outcome_id_snapshot_at",
     ],
 )
-async def test_btree_catalog_indexes_exist(
-    engine: AsyncEngine, index_name: str
-) -> None:
+async def test_btree_catalog_indexes_exist(engine: AsyncEngine, index_name: str) -> None:
     """The four B-tree catalog filter/sort indexes exist (SC#3)."""
     async with engine.connect() as conn:
         ddl = await _indexdef(conn, index_name)
@@ -262,12 +255,12 @@ async def test_composite_index_column_order(engine: AsyncEngine) -> None:
     assert odds_l, "ix_odds_snapshots_outcome_id_snapshot_at not found in pg_indexes"
     assert mkt_l, "ix_markets_status_volume_24hr not found in pg_indexes"
     # Leading column must come first in the indexed tuple.
-    assert odds_l.index("outcome_id") < odds_l.index("snapshot_at"), (
-        f"composite must be (outcome_id, snapshot_at), got: {odds}"
-    )
-    assert mkt_l.index("status") < mkt_l.index("volume_24hr"), (
-        f"composite must be (status, volume_24hr), got: {mkt}"
-    )
+    assert odds_l.index("outcome_id") < odds_l.index(
+        "snapshot_at"
+    ), f"composite must be (outcome_id, snapshot_at), got: {odds}"
+    assert mkt_l.index("status") < mkt_l.index(
+        "volume_24hr"
+    ), f"composite must be (status, volume_24hr), got: {mkt}"
 
 
 async def test_existing_odds_outcome_id_index_retained(engine: AsyncEngine) -> None:
@@ -280,9 +273,9 @@ async def test_existing_odds_outcome_id_index_retained(engine: AsyncEngine) -> N
         single = await _indexdef(conn, "ix_odds_snapshots_outcome_id")
         composite = await _indexdef(conn, "ix_odds_snapshots_outcome_id_snapshot_at")
 
-    assert single is not None, (
-        "pre-existing ix_odds_snapshots_outcome_id was dropped — composite must be additive"
-    )
+    assert (
+        single is not None
+    ), "pre-existing ix_odds_snapshots_outcome_id was dropped — composite must be additive"
     assert composite is not None, "new composite ix_odds_snapshots_outcome_id_snapshot_at missing"
 
 
@@ -357,9 +350,9 @@ async def test_downgrade_mirrors_upgrade() -> None:
     created_tables = set(re.findall(r'op\.create_table\(\s*["\']([^"\']+)["\']', upgrade_body))
     dropped_tables = set(re.findall(r'op\.drop_table\(\s*["\']([^"\']+)["\']', downgrade_body))
     assert created_tables, "expected at least one create_table in upgrade()"
-    assert created_tables <= dropped_tables, (
-        f"tables created but not dropped: {created_tables - dropped_tables}"
-    )
+    assert (
+        created_tables <= dropped_tables
+    ), f"tables created but not dropped: {created_tables - dropped_tables}"
 
     # 2) Columns: every added column is dropped.
     created_cols = set(
@@ -374,34 +367,31 @@ async def test_downgrade_mirrors_upgrade() -> None:
             downgrade_body,
         )
     )
-    assert created_cols == {"group_id", "group_item_title"}, (
-        f"unexpected added-column set: {created_cols}"
-    )
-    assert created_cols <= dropped_cols, (
-        f"columns added but not dropped: {created_cols - dropped_cols}"
-    )
+    assert created_cols == {
+        "group_id",
+        "group_item_title",
+    }, f"unexpected added-column set: {created_cols}"
+    assert (
+        created_cols <= dropped_cols
+    ), f"columns added but not dropped: {created_cols - dropped_cols}"
 
     # 3) Indexes: every created index is dropped (the 6 phase-13 indexes + slug + group_id).
     created_idx = set(re.findall(r'op\.create_index\(\s*["\']([^"\']+)["\']', upgrade_body))
     dropped_idx = set(re.findall(r'op\.drop_index\(\s*["\']([^"\']+)["\']', downgrade_body))
     assert created_idx, "expected create_index calls in upgrade()"
-    assert created_idx <= dropped_idx, (
-        f"indexes created but not dropped: {created_idx - dropped_idx}"
-    )
+    assert (
+        created_idx <= dropped_idx
+    ), f"indexes created but not dropped: {created_idx - dropped_idx}"
 
     # 4) The FK constraint is dropped.
-    created_fk = set(
-        re.findall(r'op\.create_foreign_key\(\s*["\']([^"\']+)["\']', upgrade_body)
-    )
-    dropped_fk = set(
-        re.findall(r'op\.drop_constraint\(\s*["\']([^"\']+)["\']', downgrade_body)
-    )
-    assert created_fk <= dropped_fk, (
-        f"FK constraints created but not dropped: {created_fk - dropped_fk}"
-    )
+    created_fk = set(re.findall(r'op\.create_foreign_key\(\s*["\']([^"\']+)["\']', upgrade_body))
+    dropped_fk = set(re.findall(r'op\.drop_constraint\(\s*["\']([^"\']+)["\']', downgrade_body))
+    assert (
+        created_fk <= dropped_fk
+    ), f"FK constraints created but not dropped: {created_fk - dropped_fk}"
 
     # 5) pg_trgm is DELIBERATELY left in place (RESEARCH A1 / Pitfall 3) — assert the
     #    downgrade does NOT drop the extension.
-    assert "DROP EXTENSION" not in downgrade_body.upper(), (
-        "downgrade() must NOT drop pg_trgm (DB-global, may be shared; RESEARCH A1)"
-    )
+    assert (
+        "DROP EXTENSION" not in downgrade_body.upper()
+    ), "downgrade() must NOT drop pg_trgm (DB-global, may be shared; RESEARCH A1)"

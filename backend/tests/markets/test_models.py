@@ -314,24 +314,18 @@ class TestMarketGroup:
             await async_session.flush()
             child_id = child.id
 
-            await async_session.execute(
-                delete(MarketGroup).where(MarketGroup.id == grp.id)
-            )
+            await async_session.execute(delete(MarketGroup).where(MarketGroup.id == grp.id))
             await async_session.flush()
             # Drop the cached child so the assertions read DB-resident state.
             async_session.expire(child)
 
             reloaded = (
-                await async_session.execute(
-                    select(Market).where(Market.id == child_id)
-                )
+                await async_session.execute(select(Market).where(Market.id == child_id))
             ).scalar_one_or_none()
-            assert reloaded is not None, (
-                "child market was cascade-deleted — T-13-01 violated"
-            )
-            assert reloaded.group_id is None, (
-                "group_id was not nulled on group delete (ON DELETE SET NULL)"
-            )
+            assert reloaded is not None, "child market was cascade-deleted — T-13-01 violated"
+            assert (
+                reloaded.group_id is None
+            ), "group_id was not nulled on group delete (ON DELETE SET NULL)"
         finally:
             await nested.rollback()
 
@@ -373,15 +367,11 @@ class TestStandaloneMarketRegression:
     and still loads its two YES/NO outcomes exactly as before.
     """
 
-    async def test_standalone_market_group_id_is_null(
-        self, async_session, sample_market
-    ):
+    async def test_standalone_market_group_id_is_null(self, async_session, sample_market):
         assert sample_market.group_id is None
         assert sample_market.group_item_title is None
 
-    async def test_standalone_market_outcomes_unchanged(
-        self, async_session, sample_market
-    ):
+    async def test_standalone_market_outcomes_unchanged(self, async_session, sample_market):
         stmt = (
             select(Market)
             .where(Market.id == sample_market.id)

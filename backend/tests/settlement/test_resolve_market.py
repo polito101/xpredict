@@ -53,6 +53,8 @@ from app.wallet.models import Account
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
 
+    from app.markets.models import Market
+
 pytestmark = [
     pytest.mark.integration,
     pytest.mark.asyncio(loop_scope="session"),
@@ -279,9 +281,7 @@ async def _market_row(market_id: UUID) -> Market:
 
     sm = _get_session_maker()
     async with sm() as s:
-        return (
-            await s.execute(select(Market).where(Market.id == market_id))
-        ).scalar_one()
+        return (await s.execute(select(Market).where(Market.id == market_id))).scalar_one()
 
 
 async def _audit_for_market(event_type: str, market_id: UUID) -> list[AuditLog]:
