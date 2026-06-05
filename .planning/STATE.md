@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: executing
-last_updated: "2026-06-05T13:07:37Z"
-last_activity: 2026-06-05 -- Executed 14-04 (poll_polymarket_events curation loop + distinct EVENTS_LOCK_KEY + beat swap top25@30s->events@300s; 10/10 test_tasks.py unit green per-module) — Phase 14 plans 4/4 done
+status: in_progress
+last_updated: "2026-06-05T12:00:00.000Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 2
+  completed_plans: 2
+  percent: 17
 ---
 
 # Project State
@@ -21,14 +21,14 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 14 (Curated Per-Category Gamma Sync) — ALL 4 PLANS DONE (awaiting verify + PR). Wave 1: 14-01 ✅ (Gamma /events data-contract: parsers + POLYMARKET_CATEGORIES + curation settings) and 14-02 ✅ (GammaClient.fetch_events — ranked /events, 500 cap, per-endpoint rate docstring). Wave 2: 14-03 ✅ (adapter: _upsert_one_market extraction + sync_events + _upsert_market_group — first writer of market_groups; CAT-04/EVT-07/CAT-06). Wave 3: 14-04 ✅ (poll_polymarket_events curation loop — dedup→floor→top-N→commit-per-category keep-last-good + distinct EVENTS_LOCK_KEY WR-05 lock + beat swap top25@30s→events@300s; CAT-01/02/03/05). ⚠️ Deploy: redbeat persists the schedule in Redis → restart the beat process on deploy for the swap to take effect (Pitfall 5). Next: Phase 14 verify/code-review + 1 PR (gsd/phase-14-curated-per-category-gamma-sync), then Phase 15 (Event Settlement). (Phase 13 MERGED PR #25; backend-CI-green PR #26 awaiting Pol's merge.)
+**Current focus:** Phase 14 (Curated Per-Category Gamma Sync) ✅ EXECUTED + verified (11/11 must-haves) → **PR #28 OPEN**, pending Pol's review/merge. Phase 13 (#25), CI-fix (#26), docs (#27) all MERGED. Next after #28 merges: Phase 15 (Event Settlement).
 
 ## Current Position
 
-Phase: 14 (Curated Per-Category Gamma Sync) — 🔨 ALL PLANS DONE (verify/PR pending)
-Plan: 4 of 4 complete (14-01 ✅ parsers+config · 14-02 ✅ fetch_events · 14-03 ✅ adapter sync_events + market_groups writer · 14-04 ✅ poll_polymarket_events curation loop + beat swap)
-Status: Executing — Phase 14 plans complete; next is phase verify/code-review + 1 PR, then Phase 15
-Last activity: 2026-06-05 -- Executed 14-04 (poll_polymarket_events curation loop + distinct EVENTS_LOCK_KEY + beat swap top25@30s->events@300s; 10/10 test_tasks.py unit green per-module)
+Phase: 14 (Curated Per-Category Gamma Sync) — ✅ EXECUTED + verified · **PR #28 OPEN** (pending Pol's merge)
+Plan: 4 of 4 complete (parsers+config · fetch_events · adapter sync_events + market_groups writer · poll_polymarket_events curation loop + beat swap)
+Status: VERIFICATION 11/11 must-haves (human_needed: 2 post-deploy checks — redbeat restart + tag drift). Code review found + fixed 2 blockers (CR-01/CR-02); a final 4-lens hardening audit on PR #28 then addressed NaN-volume floor, blank-conditionId dedup, lock-TTL, and dead-code. `origin/main` (#25/#26/#27) merged into the branch (clean). Only Pol merges #28. Next: Phase 15.
+Last activity: 2026-06-05
 
 Progress: [██████████] 100%
 
@@ -63,8 +63,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T13:07:37Z
-Stopped at: Completed 14-04-PLAN.md — poll_polymarket_events curation loop (dedup→floor→top-N→commit-per-category keep-last-good) + distinct EVENTS_LOCK_KEY WR-05 lock + beat swap top25@30s→events@300s; 10/10 test_tasks.py unit green per-module. Phase 14 plans 4/4 done — ready for phase verify/code-review + 1 PR.
+Last session: 2026-06-05T10:09:29.678Z
+Stopped at: Completed 13-02-PLAN.md (Wave 2 tests). Phase 13 both plans done — markets 117 green, bets+settlement 92 green (SC#2), money-lint clean. Ready for /gsd-verify-work.
 Resume file: None
 
 ## Performance Metrics
@@ -73,21 +73,3 @@ Resume file: None
 |-------|------|----------|-------|
 | Phase 13 P13-01 | 8min | 2 tasks | 5 files |
 | Phase 13 P13-02 | ~10min | 2 tasks | 2 files (test_migration_0011.py +349, test_models.py +137) |
-| Phase 14 P14-01 | 14min | 3 tasks | 4 files |
-| Phase 14 P14-02 | 3min | 2 tasks (1 TDD) | 2 files (client.py, test_client.py) |
-| Phase 14 P14-03 | ~16min | 3 tasks | 2 files (adapter.py, test_adapter.py) |
-| Phase 14 P14-04 | ~5min | 3 tasks (1 TDD) | 3 files (tasks.py, celery_app.py, test_tasks.py) |
-
-## Decisions
-
-- [Phase 14]: GammaEventMarket subclasses GammaMarket — inherits spike-002 validators + _derive_status verbatim, adds only group_item_title
-- [Phase 14]: Event-level Gamma /events volume24hr/volume are FLOAT -> Decimal via properties; stringified-JSON list validator stays only on GammaMarket (Pitfall 1)
-- [Phase 14]: fetch_events hard-caps limit via min(limit, 500) at the client layer (CAT-05/T-14-06) — caller can never flood Gamma; offset exposed for the 14-04 short-page loop
-- [Phase 14]: client.py rate-limit docstring corrected (300=/markets, 500=/events) not deleted — preserves the accurate /markets fact; the plan's grep-for-0 acceptance check is a false positive (the figure lives in a docstring string, not a # comment line)
-- [Phase 14]: sync_events is the first writer of market_groups — 1 group + N children for multi-outcome events; len==1 stays standalone with NO group row (EVT-07)
-- [Phase 14]: _upsert_one_market extracted from sync_top25 (shared idempotent upsert); +category/group_id/group_item_title on INSERT and ON CONFLICT; sync_top25 delegates with nulls (back-compat byte-equivalent)
-- [Phase 14]: MarketGroup slug collision across different events retried once with a uuid6 suffix inside a SAVEPOINT (begin_nested) so one clash can't abort siblings (Pitfall 6)
-- [Phase 14]: _run_poll_events mirrors _run_poll_sync verbatim, generalized to a per-category loop; commit-per-category with a per-category try/except keep-last-good (CAT-05) so one poisoned category never aborts the cycle or blanks the catalog (sync only upserts)
-- [Phase 14]: cross-cycle event-id dedup via a loop-level seen_event_ids set applied BEFORE the volume24hr floor — gives first-by-priority for free AND prevents Polymarket cross-category volume double-count inflating a borderline event over the floor (CAT-02/Pitfall 4)
-- [Phase 14]: distinct EVENTS_LOCK_KEY (xpredict:poll:events:lock) + dedicated acquire/release helpers reusing _RELEASE_LOCK_LUA (WR-05), TTL=POLYMARKET_EVENTS_LOCK_TTL_SECONDS (280s < 300s tick); legacy poll-lock helpers kept byte-stable (their unit tests assert the exact call shape)
-- [Phase 14]: beat swap is an in-place literal edit (drop poll-polymarket-top25@30s, add poll-polymarket-events@300s), NOT a dict reassignment; poll_polymarket_top25 task kept importable+registered (back-compat). ⚠️ redbeat persists the schedule in Redis → restart beat on deploy (Pitfall 5)
