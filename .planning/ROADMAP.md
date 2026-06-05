@@ -91,7 +91,7 @@
 **Wave 1**
 
 - [x] 14-01-PLAN.md - Config + parsers: POLYMARKET_CATEGORIES (7 tag_ids) + GammaEvent/GammaTag/GammaEventMarket + resolve_category (CAT-03, parser half of EVT-07)
-- [ ] 14-02-PLAN.md - GammaClient.fetch_events (ranked /events, 500 cap) + rate-limit docstring fix (CAT-01, CAT-05)
+- [x] 14-02-PLAN.md - GammaClient.fetch_events (ranked /events, 500 cap) + rate-limit docstring fix (CAT-01, CAT-05)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -170,7 +170,7 @@
 | 1-12. v1.0 MVP | v1.0 | 44/44 | âœ… Complete | 2026-06-04 |
 | A-E. Demo Polish | v1.1 | â€” | âœ… Complete | 2026-06-04 |
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | âœ… Complete | 2026-06-05 |
-| 14. Curated Per-Category Gamma Sync | v1.2 | 1/4 | In Progress|  |
+| 14. Curated Per-Category Gamma Sync | v1.2 | 2/4 | In Progress|  |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/TBD | Not started | - |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
