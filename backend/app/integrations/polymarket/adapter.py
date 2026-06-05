@@ -409,13 +409,19 @@ class PolymarketAdapter:
         """
         synced = 0
         for ev in events:
-            # Dedup children within the event by condition_id (CAT-02).
+            # Dedup children by their Gamma market id (= source_market_id, the
+            # ON CONFLICT persistence key — always present on a parsed market).
+            # Keying on condition_id was wrong (14-AUDIT C-2): Gamma leaves
+            # conditionId="" on not-yet-deployed markets, so a blank/duplicate
+            # conditionId could silently drop a real child, collapse a multi-outcome
+            # event to the standalone path, or (all-blank) drop the event entirely.
+            # id-grain dedup removes only true duplicate markets and never an outcome.
             seen: set[str] = set()
             children: list[GammaMarket] = []
             for m in ev.markets:
-                if not m.condition_id or m.condition_id in seen:
+                if not m.id or m.id in seen:
                     continue
-                seen.add(m.condition_id)
+                seen.add(m.id)
                 children.append(m)
 
             if not children:

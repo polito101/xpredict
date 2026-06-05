@@ -87,16 +87,18 @@ class GammaClient:
         *,
         tag_id: str,
         limit: int = 10,
-        offset: int = 0,
     ) -> list[dict[str, object]]:
-        """Fetch a page of curated events for one category (CAT-01).
+        """Fetch the top-``limit`` curated events for one category (CAT-01).
 
-        Single ranked ``GET /events`` filtered by ``tag_id`` and sorted by
-        24h volume (descending). ``limit`` is hard-capped at 500 — the Gamma
-        ceiling (CAT-05) — regardless of caller input, so the client can never
-        flood the API (T-14-06). ``offset`` is exposed so the curation loop
-        (14-04) can page with a short-page stop.
+        Single ranked ``GET /events`` filtered by ``tag_id`` and sorted by 24h
+        volume (descending), so the first ``limit`` rows ARE the top-N by the same
+        metric the volume floor uses — no pagination/short-page stop is needed (the
+        floor only trims the ranked tail; see ``_run_poll_events``). ``limit`` is
+        hard-capped at ``POLYMARKET_EVENTS_LIMIT_CAP`` (the Gamma /events ceiling,
+        CAT-05) regardless of caller input, so the client can never flood the API
+        (T-14-06).
         """
+        cap = get_settings().POLYMARKET_EVENTS_LIMIT_CAP
         client = self._get_client()
         resp = await client.get(
             "/events",
@@ -106,8 +108,7 @@ class GammaClient:
                 "tag_id": tag_id,
                 "order": "volume24hr",
                 "ascending": "false",
-                "limit": str(min(limit, 500)),  # CAT-05 hard cap
-                "offset": str(offset),
+                "limit": str(min(limit, cap)),  # CAT-05 hard cap (Gamma ceiling)
             },
         )
         resp.raise_for_status()

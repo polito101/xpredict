@@ -258,11 +258,19 @@ async def _run_poll_events(
                     if event.id in seen_event_ids:
                         continue
                     seen_event_ids.add(event.id)
-                    # Drift logging on unmapped tags (CAT-03 — logged, never auto-added).
+                    # CAT-03 drift logging ONLY — the event's category label is
+                    # ``entry.name`` (the tag_id we fetched under IS its category);
+                    # resolve_category's return is intentionally NOT used for routing,
+                    # it only emits ``gamma.unmapped_tag`` for tags off the allow-list.
                     resolve_category(event, settings.POLYMARKET_CATEGORIES)
                     deduped.append(event)
 
-                # Volume floor AFTER dedup, then top-N (CAT-02).
+                # Volume floor AFTER dedup (CAT-02). ``fetch_events(limit=top_n)``
+                # already returns the top-N ranked by volume24hr — the SAME metric the
+                # floor uses — so the floor only trims the ranked tail and ``[:top_n]``
+                # is a defensive bound (a no-op while limit==top_n, correct if the fetch
+                # limit is ever widened). No short-page paging is needed: ranked top-N
+                # plus a same-metric floor is complete for CAT-05.
                 floored = [e for e in deduped if e.volume_24hr_decimal >= floor]
                 curated = floored[:top_n]
 

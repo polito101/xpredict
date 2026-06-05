@@ -116,7 +116,12 @@ class Settings(BaseSettings):
     POLYMARKET_EVENTS_TOP_N: int = 10  # events per category (~70 curated total)
     POLYMARKET_VOLUME_FLOOR: Decimal = Decimal("10000")  # $10k/event AFTER dedup (CAT-02)
     POLYMARKET_EVENTS_LIMIT_CAP: int = 500  # Gamma /events limit ceiling (CAT-05)
-    POLYMARKET_EVENTS_LOCK_TTL_SECONDS: int = 280  # < 300s tick so a crash auto-releases
+    # 14-AUDIT W-1: a full cycle (7 categories x Gamma retries, up to 3 attempts x
+    # ~15s timeout + backoff each) can exceed the old 280s TTL under slow upstreams,
+    # expiring the lock mid-run -> two cycles overlap. Set above the worst-case
+    # cycle: the happy-path release is immediate (a normal ~2s cycle never holds it),
+    # and a crashed run still auto-recovers when the TTL lapses.
+    POLYMARKET_EVENTS_LOCK_TTL_SECONDS: int = 600
 
     # Version-controlled allow-list (CAT-03), NOT env/DB. PRIORITY ORDER below is
     # first-wins on a multi-tag event (World+Politics -> Politics). tag_ids are

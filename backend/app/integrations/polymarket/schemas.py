@@ -55,13 +55,25 @@ def _gamma_model_config() -> ConfigDict:
 
 
 def _safe_decimal(value: object) -> Decimal:
-    """Convert any value to Decimal safely — fallback to Decimal('0')."""
+    """Convert any value to Decimal safely — fallback to Decimal('0').
+
+    Also rejects non-finite values (NaN / Infinity). Gamma event-level volume is a
+    raw JSON float and Python's ``json`` parses ``NaN``/``Infinity`` tokens by
+    default. ``Decimal(str(nan))`` builds ``Decimal('NaN')`` WITHOUT raising, but a
+    later ordering comparison — e.g. the volume floor ``>= $10k`` — then raises
+    ``InvalidOperation``, which is caught per-category and would silently discard a
+    whole sync batch. Coercing non-finite to ``Decimal('0')`` floors it out cleanly
+    instead. (14-AUDIT C-1)
+    """
     if value is None:
         return Decimal("0")
     try:
-        return Decimal(str(value))
+        result = Decimal(str(value))
     except InvalidOperation:
         return Decimal("0")
+    if not result.is_finite():
+        return Decimal("0")
+    return result
 
 
 def _derive_status(
