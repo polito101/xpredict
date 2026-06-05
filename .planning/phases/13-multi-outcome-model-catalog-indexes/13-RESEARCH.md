@@ -579,7 +579,12 @@ trigger and all existing CHECK constraints are explicitly retained.
 | A5 | Reversibility proof runs `downgrade -1` → `upgrade head` on an isolated connection (not the shared session engine) | Pattern 4 | Low — alternative is a static assertion that `downgrade()` is non-empty + mirrors `upgrade()`. Planner picks the harness. |
 | A6 | Index names follow the existing `ix_<table>_<cols>` convention (e.g. `ix_markets_question_trgm`) | Pattern 1 | None — naming is cosmetic; CONTEXT.md grants index naming to Claude's discretion. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> Both resolved by plan decisions (13-01 / 13-02): (1) `market_groups.category` IS included and
+> indexed (`ix_market_groups_category`), leaving Phase 16 to choose its read shape; (2) the SC#1
+> reversibility test does a true `command.downgrade` → `command.upgrade` cycle, with a static
+> "downgrade mirrors upgrade" assertion as the documented fallback if the shared session loop is flaky.
 
 1. **Should `market_groups` carry a denormalized `category` AND should the catalog sort use it?**
    - What we know: CONTEXT.md requires a `category` index on `market_groups` AND on `markets`. EVT-06
