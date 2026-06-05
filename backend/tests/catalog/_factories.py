@@ -191,6 +191,49 @@ async def make_event(
     return group, children
 
 
+async def make_single_child_group(
+    session: AsyncSession,
+    *,
+    title: str,
+    category: str | None = None,
+    deadline: datetime | None = None,
+    source: str = MarketSourceEnum.HOUSE.value,
+) -> tuple[MarketGroup, Market]:
+    """Insert a ``market_groups`` row with EXACTLY ONE binary child (the EVT-07 edge).
+
+    A single-outcome group must stay on the standalone ``/markets`` path: the catalog
+    excludes it as an event item and ``/events/{slug}`` 404s it. ``make_event``
+    forbids ``n_outcomes < 2``, so this dedicated helper builds the 1-child shape for
+    the exclusion / 404 tests. Writes ride the caller's session (``flush`` only);
+    exactly YES + NO on the child (binary trigger safe). Returns ``(group, child)``.
+    """
+    group = MarketGroup(
+        title=title,
+        slug=generate_slug(title),
+        source=source,
+        category=category,
+    )
+    session.add(group)
+    await session.flush()
+
+    child = Market(
+        question=f"{title} — sole outcome?",
+        slug=generate_slug(f"{title} sole"),
+        resolution_criteria="Seed single-child resolution criteria",
+        category=category,
+        source=source,
+        status=MarketStatus.OPEN.value,
+        deadline=deadline or _default_deadline(),
+        group_id=group.id,
+        group_item_title="Only",
+    )
+    session.add(child)
+    await session.flush()
+    _add_binary_outcomes(session, child.id)
+    await session.flush()
+    return group, child
+
+
 async def _yes_outcome_id(session: AsyncSession, market_id: UUID) -> UUID:
     """The child's YES outcome id, matched case-insensitively (IN-01 / event_service.py:146)."""
     return (

@@ -11,8 +11,8 @@ signals require the child rows regardless. Each sub-query is itself capped at
 bounded, no pagination.
 
 Search is LOCAL ``pg_trgm`` only: ``Market.question.ilike`` / ``MarketGroup.title.ilike``
-bound params against the Phase-13 GIN trigram indexes — NEVER proxied to Gamma
-``/public-search`` (the documented anti-feature). The derived event status is
+bound params against the Phase-13 GIN trigram indexes — NEVER proxied to an
+upstream third-party search service (the documented anti-feature). The derived event status is
 IMPORTED UNCHANGED from Phase 15 — this module defines no new status logic.
 """
 

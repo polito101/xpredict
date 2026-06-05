@@ -2,9 +2,9 @@
 
 ``GET /catalog`` (bounded browse/search/filter/sort), ``GET /events/{slug}``
 (event detail, ≥2-child gate), ``GET /categories`` (non-empty union). All reads are
-intentionally UNAUTHENTICATED — no ``Depends(current_active_admin)`` here.
+intentionally UNAUTHENTICATED — no admin-auth dependency on these routes.
 
-IMPORTANT — this module deliberately OMITS ``from __future__ import annotations``.
+IMPORTANT — this module deliberately OMITS the PEP 563 ``__future__`` annotations import.
 With PEP 563 future annotations enabled, FastAPI 3.13 sees the ``Depends()`` /
 ``Query()`` markers inside ``Annotated[...]`` as bare strings and fails to resolve
 the dependency at startup. The settlement admin router omits it for the same reason

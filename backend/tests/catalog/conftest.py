@@ -58,6 +58,28 @@ def _clear_overrides():
     app.dependency_overrides.clear()
 
 
+@pytest.fixture(autouse=True)
+def _register_phase16_routers() -> None:
+    """Mount the Phase-16 catalog/event routers on the test app (idempotently).
+
+    ``app.main`` registers these routers only in plan 16-05 (deferred so a single
+    plan owns the ``main.py`` edit instead of having both the wave-1 catalog router
+    and the wave-2 event router collide on it). The endpoint tests in this package
+    must reach those routes via the shared ``api`` client BEFORE 16-05 wires them in,
+    so this autouse fixture includes them here. It is idempotent (skips a router
+    already present) and import-guarded (a router whose plan has not run yet is simply
+    skipped), so it is a no-op once 16-05 registers them in ``main.py``.
+    """
+    existing = {getattr(r, "path", None) for r in app.routes}
+    try:
+        from app.catalog.router import public_catalog_router
+
+        if "/api/v1/catalog" not in existing:
+            app.include_router(public_catalog_router)
+    except ImportError:
+        pass
+
+
 @pytest_asyncio.fixture(loop_scope="session")
 async def api() -> AsyncGenerator[httpx.AsyncClient, None]:
     """An httpx ``AsyncClient`` wired through the FastAPI app via ``ASGITransport``."""
