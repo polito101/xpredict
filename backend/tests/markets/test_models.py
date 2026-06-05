@@ -6,7 +6,7 @@ from uuid import UUID
 
 import pytest
 import sqlalchemy.exc
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
@@ -69,6 +69,9 @@ class TestMarketColumns:
             "closed_at",
             "resolved_at",
             "tenant_id",
+            # Phase 13 (EVT-01) multi-outcome seam — additive columns.
+            "group_id",
+            "group_item_title",
         }
         assert expected.issubset(columns)
 
@@ -280,6 +283,57 @@ class TestMarketGroup:
         async_session.add(grp)
         await async_session.flush()
         assert grp.tenant_id == UUID("00000000-0000-0000-0000-000000000001")
+
+    async def test_deleting_group_orphans_children_not_cascade(self, async_session):
+        """T-13-01 (financial safety): DELETE FROM market_groups must ORPHAN children.
+
+        The single most financially important invariant of this phase: deleting a
+        group must NULL ``markets.group_id`` (orphan the child back to standalone),
+        NEVER cascade-delete a market that carries bets/odds/ledger state. The
+        catalog-metadata check (``test_markets_group_id_fk_set_null``) proves the DDL
+        SAYS ``ON DELETE SET NULL``; THIS test exercises the actual DELETE so a
+        future ORM ``cascade=`` regression, a trigger, or a second conflicting
+        constraint that deleted the child anyway would be caught.
+
+        Savepoint-scoped (``begin_nested``) to match the module's isolation
+        discipline — the savepoint is released on success, and the ``async_session``
+        outer transaction is rolled back on teardown regardless.
+        """
+        nested = await async_session.begin_nested()
+        try:
+            grp = MarketGroup(
+                title="Orphan test",
+                source=MarketSourceEnum.HOUSE.value,
+                slug=generate_slug("orphan-test"),
+            )
+            async_session.add(grp)
+            await async_session.flush()
+
+            child = _child_market("Orphan child", grp.id)
+            async_session.add(child)
+            await async_session.flush()
+            child_id = child.id
+
+            await async_session.execute(
+                delete(MarketGroup).where(MarketGroup.id == grp.id)
+            )
+            await async_session.flush()
+            # Drop the cached child so the assertions read DB-resident state.
+            async_session.expire(child)
+
+            reloaded = (
+                await async_session.execute(
+                    select(Market).where(Market.id == child_id)
+                )
+            ).scalar_one_or_none()
+            assert reloaded is not None, (
+                "child market was cascade-deleted — T-13-01 violated"
+            )
+            assert reloaded.group_id is None, (
+                "group_id was not nulled on group delete (ON DELETE SET NULL)"
+            )
+        finally:
+            await nested.rollback()
 
 
 @_async

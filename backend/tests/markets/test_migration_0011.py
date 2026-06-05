@@ -160,16 +160,25 @@ async def test_pg_trgm_enabled(engine: AsyncEngine) -> None:
 
 
 @pytest.mark.parametrize(
-    "index_name",
-    ["ix_market_groups_title_trgm", "ix_markets_question_trgm"],
+    ("index_name", "column"),
+    [
+        ("ix_market_groups_title_trgm", "title"),
+        ("ix_markets_question_trgm", "question"),
+    ],
 )
 async def test_gin_trgm_indexes_have_opclass(
-    engine: AsyncEngine, index_name: str
+    engine: AsyncEngine, index_name: str, column: str
 ) -> None:
-    """Each GIN trigram index uses the ``gin_trgm_ops`` opclass (SC#3).
+    """Each GIN trigram index uses the ``gin_trgm_ops`` opclass ON ITS COLUMN (SC#3).
 
     Read raw ``pg_indexes.indexdef`` — ``get_indexes()`` does not reliably surface the
     opclass across dialects (13-RESEARCH A4).
+
+    WR-01: don't just substring-match ``gin_trgm_ops`` anywhere in the DDL — tie the
+    opclass to the INTENDED column. We assert ``gin_trgm_ops`` sits inside the same
+    parenthesised column clause as ``title`` / ``question`` and is adjacent to that
+    column (``<column> gin_trgm_ops``), so a regression that moved the opclass onto a
+    different column (or dropped it) would FAIL.
     """
     async with engine.connect() as conn:
         ddl = await _indexdef(conn, index_name)
@@ -178,6 +187,13 @@ async def test_gin_trgm_indexes_have_opclass(
     lowered = ddl.lower()
     assert "gin" in lowered, f"{index_name} is not a GIN index: {ddl}"
     assert "gin_trgm_ops" in lowered, f"{index_name} missing gin_trgm_ops opclass: {ddl}"
+    # The opclass must be bound to the intended column inside the index's
+    # parenthesised column clause (e.g. ``... USING gin (title gin_trgm_ops)``),
+    # collapsing internal whitespace so ``title   gin_trgm_ops`` still matches.
+    paren = lowered[lowered.index("(") : lowered.rindex(")") + 1]
+    assert f"{column} gin_trgm_ops" in re.sub(r"\s+", " ", paren), (
+        f"{index_name}: gin_trgm_ops not bound to column {column!r}: {ddl}"
+    )
 
 
 async def test_partial_unique_has_where_clause(engine: AsyncEngine) -> None:
@@ -191,6 +207,14 @@ async def test_partial_unique_has_where_clause(engine: AsyncEngine) -> None:
     assert "where" in lowered, f"partial index missing WHERE predicate: {ddl}"
     assert "source_event_id" in lowered, (
         f"partial index WHERE does not reference source_event_id: {ddl}"
+    )
+    # WR-01: pin the POLARITY. The index must cover rows where source_event_id
+    # IS NOT NULL (so multiple NULL-source_event_id HOUSE groups stay allowed
+    # while real external event ids are deduped). The logical inverse
+    # ``WHERE source_event_id IS NULL`` would satisfy the token checks above but
+    # invert the constraint — assert IS NOT NULL explicitly so it cannot pass.
+    assert "is not null" in lowered, (
+        f"partial index WHERE must be IS NOT NULL (not the inverse), got: {ddl}"
     )
 
 
@@ -210,6 +234,40 @@ async def test_btree_catalog_indexes_exist(
     async with engine.connect() as conn:
         ddl = await _indexdef(conn, index_name)
     assert ddl is not None, f"catalog index {index_name} not found in pg_indexes"
+
+
+async def test_composite_index_column_order(engine: AsyncEngine) -> None:
+    """Composite catalog indexes pin the LEADING column (WR-01, SC#3).
+
+    Existence alone is not enough for the two composite indexes — their whole
+    point is the leading column (range-scan + sort prefix):
+
+      - ``ix_odds_snapshots_outcome_id_snapshot_at`` = ``(outcome_id, snapshot_at)``
+        so a single outcome's price history scans by outcome then orders by time.
+      - ``ix_markets_status_volume_24hr`` = ``(status, volume_24hr)`` so the catalog
+        filters by status then sorts by 24h volume.
+
+    A regression that flipped either to ``(snapshot_at, outcome_id)`` /
+    ``(volume_24hr, status)`` would still create an index of the same NAME and pass
+    the existence test — but defeat the optimisation the composite was added for.
+    The ``indexdef`` string carries the ordered column tuple, so assert the leading
+    column appears before the trailing one.
+    """
+    async with engine.connect() as conn:
+        odds = (await _indexdef(conn, "ix_odds_snapshots_outcome_id_snapshot_at")) or ""
+        mkt = (await _indexdef(conn, "ix_markets_status_volume_24hr")) or ""
+
+    odds_l = odds.lower()
+    mkt_l = mkt.lower()
+    assert odds_l, "ix_odds_snapshots_outcome_id_snapshot_at not found in pg_indexes"
+    assert mkt_l, "ix_markets_status_volume_24hr not found in pg_indexes"
+    # Leading column must come first in the indexed tuple.
+    assert odds_l.index("outcome_id") < odds_l.index("snapshot_at"), (
+        f"composite must be (outcome_id, snapshot_at), got: {odds}"
+    )
+    assert mkt_l.index("status") < mkt_l.index("volume_24hr"), (
+        f"composite must be (status, volume_24hr), got: {mkt}"
+    )
 
 
 async def test_existing_odds_outcome_id_index_retained(engine: AsyncEngine) -> None:
