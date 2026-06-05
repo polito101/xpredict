@@ -23,7 +23,7 @@ This phase covers **CAT-01..06 + EVT-07** (the Sync layer). It writes `market_gr
 
 ### Curation Thresholds (CAT-02/05)
 - **top-N = 10** events per category (≈70 curated events total — credible but bounded).
-- **Volume floor = $10,000** total volume per event, applied **after** conditionId/event-id dedup (avoids Polymarket event-level volume double-counting).
+- **Volume floor = $10,000** on **`volume24hr`** per event, applied **after** conditionId/event-id dedup (avoids Polymarket event-level volume double-counting). *(Refined 2026-06-05 from live-data research: floor on `volume24hr` not total — consistent with the `volume24hr` top-N ranking and the meaningful credibility gate; an event with high historical-but-stale volume is not "credible". `GammaEvent` exposes both metrics so it stays a one-line switch.)*
 - `poll_polymarket_events` beat cadence = **every 5 minutes (300s)** — "minutes, not 30s", slower than the 30s odds poll; gentle on the 500 req/10s Gamma /events budget.
 - Ranking metric for top-N selection = **`volume24hr`** (freshness; matches the existing `order=volume24hr` sort).
 - Pagination: `limit` capped at **500** with a **short-page stop** (stop when a page returns < limit rows).
