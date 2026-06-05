@@ -21,13 +21,13 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 13 ✅ MERGED to main (PR #25, 2026-06-05). Backend-CI-green follow-up PR #26 open (awaiting Pol's merge). Next: Phase 14 (Curated Per-Category Gamma Sync) — see HANDOFF.md before starting.
+**Current focus:** Phase 13 ✅ MERGED (PR #25) + backend-CI-green PR #26 ✅ MERGED (2026-06-05) → **main backend CI GREEN, no pending gate.** Next: Phase 14 (Curated Per-Category Gamma Sync) — see HANDOFF.md before starting.
 
 ## Current Position
 
 Phase: 13 (Multi-outcome Model & Catalog Indexes) — ✅ COMPLETE · MERGED (PR #25)
 Plan: 2 of 2 (both complete)
-Status: VERIFICATION PASSED (4/4 must-haves); merged to main via PR #25 (2026-06-05). Follow-up CI-green PR #26 (F821 + ruff-format) OPEN — all checks green, BLOCKED on Pol's review. Next: Phase 14.
+Status: VERIFICATION PASSED (4/4 must-haves); merged to main via PR #25 (2026-06-05). Follow-up CI-green PR #26 (F821 + ruff-format) ✅ MERGED (`ece3c61`) — main backend CI GREEN. No pending gate. Next: Phase 14.
 Last activity: 2026-06-05
 
 Progress: [██████████] 100%
