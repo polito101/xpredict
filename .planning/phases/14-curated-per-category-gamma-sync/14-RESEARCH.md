@@ -21,7 +21,7 @@ This phase swaps the flat top-25-global `/markets` poll for a curated **top-N-pe
 - **First-by-allow-list-priority wins** when an event carries multiple allow-listed tags (deterministic, version-controlled ordering).
 - The exact Gamma `tag_id` integers resolved via a one-time `GET /tags` lookup and pinned in the constant; unmapped tags logged for drift, **never auto-added**.
 - **top-N = 10** events per category (≈70 curated events total).
-- **Volume floor = $10,000** total volume per event, applied **after** conditionId/event-id dedup.
+- **Volume floor = $10,000** on `volume24hr` per event, applied **after** conditionId/event-id dedup. *(RESOLVED 2026-06-05: refined from "total" → `volume24hr` — see CONTEXT line 26 + Open Question 1.)*
 - `poll_polymarket_events` beat cadence = **every 5 minutes (300s)** — slower than the 30s odds poll.
 - Ranking metric for top-N = **`volume24hr`** (matches the existing `order=volume24hr` sort).
 - Pagination: `limit` capped at **500** with a **short-page stop** (stop when a page returns < limit rows).
@@ -691,9 +691,9 @@ def test_beat_schedule_swapped():
 
 **All tag_id values and the entire parser design were VERIFIED against the live API this session — they are NOT in this assumptions table.** Only the items above carry residual risk, all LOW.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the volume floor use `event.volume24hr` or `event.volume` (total)?**
+1. **Should the volume floor use `event.volume24hr` or `event.volume` (total)?** — **RESOLVED: floor on `volume24hr` (operator decision, CONTEXT 2026-06-05; all 4 plans implement it).**
    - What we know: CONTEXT says "Volume floor = $10,000 **total** volume per event" but ALSO "rank by **volume24hr**". Live data: `event.volume` (total) is much larger than `event.volume24hr` (e.g. Iran event total=48.5M vs 24hr=582k).
    - What's unclear: "total volume per event" literally reads as `event.volume` (lifetime), but the ranking metric is `volume24hr`. A $10k floor on lifetime `volume` is trivially passed by almost everything; a $10k floor on `volume24hr` is the meaningful credibility gate.
    - Recommendation: **Floor on `volume24hr`** (consistent with the ranking metric and the "credible/fresh" intent; live-verified that top-N-by-volume24hr events comfortably clear $10k while thin categories won't). Flag for the planner to confirm against the locked wording. Expose both `volume_24hr_decimal` and `volume_total_decimal` on `GammaEvent` so the choice is a one-line change.
