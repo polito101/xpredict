@@ -11,6 +11,7 @@ the shape.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
@@ -18,6 +19,21 @@ from uuid import UUID
 
 from pydantic import Field, PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+@dataclass(frozen=True)
+class CategoryEntry:
+    """One curated-category allow-list entry (Phase 14, CAT-03).
+
+    A frozen, version-controlled value object — NOT an env var. ``tag_id`` is a
+    STRING because Gamma tag ids compare against ``GammaTag.id: str``. The
+    ordering of ``POLYMARKET_CATEGORIES`` below is the first-by-priority tie-break
+    for dual-tagged events.
+    """
+
+    name: str  # human-readable, stored in Market.category ("Politics")
+    slug: str  # Gamma slug ("politics")
+    tag_id: str  # Gamma tag id as string ("2")
 
 
 class Settings(BaseSettings):
@@ -92,6 +108,31 @@ class Settings(BaseSettings):
     # Phase 7 — Polymarket Auto-Resolution (STL-01)
     # -------------------------------------------------------------------------
     POLYMARKET_GRACE_PERIOD_MINUTES: int = 30
+
+    # -------------------------------------------------------------------------
+    # Phase 14 — Curated Per-Category Gamma Sync (CAT-01..06, EVT-07)
+    # -------------------------------------------------------------------------
+    POLYMARKET_EVENTS_POLL_INTERVAL_SECONDS: int = 300  # 5 min (slower than 30s odds poll)
+    POLYMARKET_EVENTS_TOP_N: int = 10  # events per category (~70 curated total)
+    POLYMARKET_VOLUME_FLOOR: Decimal = Decimal("10000")  # $10k/event AFTER dedup (CAT-02)
+    POLYMARKET_EVENTS_LIMIT_CAP: int = 500  # Gamma /events limit ceiling (CAT-05)
+    POLYMARKET_EVENTS_LOCK_TTL_SECONDS: int = 280  # < 300s tick so a crash auto-releases
+
+    # Version-controlled allow-list (CAT-03), NOT env/DB. PRIORITY ORDER below is
+    # first-wins on a multi-tag event (World+Politics -> Politics). tag_ids are
+    # live-verified via GET /tags/slug/{slug} (HTTP 200 each, 2026-06-05).
+    # Re-verify loop before relying on the pin:
+    #   for slug in politics sports crypto pop-culture economy tech world; do
+    #     curl -s "https://gamma-api.polymarket.com/tags/slug/$slug"; done
+    POLYMARKET_CATEGORIES: list[CategoryEntry] = [
+        CategoryEntry(name="Politics", slug="politics", tag_id="2"),
+        CategoryEntry(name="Sports", slug="sports", tag_id="1"),
+        CategoryEntry(name="Crypto", slug="crypto", tag_id="21"),
+        CategoryEntry(name="Pop Culture", slug="pop-culture", tag_id="596"),
+        CategoryEntry(name="Economy", slug="economy", tag_id="100328"),
+        CategoryEntry(name="Tech", slug="tech", tag_id="1401"),
+        CategoryEntry(name="World", slug="world", tag_id="101970"),
+    ]
 
     @property
     def is_dev(self) -> bool:
