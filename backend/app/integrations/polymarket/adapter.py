@@ -14,10 +14,11 @@ from __future__ import annotations
 import contextlib
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from pydantic import ValidationError
+from slugify import slugify as _slugify
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -26,9 +27,9 @@ from sqlalchemy.orm import selectinload
 
 from app.integrations.market_source import ResolutionResult
 from app.integrations.polymarket.client import GammaClient
-from app.integrations.polymarket.schemas import GammaMarket
+from app.integrations.polymarket.schemas import GammaEvent, GammaMarket
 from app.markets.enums import MarketSourceEnum, MarketStatus
-from app.markets.models import Market, Outcome, generate_slug
+from app.markets.models import Market, MarketGroup, Outcome, generate_slug
 from app.realtime.publisher import format_odds
 
 log = structlog.get_logger()
@@ -301,6 +302,136 @@ class PolymarketAdapter:
             return False
 
         return True
+
+    async def _upsert_market_group(
+        self,
+        session: AsyncSession,
+        ev: GammaEvent,
+        category: str,
+    ) -> UUID:
+        """Upsert the parent ``market_groups`` row for a multi-outcome event.
+
+        Idempotent on the Phase-13 partial-unique ``(source, source_event_id)``
+        (``ix_market_groups_source_source_event_id``) — replaying the same event
+        updates the existing row instead of inserting a duplicate. Writes ONLY the
+        columns ``market_groups`` actually has (``source``, ``source_event_id``,
+        ``title``, ``slug``, ``category``); the table deliberately stores no
+        volume/status column (EVT-06). Returns the group's UUID.
+
+        ``MarketGroup.slug`` is ``String(100) UNIQUE`` but the ON CONFLICT target
+        is ``(source, source_event_id)`` — a slug clash across *different* events
+        is therefore not absorbed by the upsert and raises ``IntegrityError``. We
+        retry once inside a SAVEPOINT with a uuid-suffixed slug (Pitfall 6) so one
+        event's slug collision can never abort its siblings.
+        """
+        base_slug = f"pm-evt-{_slugify(ev.title, max_length=80)}"
+        slug = base_slug[:100] if base_slug != "pm-evt-" else generate_slug(ev.title)
+
+        async def _do_upsert(slug_value: str) -> None:
+            values = {
+                "source": MarketSourceEnum.POLYMARKET.value,
+                "source_event_id": ev.id,  # Gamma event id (CONTEXT discretion)
+                "title": ev.title,
+                "slug": slug_value,
+                "category": category,  # CAT-04
+            }
+            stmt = pg_insert(MarketGroup).values(**values)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["source", "source_event_id"],
+                index_where=MarketGroup.source_event_id.isnot(None),
+                set_={
+                    "title": stmt.excluded.title,
+                    "category": stmt.excluded.category,
+                    "updated_at": datetime.now(UTC),
+                },
+            )
+            await session.execute(stmt)
+            await session.flush()
+
+        try:
+            nested = await session.begin_nested()
+            await _do_upsert(slug)
+            await nested.commit()
+        except IntegrityError:
+            # Slug collision across a DIFFERENT event (ON CONFLICT is on
+            # source_event_id, not slug). Roll back just this SAVEPOINT and retry
+            # once with a uuid-suffixed slug.
+            await nested.rollback()
+            log.warning(
+                "gamma.group_slug_collision",
+                source_event_id=ev.id,
+                slug=slug,
+            )
+            slug = f"{base_slug[:93]}-{uuid4().hex[:6]}"
+            nested = await session.begin_nested()
+            await _do_upsert(slug)
+            await nested.commit()
+
+        row = await session.execute(
+            select(MarketGroup.id).where(
+                MarketGroup.source == MarketSourceEnum.POLYMARKET.value,
+                MarketGroup.source_event_id == ev.id,
+            ),
+        )
+        return row.scalar_one()
+
+    async def sync_events(
+        self,
+        session: AsyncSession,
+        events: list[GammaEvent],
+        *,
+        category: str,
+    ) -> int:
+        """Upsert curated events: 1 ``market_groups`` row + N stamped children.
+
+        Per event: dedup children within the event by ``condition_id`` (drop
+        falsy/duplicate ids — CAT-02 market grain). A ``len == 1`` event (after
+        dedup) stays on the standalone binary path — ``_upsert_one_market`` with
+        ``group_id=None``, NO ``market_groups`` row (EVT-07). Otherwise upsert the
+        parent group once, then stamp every child with that ``group_id`` +
+        ``category``. Returns the count of child markets successfully upserted.
+
+        ``sync_events`` is only ever called with a non-empty curated list per
+        category (CAT-06: never persist an empty category — suppression is a
+        Phase-16 read). Every child's status flows through the inherited
+        ``GammaMarket._derive_status``; this path writes status only, never
+        settles (spike-002 / Phase 15).
+        """
+        synced = 0
+        for ev in events:
+            # Dedup children within the event by condition_id (CAT-02).
+            seen: set[str] = set()
+            children: list[GammaMarket] = []
+            for m in ev.markets:
+                if not m.condition_id or m.condition_id in seen:
+                    continue
+                seen.add(m.condition_id)
+                children.append(m)
+
+            if not children:
+                continue
+
+            if len(children) == 1:  # EVT-07 — standalone, NO group row
+                if await self._upsert_one_market(
+                    session,
+                    children[0],
+                    group_id=None,
+                    category=category,
+                ):
+                    synced += 1
+                continue
+
+            group_id = await self._upsert_market_group(session, ev, category)
+            for child in children:
+                if await self._upsert_one_market(
+                    session,
+                    child,
+                    group_id=group_id,
+                    category=category,
+                ):
+                    synced += 1
+
+        return synced
 
     async def sync_top25(
         self,
