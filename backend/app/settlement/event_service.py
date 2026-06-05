@@ -5,17 +5,20 @@ per-market :class:`~app.settlement.service.SettlementService` over a
 :class:`~app.markets.models.MarketGroup`'s child markets.
 
 **Wave 1** ships the pure read-projection (``derive_event_status`` /
-``ChildStatus``); **Wave 2 (this plan)** extends the SAME module with
-:class:`EventService` — ``resolve_event`` / ``void_event`` classmethods that
-COMPOSE the UNCHANGED ``SettlementService`` over a group's children, one child
-per FRESH ``AsyncSession`` (Option A — per-child ACID transaction). This phase
-reinvents NO settlement: the payouts, loser sweep, bet flips, market-status
-flip, per-bet idempotency keys, FOR-UPDATE lock ordering, and per-child
-``settlement.resolved`` audit rows all live inside ``SettlementService`` and stay
-byte-for-byte unchanged. The event service only orchestrates the loop, maps the
-winning outcome to each child's YES/NO leg, rejects mirrored (Polymarket) groups,
-enforces a non-blank justification, and writes ONE additional event-level audit
-row.
+``ChildStatus``); **Wave 2** extends the SAME module with :class:`EventService` —
+``resolve_event`` / ``void_event`` classmethods; **Wave 3 (this plan)** adds
+``reverse_event`` (EVA-05). All three COMPOSE the UNCHANGED ``SettlementService``
+(``resolve_market`` for resolve/void, ``reverse_settlement`` for reverse) over a
+group's children, one child per FRESH ``AsyncSession`` (Option A — per-child ACID
+transaction). This phase reinvents NO settlement: the payouts, loser sweep, bet
+flips, market-status flip, the append-only compensating (inverse) reverse
+transfers, per-bet idempotency keys, FOR-UPDATE lock ordering, and per-child
+``settlement.resolved`` / ``settlement.reversed`` audit rows all live inside
+``SettlementService`` and stay byte-for-byte unchanged. The event service only
+orchestrates the loop, maps the winning outcome to each child's YES/NO leg
+(resolve/void only — reverse needs no mapping), rejects mirrored (Polymarket)
+groups, enforces a non-blank justification, and writes ONE additional event-level
+audit row.
 
 The single load-bearing constraint is the **23505 dangling-tx landmine**:
 ``SettlementService.resolve_market`` opens its OWN ``async with session.begin()``,
@@ -359,6 +362,85 @@ class EventService:
             status=status,
         )
 
+    @classmethod
+    async def reverse_event(
+        cls,
+        *,
+        group_id: UUID,
+        justification: str,
+        actor_user_id: UUID | None = None,
+    ) -> EventSettleResult:
+        """Reverse a house event's settlement: loop ``reverse_settlement`` per child (EVA-05).
+
+        Mirrors :meth:`resolve_event`/:meth:`void_event` but composes the UNCHANGED
+        ``SettlementService.reverse_settlement`` over every already-settled child,
+        ONE FRESH session per child. Each child's compensating (inverse) transfers
+        restore its pre-settlement balances, flip its ``SETTLED`` bets back to
+        ``PENDING``, and reopen it (``CLOSED``) — so after a FULL reverse the event
+        derives back to ``"open"``. No ``winning_outcome_id``: ``reverse_settlement``
+        finds the ``SETTLED`` bets by status, not by winner.
+
+        Idempotent: a second ``reverse_event`` over the same group finds no
+        ``SETTLED`` bets per child and is a no-op (no double-refund). Best-effort and
+        per-child isolated: a child whose winner already spent the winnings hits
+        ``CHECK (balance >= 0)`` and that child's reversal rolls back ALONE — siblings
+        already reversed stay reversed (Pitfall 3; another reason for Option A's
+        per-child fresh sessions). Writes ONE ``event.reversed`` audit row.
+
+        Raises ``ValueError`` on a mirrored (Polymarket) group (admin read-only,
+        EVA-06) or a blank justification.
+
+        DEFERRED (Pitfall 6 — known limitation, NOT a Phase-15 bug): this reverse is
+        "restore pre-settlement state + audit" ONLY (mirrors STL-07). It does NOT
+        support re-RESOLVING a child after a reverse — that would reuse the original
+        ``settle:{bet_id}:{leg}`` idempotency keys and collide on Postgres ``23505``
+        (``constants.py`` ``reverse_idempotency_key`` note). Re-resolution-after-reverse
+        needs a per-bet settlement epoch in the key (deferred, out of scope here).
+        """
+        _require_justification(justification)
+
+        session_maker = _get_session_maker()
+
+        # 1. Read pass: load the group + children; reject mirrored. Reverse needs no
+        #    YES/NO mapping — ``reverse_settlement`` reads SETTLED bets directly — so
+        #    the ordered list is just the child ids (deterministic ``market.id`` order).
+        async with session_maker() as read_session:
+            group = await _load_group_with_children(read_session, group_id)
+            if group is None:
+                raise ValueError(f"No market group {group_id}.")
+            _reject_if_mirrored(group)
+
+            ordered_children: list[UUID] = sorted((m.id for m in group.markets), key=str)
+
+        # 2. Reverse each child on its OWN fresh session (the 23505 landmine + the
+        #    per-child balance-floor isolation of Pitfall 3).
+        failed = await cls._reverse_children(
+            session_maker, ordered_children, justification, actor_user_id
+        )
+
+        # 3. One event-level audit row in its own tx (mirrors resolve/void + STL-07).
+        await cls._record_event_audit(
+            session_maker,
+            event_type="event.reversed",
+            group_id=group_id,
+            winning_outcome_id=None,
+            child_count=len(ordered_children),
+            failed=failed,
+            justification=justification,
+            actor_user_id=actor_user_id,
+        )
+
+        # 4. Project the derived status from the (now reopened) child rows. A full
+        #    reverse reopens every child to CLOSED -> the event derives back to "open".
+        status = await cls._derive_status(session_maker, group_id)
+        return EventSettleResult(
+            group_id=group_id,
+            child_count=len(ordered_children),
+            children_settled=len(ordered_children) - len(failed),
+            children_failed=tuple(failed),
+            status=status,
+        )
+
     # ----------------------------------------------------------------------- #
     # Internals.
     # ----------------------------------------------------------------------- #
@@ -392,6 +474,42 @@ class EventService:
                 except Exception:  # best-effort partial failure (CONTEXT)
                     failed.append(child_market_id)
                     continue  # siblings intact -> the event derives partially_resolved
+        return failed
+
+    @staticmethod
+    async def _reverse_children(
+        session_maker: async_sessionmaker[AsyncSession],
+        ordered_children: Sequence[UUID],
+        justification: str,
+        actor_user_id: UUID | None,
+    ) -> list[UUID]:
+        """Loop ``SettlementService.reverse_settlement`` per child on a FRESH session.
+
+        The reverse twin of :meth:`_settle_children`: one
+        ``async with session_maker() as child_session:`` per already-settled child —
+        never two reverse calls in one ``with``/``begin()`` (the 23505 dangling-tx
+        landmine, the same reason resolve uses fresh sessions). Best-effort and
+        per-child isolated: a winner who already spent the winnings hits
+        ``CHECK (balance >= 0)`` and THAT child's reversal rolls back alone (Pitfall 3);
+        the id is appended to ``failed`` and the loop continues — siblings already
+        reversed stay reversed. A re-reverse over an already-reversed child finds no
+        ``SETTLED`` bets and is a no-op (idempotent — no double-refund).
+        """
+        resolver = HouseMarketResolveAdapter()  # same port instance per child
+        failed: list[UUID] = []
+        for child_market_id in ordered_children:
+            async with session_maker() as child_session:  # FRESH session per child
+                try:
+                    await SettlementService.reverse_settlement(
+                        child_session,
+                        market_id=child_market_id,
+                        market_resolver=resolver,
+                        justification=justification,
+                        actor_user_id=actor_user_id,
+                    )
+                except Exception:  # CHECK(balance>=0) floor / best-effort (Pitfall 3)
+                    failed.append(child_market_id)
+                    continue  # siblings already reversed stay reversed
         return failed
 
     @staticmethod
