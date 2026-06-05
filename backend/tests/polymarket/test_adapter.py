@@ -395,6 +395,104 @@ class TestSyncEventsIntegration:
         ).scalar_one()
         assert slug_count == 1
 
+    async def test_sync_events_all_children_fail_no_widowed_group(
+        self,
+        async_session: AsyncSession,
+    ) -> None:
+        """Every child failing must NOT leave a childless ``market_groups`` row.
+
+        Pre-seeds a standalone market that OWNS slug ``pm-widow-dup``; then a 2-child
+        event whose BOTH children regenerate that taken slug. Each child trips the
+        ``ix_markets_slug`` UNIQUE index, its SAVEPOINT rolls back, and ``sync_events``
+        returns 0 synced. Under the widowed-group guard the parent group's SAVEPOINT
+        rolls back too, so NO ``market_groups`` row persists for the event. Under the
+        un-guarded code the group row would survive childless.
+        """
+        from sqlalchemy import select
+
+        from app.integrations.polymarket.schemas import GammaEvent
+        from app.markets.models import MarketGroup
+
+        adapter = PolymarketAdapter()
+
+        # 1. Pre-seed a market that takes slug "pm-widow-dup" via the standalone path.
+        seed_event = GammaEvent.model_validate(
+            {
+                "id": "widow-seed-evt",
+                "slug": "widow-seed",
+                "title": "Widow seed",
+                "closed": False,
+                "volume24hr": 50_000.0,
+                "volume": 50_000.0,
+                "tags": [{"id": "21", "label": "Crypto", "slug": "crypto"}],
+                "markets": [
+                    {
+                        "id": "widow-seed-mkt",
+                        "question": "Seed?",
+                        "conditionId": "widow-seed-cond",
+                        "slug": "widow-dup",  # → Market.slug "pm-widow-dup"
+                        "outcomes": '["Yes","No"]',
+                        "outcomePrices": '["0.5","0.5"]',
+                        "clobTokenIds": '["s1","s2"]',
+                        "volume": "100000",
+                        "closed": False,
+                    }
+                ],
+            }
+        )
+        assert await adapter.sync_events(async_session, [seed_event], category="Crypto") == 1
+        await async_session.commit()
+
+        # 2. A 2-child event whose BOTH children regenerate the same taken slug.
+        widow_event = GammaEvent.model_validate(
+            {
+                "id": "widow-evt",
+                "slug": "widow",
+                "title": "All children collide",
+                "closed": False,
+                "volume24hr": 50_000.0,
+                "volume": 50_000.0,
+                "tags": [{"id": "21", "label": "Crypto", "slug": "crypto"}],
+                "markets": [
+                    {
+                        "id": "widow-A",
+                        "question": "Will A resolve YES?",
+                        "conditionId": "widow-cond-A",
+                        "slug": "widow-dup",  # same taken slug → UNIQUE clash
+                        "outcomes": '["Yes","No"]',
+                        "outcomePrices": '["0.6","0.4"]',
+                        "clobTokenIds": '["a1","a2"]',
+                        "volume": "100000",
+                        "groupItemTitle": "A",
+                        "closed": False,
+                    },
+                    {
+                        "id": "widow-B",
+                        "question": "Will B resolve YES?",
+                        "conditionId": "widow-cond-B",
+                        "slug": "widow-dup",  # same taken slug → UNIQUE clash
+                        "outcomes": '["Yes","No"]',
+                        "outcomePrices": '["0.3","0.7"]',
+                        "clobTokenIds": '["b1","b2"]',
+                        "volume": "100000",
+                        "groupItemTitle": "B",
+                        "closed": False,
+                    },
+                ],
+            }
+        )
+        synced = await adapter.sync_events(async_session, [widow_event], category="Crypto")
+        assert synced == 0  # both children hit the slug UNIQUE clash
+
+        await async_session.commit()  # must not raise
+
+        grp = (
+            await async_session.execute(
+                select(MarketGroup).where(MarketGroup.source_event_id == "widow-evt"),
+            )
+        ).scalar_one_or_none()
+        assert grp is None, "a childless (widowed) market_groups row was persisted"
+
 
 @pytest.mark.integration
 @pytest.mark.asyncio(loop_scope="session")

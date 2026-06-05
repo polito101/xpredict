@@ -331,6 +331,84 @@ class TestMarketGroup:
 
 
 @_async
+class TestMarketGroupUniqueness:
+    """Phase 13 negative coverage — the slug UNIQUE index and the partial-unique
+    ``(source, source_event_id)`` index are actually enforced, and the partial index
+    still allows MANY house groups with ``source_event_id IS NULL`` (the whole point
+    of the partial predicate Phase 14's ingestion relies on)."""
+
+    async def test_duplicate_group_slug_rejected(self, async_session):
+        """``MarketGroup.slug`` is globally UNIQUE (ix_market_groups_slug)."""
+        nested = await async_session.begin_nested()
+        try:
+            async_session.add(
+                MarketGroup(
+                    title="Slug A",
+                    source=MarketSourceEnum.HOUSE.value,
+                    slug="dup-grp-slug",
+                )
+            )
+            await async_session.flush()
+            async_session.add(
+                MarketGroup(
+                    title="Slug B",
+                    source=MarketSourceEnum.HOUSE.value,
+                    slug="dup-grp-slug",  # same slug → UNIQUE clash
+                )
+            )
+            with pytest.raises(IntegrityError):
+                await async_session.flush()
+        finally:
+            await nested.rollback()
+
+    async def test_duplicate_source_event_id_rejected(self, async_session):
+        """Two POLYMARKET groups sharing ``(source, source_event_id)`` collide on the
+        partial unique index (WHERE source_event_id IS NOT NULL)."""
+        nested = await async_session.begin_nested()
+        try:
+            async_session.add(
+                MarketGroup(
+                    title="Mirror A",
+                    source=MarketSourceEnum.POLYMARKET.value,
+                    slug=generate_slug("mirror-a"),
+                    source_event_id="evt-dup",
+                )
+            )
+            await async_session.flush()
+            async_session.add(
+                MarketGroup(
+                    title="Mirror B",
+                    source=MarketSourceEnum.POLYMARKET.value,
+                    slug=generate_slug("mirror-b"),  # distinct slug → isolate the partial index
+                    source_event_id="evt-dup",  # same (source, source_event_id) → clash
+                )
+            )
+            with pytest.raises(IntegrityError):
+                await async_session.flush()
+        finally:
+            await nested.rollback()
+
+    async def test_null_source_event_id_allows_many(self, async_session):
+        """House groups carry ``source_event_id IS NULL``; the partial unique index
+        must allow MANY such rows — uniqueness applies only WHERE it IS NOT NULL."""
+        g1 = MarketGroup(
+            title="House group 1",
+            source=MarketSourceEnum.HOUSE.value,
+            slug=generate_slug("house-group-1"),
+        )
+        g2 = MarketGroup(
+            title="House group 2",
+            source=MarketSourceEnum.HOUSE.value,
+            slug=generate_slug("house-group-2"),
+        )
+        async_session.add_all([g1, g2])
+        await async_session.flush()  # must NOT raise — both NULL source_event_id allowed
+        assert g1.source_event_id is None
+        assert g2.source_event_id is None
+        assert g1.id != g2.id
+
+
+@_async
 class TestMarketGroupLazyRaise:
     """SC#4 — Market.group is lazy='raise': access without eager-load must raise."""
 

@@ -218,9 +218,10 @@ async def _run_poll_events(
             await redis.aclose()
         return
 
-    client = GammaClient()
+    client: GammaClient | None = None
     session: AsyncSession | None = None
     try:
+        client = GammaClient()
         # Get an async session — use override for tests, else create from factory.
         if session_override is not None:
             session = session_override
@@ -320,7 +321,8 @@ async def _run_poll_events(
     finally:
         # Release the events lock + close client/redis exactly once (WR-04/WR-05).
         await release_events_lock(redis, lock_token)
-        await client.close()
+        if client is not None:
+            await client.close()
         if session is not None and session_override is None:
             with contextlib.suppress(Exception):
                 await session.close()
