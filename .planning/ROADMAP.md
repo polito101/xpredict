@@ -54,7 +54,7 @@
 - [ ] **Phase 14: Curated Per-Category Gamma Sync** — Gamma `/events` ingestion replaces the top-25-global poll; top-N-per-category with volume floor, ~7-tag allow-list, dedup, keep-last-good resilience; finally populates `Market.category` on mirrored rows. *(EXECUTED + verified 11/11; PR #28 open — pending merge)*
 - [x] **Phase 15: Event Settlement (House Resolve/Void + Mirrored Verify)** — `EventService` resolve-as-a-loop over the existing `SettlementService` per child; void = all-children-NO; reverse via compensating ledger; derived event status; mirrored children auto-settle via existing UMA detection (verify, no new code). (completed 2026-06-05 — PR [#29](https://github.com/polito101/xpredict/pull/29), CI 7/7 green, MERGE READY)
 - [x] **Phase 16: Catalog & Event API + House Event CRUD** — `CatalogService.browse()` (ILIKE + category + status + sort + bounded LIMIT) and event/category/admin-event endpoints; house event create/edit; explicit empty/zero states; `/markets` kept for back-compat. (completed 2026-06-05)
-- [ ] **Phase 17: Catalog Browse UI, Event Detail & Admin Event Ops** — Catalog browse island (search + category tabs + status/sort), multi-outcome event card, event detail with independent per-outcome rows/bars + bet-on-one-outcome + per-outcome charts, admin event forms; white-label on every new surface.
+- [x] **Phase 17: Catalog Browse UI, Event Detail & Admin Event Ops** — Catalog browse island (search + category tabs + status/sort), multi-outcome event card, event detail with independent per-outcome rows/bars + bet-on-one-outcome + per-outcome charts, admin event forms; white-label on every new surface. *(completed 2026-06-06 — PR [#31](https://github.com/polito101/xpredict/pull/31), CI 7/7 green, MERGE READY; the per-outcome framing LOCK never sums to 100%)*
 - [ ] **Phase 18: Seed/Demo Harness for Multi-outcome + Categories** — Extend `bin/seed_demo.py`: ≥1 multi-outcome event per category (3-8 outcomes, plausible prices, non-flat history), open + partially-resolved + resolved + void states, filled tabs, pinned featured allow-list; idempotent `demo-reset` with green double-entry integrity check.
 
 ## Phase Details
@@ -154,7 +154,7 @@
   3. A player can place a bet on a single outcome (reusing `OrderEntryForm` against the constituent binary market) and view per-outcome price history (reusing the existing chart per child); live-price WebSocket subscriptions are capped to on-screen rows (no connection storm on large events).
   4. Admin event create/edit/resolve forms work with per-outcome `group_item_title` labels + two-step confirm + justification, and every new catalog / browse / event surface respects the operator's `--brand-*` white-label tokens.
 
-**Plans**: TBD
+**Plans**: 5 (completed — data layer · catalog browse · event detail · admin event ops · brand sweep)
 **UI hint**: yes
 
 > **Pre-implementation design lock (research flag):** before Phase 17 build begins, the per-outcome price framing (independent YES/NO bars, display-only normalization at most, never sum-to-100) must be locked as a design spec. The admin per-outcome-label (`group_item_title`) form UX is also specced here.
@@ -186,7 +186,7 @@
 | 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 3/3 | Complete — PR #29, CI green, merge-ready | 2026-06-05 |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 5/5 | Complete    | 2026-06-05 |
-| 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
+| 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 5/5 | MERGE READY — PR #31, CI 7/7 green | 2026-06-06 |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
 
 **Known deferred at v1.0/v1.1 close** (carried into v1.2): 3 human-UAT scenarios + 3 verification gaps from Phase 12, and the **non-deferrable Spanish legal review** of ToS/token policy before any live operator demo (see [`STATE.md`](STATE.md) › Deferred Items).
