@@ -173,3 +173,116 @@ class TestAdapterIntegration:
         source_ids = {m.source_market_id for m in markets}
         assert "integration-test-1" in source_ids
         assert "integration-test-2" in source_ids
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+class TestSyncEventsIntegration:
+    """sync_events grouping / EVT-07 / category / dedup / idempotency (CAT-04, EVT-07).
+
+    Asserts against the live-captured fixtures:
+      - events_multi_outcome.json: 1 Crypto event id=538337, 3 Bitcoin-ladder
+        children (group_item_titles 64,000 / 66,000 / 68,000), distinct conditionIds.
+      - events_single_market.json: 1 Politics/World event id=108634, len==1, lone
+        market source_market_id=958443, groupItemTitle="" (EVT-07).
+    """
+
+    async def test_sync_events_groups_multi_outcome(
+        self,
+        async_session: AsyncSession,
+        gamma_events_multi: list[dict],
+    ) -> None:
+        """Multi-outcome event → 1 market_groups row + 3 stamped children (SC#1/SC#3)."""
+        from sqlalchemy import select
+
+        from app.integrations.polymarket.schemas import GammaEvent
+        from app.markets.models import Market, MarketGroup
+
+        adapter = PolymarketAdapter()
+        events = [GammaEvent.model_validate(e) for e in gamma_events_multi]
+
+        n = await adapter.sync_events(async_session, events, category="Crypto")
+        assert n == 3  # 3 deduped children upserted
+
+        # Exactly one market_groups row, source_event_id=538337, category=Crypto.
+        grp = (
+            await async_session.execute(
+                select(MarketGroup).where(MarketGroup.source_event_id == "538337"),
+            )
+        ).scalar_one()
+        assert grp.category == "Crypto"
+
+        # 3 children stamped with group_id + category + group_item_title.
+        kids = (
+            (
+                await async_session.execute(
+                    select(Market).where(Market.group_id == grp.id),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(kids) == 3
+        assert all(k.category == "Crypto" for k in kids)
+        assert {k.group_item_title for k in kids} == {"64,000", "66,000", "68,000"}
+
+    async def test_sync_events_single_market_no_group(
+        self,
+        async_session: AsyncSession,
+        gamma_events_single: list[dict],
+    ) -> None:
+        """len==1 event → standalone market, NO group row, category populated (EVT-07/SC#4)."""
+        from sqlalchemy import select
+
+        from app.integrations.polymarket.schemas import GammaEvent
+        from app.markets.models import Market, MarketGroup
+
+        adapter = PolymarketAdapter()
+        events = [GammaEvent.model_validate(e) for e in gamma_events_single]
+
+        await adapter.sync_events(async_session, events, category="Politics")
+
+        # NO market_groups row for a len==1 event (EVT-07).
+        grp = (
+            await async_session.execute(
+                select(MarketGroup).where(MarketGroup.source_event_id == "108634"),
+            )
+        ).scalar_one_or_none()
+        assert grp is None
+
+        # The lone market is standalone (group_id IS NULL) with category populated.
+        m = (
+            await async_session.execute(
+                select(Market).where(Market.source_market_id == "958443"),
+            )
+        ).scalar_one()
+        assert m.group_id is None
+        assert m.category == "Politics"
+
+    async def test_sync_events_idempotent(
+        self,
+        async_session: AsyncSession,
+        gamma_events_multi: list[dict],
+    ) -> None:
+        """Replaying the same event creates no second market_groups row (ON CONFLICT)."""
+        from sqlalchemy import select
+
+        from app.integrations.polymarket.schemas import GammaEvent
+        from app.markets.models import MarketGroup
+
+        adapter = PolymarketAdapter()
+        events = [GammaEvent.model_validate(e) for e in gamma_events_multi]
+
+        await adapter.sync_events(async_session, events, category="Crypto")
+        await adapter.sync_events(async_session, events, category="Crypto")  # replay
+
+        grps = (
+            (
+                await async_session.execute(
+                    select(MarketGroup).where(MarketGroup.source_event_id == "538337"),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(grps) == 1  # no duplicate group
