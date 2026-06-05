@@ -99,7 +99,7 @@
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 14-04-PLAN.md - Task + beat: poll_polymarket_events curation loop (dedup, floor, top-N, keep-last-good) + beat swap (CAT-01, CAT-02, CAT-03, CAT-05)
+- [x] 14-04-PLAN.md - Task + beat: poll_polymarket_events curation loop (dedup, floor, top-N, keep-last-good) + beat swap (CAT-01, CAT-02, CAT-03, CAT-05)
 
 ### Phase 15: Event Settlement (House Resolve/Void + Mirrored Verify)
 
@@ -170,7 +170,7 @@
 | 1-12. v1.0 MVP | v1.0 | 44/44 | âœ… Complete | 2026-06-04 |
 | A-E. Demo Polish | v1.1 | â€” | âœ… Complete | 2026-06-04 |
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | âœ… Complete | 2026-06-05 |
-| 14. Curated Per-Category Gamma Sync | v1.2 | 3/4 | In Progress|  |
+| 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | In Progress (plans done; verify/PR pending) |  |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/TBD | Not started | - |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
