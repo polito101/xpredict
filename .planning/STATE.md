@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
 status: executing
-last_updated: "2026-06-05T12:25:03.467Z"
-last_activity: 2026-06-05 -- Phase 14 planning complete
+last_updated: "2026-06-05T12:37:47.402Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 6
-  completed_plans: 2
-  percent: 17
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,16 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 13 ✅ MERGED to main (PR #25, 2026-06-05). Backend-CI-green follow-up PR #26 open (awaiting Pol's merge). Next: Phase 14 (Curated Per-Category Gamma Sync) — see HANDOFF.md before starting.
+**Current focus:** Phase 14 (Curated Per-Category Gamma Sync) — IN PROGRESS. Plan 14-01 ✅ executed (Gamma /events data-contract: parsers + POLYMARKET_CATEGORIES + curation settings). Next: 14-02. (Phase 13 MERGED PR #25; backend-CI-green PR #26 awaiting Pol's merge.)
 
 ## Current Position
 
-Phase: 13 (Multi-outcome Model & Catalog Indexes) — ✅ COMPLETE · MERGED (PR #25)
-Plan: 2 of 2 (both complete)
-Status: Ready to execute
-Last activity: 2026-06-05 -- Phase 14 planning complete
+Phase: 14 (Curated Per-Category Gamma Sync) — 🔨 IN PROGRESS
+Plan: 1 of 4 complete (14-01 ✅ — data-contract foundation: parsers + POLYMARKET_CATEGORIES)
+Status: Executing — next plan 14-02
+Last activity: 2026-06-05 -- Executed 14-01 (GammaEvent/GammaTag/GammaEventMarket + resolve_category; 12 schema unit tests green)
 
-Progress: [██████████] 100%
+Progress: [█████░░░░░] 50%
 
 > Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
@@ -63,8 +63,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T10:09:29.678Z
-Stopped at: Completed 13-02-PLAN.md (Wave 2 tests). Phase 13 both plans done — markets 117 green, bets+settlement 92 green (SC#2), money-lint clean. Ready for /gsd-verify-work.
+Last session: 2026-06-05T12:37:47.396Z
+Stopped at: Completed 14-01-PLAN.md — Gamma /events parsers + POLYMARKET_CATEGORIES + 12 schema unit tests green
 Resume file: None
 
 ## Performance Metrics
@@ -73,3 +73,9 @@ Resume file: None
 |-------|------|----------|-------|
 | Phase 13 P13-01 | 8min | 2 tasks | 5 files |
 | Phase 13 P13-02 | ~10min | 2 tasks | 2 files (test_migration_0011.py +349, test_models.py +137) |
+| Phase 14 P14-01 | 14min | 3 tasks | 4 files |
+
+## Decisions
+
+- [Phase 14]: GammaEventMarket subclasses GammaMarket — inherits spike-002 validators + _derive_status verbatim, adds only group_item_title
+- [Phase 14]: Event-level Gamma /events volume24hr/volume are FLOAT -> Decimal via properties; stringified-JSON list validator stays only on GammaMarket (Pitfall 1)
