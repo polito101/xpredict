@@ -44,8 +44,8 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 - [ ] **EVA-02**: Admin can edit a house event's outcomes/metadata while it has zero bets; edits lock after the first bet (mirrors ADM-07).
 - [x] **EVA-03**: Admin can resolve a house event by selecting the winning outcome (mandatory justification + two-step confirm); resolution loops the existing `SettlementService` per child (winner→YES settled, losers→NO settled), idempotently.
 - [x] **EVA-04**: Admin can void a house event (no winner): every child resolves on NO (YES bettors lose, NO bettors win) — explicitly NOT a stake refund (true refund-on-cancel is out of scope).
-- [ ] **EVA-05**: Admin can reverse an event resolution via compensating ledger entries (mirrors STL-07), audit-logged.
-- [ ] **EVA-06**: Mirrored (Polymarket) events are read-only to admins except emergency force-settle (mirrors ADM-06); mirrored children auto-settle via the existing UMA detection (verify, no new settlement code).
+- [x] **EVA-05**: Admin can reverse an event resolution via compensating ledger entries (mirrors STL-07), audit-logged.
+- [x] **EVA-06**: Mirrored (Polymarket) events are read-only to admins except emergency force-settle (mirrors ADM-06); mirrored children auto-settle via the existing UMA detection (verify, no new settlement code).
 
 ### Seed & Demo Harness (DEMO) — extends v1.1 harness
 
@@ -117,8 +117,8 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | EVA-02 | Phase 16 (API) | Pending |
 | EVA-03 | Phase 15 (Settlement) | Complete |
 | EVA-04 | Phase 15 (Settlement) | Complete |
-| EVA-05 | Phase 15 (Settlement) | Pending |
-| EVA-06 | Phase 15 (Settlement) | Pending |
+| EVA-05 | Phase 15 (Settlement) | Complete |
+| EVA-06 | Phase 15 (Settlement) | Complete |
 | DEMO-01 | Phase 18 (Seed/Demo) | Pending |
 | DEMO-02 | Phase 18 (Seed/Demo) | Pending |
 | DEMO-03 | Phase 18 (Seed/Demo) | Pending |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: executing
-last_updated: "2026-06-05T17:26:15.071Z"
+status: verifying
+last_updated: "2026-06-05T17:46:37.577Z"
 last_activity: 2026-06-05
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
-  percent: 33
+  completed_plans: 9
+  percent: 50
 ---
 
 # Project State
@@ -27,10 +27,10 @@ Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model �
 
 Phase: 15 (Event Settlement (House Resolve/Void + Mirrored Verify)) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-05
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 > Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
@@ -63,8 +63,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T17:26:15.061Z
-Stopped at: Completed 15-02-PLAN.md (EventService resolve/void + integration suite; EVA-03/EVA-04 done). Next: 15-03 (reverse_event, EVA-05).
+Last session: 2026-06-05T17:46:37.568Z
+Stopped at: Completed 15-03-PLAN.md (reverse_event EVA-05 + mirrored verify EVA-06). Phase 15 event-settlement layer COMPLETE (resolve/void/reverse + derived status + mirrored verify; all 3 plans done, 72 settlement tests green, spike-004 drift_count==0 on every path). Next: /gsd-verify-work for Phase 15.
 Resume file: None
 
 ## Performance Metrics
@@ -75,6 +75,7 @@ Resume file: None
 | Phase 13 P13-02 | ~10min | 2 tasks | 2 files (test_migration_0011.py +349, test_models.py +137) |
 | Phase 15 P01 | 3min | 2 tasks | 2 files |
 | Phase 15 P02 | 9min | 2 tasks | 2 files |
+| Phase 15 P03 | 15min | 3 tasks | 3 files (event_service.py +140, test_event_service.py +256 reverse, test_event_mirrored.py +482 new) |
 
 ## Decisions
 
@@ -82,3 +83,6 @@ Resume file: None
 - [Phase 15]: derive_event_status + ChildStatus live module-level in backend/app/settlement/event_service.py (Wave 1 pure layer); Wave 2 EventService resolve/void/reverse class extends the same module
 - [Phase 15]: Phase-15 event resolve/void = loop the UNCHANGED SettlementService per child on a FRESH _get_session_maker() session (Option A); never two self-committing settles in one with/begin() (the 23505 dangling-tx landmine). Idempotency/locks/payouts/per-child audit all inherited.
 - [Phase 15]: EventService integration tests seed LEDGER-BACKED wallets (INSERT at 0 + WalletService.recharge) so the literal spike-004 _reconcile_async drift_count==0 gate is faithful; the older raw-balance test shortcut leaves a phantom non-ledger-backed opening balance the reconciler reports as drift.
+- [Phase 15]: EventService.reverse_event (EVA-05) loops the UNCHANGED SettlementService.reverse_settlement per already-settled child on a FRESH session, NO winning_outcome_id (finds SETTLED bets by status). Per-child sessions do double duty: 23505-safe AND isolate the CHECK(balance>=0) floor (a winner who spent winnings makes THAT child roll back alone, siblings stay reversed; full reverse reopens all → event derives "open"). Reverse is restore+audit ONLY; re-resolve-after-reverse is a deferred Pitfall-6 gap (settle:{bet_id}:{leg} collides on 23505), flagged in code, no test.
+- [Phase 15]: EVA-06 is VERIFY-ONLY — backend/app/integrations/polymarket/tasks.py has NO diff. test_event_mirrored.py drives the UNCHANGED _run_detect_resolutions over a source=POLYMARKET market_group's children via its session_override/redis_override seam (settle with zero new code) + asserts reverse_event rejects mirrored. A grace-PRIMER market (uma_resolved_at NULL, committed first) grace-starts+commits in the detect loop to clear the candidate-SELECT read tx so each child's resolve_market opens its own begin() on a real session_override (a real session forbids begin() while a read tx is open — reproduces a real mixed-stage 60s tick); AsyncMock detect-lock (in-repo fakeredis lacks Lua eval).
+- [Phase 15]: Phase 15 event-settlement layer COMPLETE — resolve + void + reverse + derived status + mirrored verify, all with spike-004 drift_count==0 on every path; all 3 EventService mutations reject source=POLYMARKET groups (mirrored settles ONLY via the unchanged UMA detect path).
