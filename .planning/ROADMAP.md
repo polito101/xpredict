@@ -104,7 +104,7 @@
 
 **Wave 1**
 
-- [ ] 15-01-PLAN.md — Pure derive_event_status read-projection + ChildStatus dataclass + unit tests (EVT-06)
+- [x] 15-01-PLAN.md — Pure derive_event_status read-projection + ChildStatus dataclass + unit tests (EVT-06)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -170,7 +170,7 @@
 | A-E. Demo Polish | v1.1 | — | ✅ Complete | 2026-06-04 |
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
-| 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/3 | Not started | - |
+| 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 1/3 | In Progress|  |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |

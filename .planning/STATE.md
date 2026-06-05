@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
 status: executing
-last_updated: "2026-06-05T16:52:40.270Z"
-last_activity: 2026-06-05 -- Phase 15 planning complete
+last_updated: "2026-06-05T17:02:39.741Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 33
 ---
 
@@ -21,16 +21,16 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 14 (Curated Per-Category Gamma Sync) ✅ EXECUTED + verified (11/11) + hardened (final 4-lens audit) + **backend CI GREEN** → **PR #28 OPEN + MERGEABLE**, pending ONLY Pol's review/merge. Engineering-complete; no code work remains in Phase-14 scope. Phase 13 (#25), CI-fix (#26), docs (#27) all MERGED. Next after #28 merges: Phase 15 (Event Settlement).
+**Current focus:** Phase 15 — Event Settlement (House Resolve/Void + Mirrored Verify)
 
 ## Current Position
 
-Phase: 14 (Curated Per-Category Gamma Sync) — ✅ EXECUTED + verified · **PR #28 OPEN** (pending Pol's merge)
-Plan: 4 of 4 complete (parsers+config · fetch_events · adapter sync_events + market_groups writer · poll_polymarket_events curation loop + beat swap)
+Phase: 15 (Event Settlement (House Resolve/Void + Mirrored Verify)) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-05 -- Phase 15 planning complete
+Last activity: 2026-06-05
 
-Progress: [██████████] 100%
+Progress: [████████░░] 78%
 
 > Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
@@ -63,8 +63,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T10:09:29.678Z
-Stopped at: Completed 13-02-PLAN.md (Wave 2 tests). Phase 13 both plans done — markets 117 green, bets+settlement 92 green (SC#2), money-lint clean. Ready for /gsd-verify-work.
+Last session: 2026-06-05T17:02:39.735Z
+Stopped at: Completed 15-01-PLAN.md (Wave 1 — EVT-06 derive_event_status pure projection + 8 unit tests GREEN, no Docker)
 Resume file: None
 
 ## Performance Metrics
@@ -73,3 +73,9 @@ Resume file: None
 |-------|------|----------|-------|
 | Phase 13 P13-01 | 8min | 2 tasks | 5 files |
 | Phase 13 P13-02 | ~10min | 2 tasks | 2 files (test_migration_0011.py +349, test_models.py +137) |
+| Phase 15 P01 | 3min | 2 tasks | 2 files |
+
+## Decisions
+
+- [Phase 15]: EVT-06: event status is a derived read-time projection (derive_event_status pure free function over ChildStatus); no stored status/winning_outcome column on market_groups, no migration
+- [Phase 15]: derive_event_status + ChildStatus live module-level in backend/app/settlement/event_service.py (Wave 1 pure layer); Wave 2 EventService resolve/void/reverse class extends the same module

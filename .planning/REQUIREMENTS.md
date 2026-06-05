@@ -17,7 +17,7 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 - [ ] **EVT-03**: Player can place a bet on a single outcome of an event, reusing the existing bet path on the constituent binary market.
 - [ ] **EVT-04**: Player sees a multi-outcome event card in the catalog (top 2–4 outcomes + %, "+N more"), visually distinct from the binary market card.
 - [ ] **EVT-05**: Player can see per-outcome price history on the event detail (reuses the existing price-history chart per child market).
-- [ ] **EVT-06**: Event status (open / partially-resolved / resolved / void) is derived from its constituent markets' states — never stored as an authoritative winning-outcome column.
+- [x] **EVT-06**: Event status (open / partially-resolved / resolved / void) is derived from its constituent markets' states — never stored as an authoritative winning-outcome column.
 - [x] **EVT-07**: A "single-market event" (len == 1) stays on the standalone binary path; grouping applies only to events with ≥ 2 outcomes.
 
 ### Curated Catalog & Sync (CAT) — extends MKT sync
@@ -99,7 +99,7 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | EVT-03 | Phase 17 (UI) | Pending |
 | EVT-04 | Phase 17 (UI) | Pending |
 | EVT-05 | Phase 17 (UI) | Pending |
-| EVT-06 | Phase 15 (Settlement) | Pending |
+| EVT-06 | Phase 15 (Settlement) | Complete |
 | EVT-07 | Phase 14 (Sync) | Complete |
 | CAT-01 | Phase 14 (Sync) | Complete |
 | CAT-02 | Phase 14 (Sync) | Complete |
