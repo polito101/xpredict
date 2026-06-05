@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: executing
-last_updated: "2026-06-05T20:00:09.686Z"
+status: ready_to_plan
+last_updated: 2026-06-05T21:14:41.505Z
 last_activity: 2026-06-05
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 14
-  completed_plans: 10
+  completed_plans: 14
   percent: 50
+stopped_at: Phase 16 complete (5/5) — ready to discuss Phase 17
 ---
 
 # Project State
@@ -21,13 +22,13 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 16 — Catalog & Event API + House Event CRUD
+**Current focus:** Phase 17 — catalog browse ui, event detail & admin event ops
 
 ## Current Position
 
-Phase: 16 (Catalog & Event API + House Event CRUD) — EXECUTING
-Plan: 2 of 5
-Status: Ready to execute
+Phase: 17
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-05
 
 Progress: [███████░░░] 71%

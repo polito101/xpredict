@@ -185,7 +185,7 @@
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 3/3 | Complete — PR #29, CI green, merge-ready | 2026-06-05 |
-| 16. Catalog & Event API + House Event CRUD | v1.2 | 5/5 | Complete   | 2026-06-05 |
+| 16. Catalog & Event API + House Event CRUD | v1.2 | 5/5 | Complete    | 2026-06-05 |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
 
