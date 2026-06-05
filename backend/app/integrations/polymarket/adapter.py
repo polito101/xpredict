@@ -437,15 +437,36 @@ class PolymarketAdapter:
                     synced += 1
                 continue
 
-            group_id = await self._upsert_market_group(session, ev, category)
-            for child in children:
-                if await self._upsert_one_market(
-                    session,
-                    child,
-                    group_id=group_id,
-                    category=category,
-                ):
-                    synced += 1
+            # Multi-outcome event → 1 parent group + N children. Guard against a
+            # "widowed" group: if EVERY child fails to upsert (e.g. all child slugs
+            # collide), roll the whole event back in a SAVEPOINT so we never persist a
+            # childless market_groups row (which Phase-16 browse would mis-render and a
+            # later sync would have to repopulate). A pre-existing group is unharmed —
+            # the rollback only discards THIS cycle's no-op ON CONFLICT DO UPDATE.
+            synced_before = synced
+            event_sp = await session.begin_nested()
+            try:
+                group_id = await self._upsert_market_group(session, ev, category)
+                for child in children:
+                    if await self._upsert_one_market(
+                        session,
+                        child,
+                        group_id=group_id,
+                        category=category,
+                    ):
+                        synced += 1
+                if synced == synced_before:
+                    await event_sp.rollback()
+                    log.warning(
+                        "gamma.event_all_children_failed",
+                        source_event_id=ev.id,
+                        category=category,
+                    )
+                else:
+                    await event_sp.commit()
+            except Exception:
+                await event_sp.rollback()
+                raise
 
         return synced
 
