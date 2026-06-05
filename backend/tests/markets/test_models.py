@@ -11,7 +11,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.markets.enums import MarketSourceEnum, MarketStatus
-from app.markets.models import Market, OddsSnapshot, Outcome, generate_slug
+from app.markets.models import (
+    Market,
+    MarketGroup,
+    OddsSnapshot,
+    Outcome,
+    generate_slug,
+)
 
 pytestmark = [pytest.mark.integration]
 
@@ -200,3 +206,134 @@ class TestLazyRaise:
             match="lazy='raise'",
         ):
             _ = market.outcomes
+
+
+# ---------------------------------------------------------------------------
+# Phase 13 (EVT-01) — MarketGroup event-of-binaries seam
+# ---------------------------------------------------------------------------
+
+
+def _child_market(title: str, group_id) -> Market:
+    """Build a fully-valid binary child Market for a MarketGroup.
+
+    Mirrors the required kwargs from the ``sample_market`` fixture
+    (tests/markets/conftest.py) — ``question``, unique ``slug``,
+    ``resolution_criteria``, ``source``, ``status``, ``deadline`` — plus the
+    Phase 13 ``group_id`` + ``group_item_title``.
+    """
+    return Market(
+        question=f"Will {title} win?",
+        slug=generate_slug(title),
+        resolution_criteria="Official result certified by 23:59 UTC",
+        category="politics",
+        source=MarketSourceEnum.HOUSE.value,
+        status=MarketStatus.OPEN.value,
+        deadline=datetime.now(UTC) + timedelta(days=1),
+        group_id=group_id,
+        group_item_title=title,
+    )
+
+
+@_async
+class TestMarketGroup:
+    """SC#4 — a MarketGroup round-trips a parent with >=2 children via selectinload."""
+
+    async def test_group_round_trips_two_children(self, async_session):
+        grp = MarketGroup(
+            title="2028 Presidential Election",
+            source=MarketSourceEnum.HOUSE.value,
+            slug=generate_slug("2028 Presidential Election"),
+            category="politics",
+        )
+        async_session.add(grp)
+        await async_session.flush()
+
+        async_session.add_all(
+            [
+                _child_market("Candidate A", grp.id),
+                _child_market("Candidate B", grp.id),
+            ]
+        )
+        await async_session.flush()
+
+        stmt = (
+            select(MarketGroup)
+            .where(MarketGroup.id == grp.id)
+            .options(selectinload(MarketGroup.markets))
+        )
+        loaded = (await async_session.execute(stmt)).scalar_one()
+
+        assert len(loaded.markets) == 2
+        assert {m.group_item_title for m in loaded.markets} == {
+            "Candidate A",
+            "Candidate B",
+        }
+        # Every child points back to the parent group (the FK seam).
+        assert {m.group_id for m in loaded.markets} == {grp.id}
+
+    async def test_group_tenant_id_default(self, async_session):
+        grp = MarketGroup(
+            title="Default-tenant group",
+            source=MarketSourceEnum.HOUSE.value,
+            slug=generate_slug("Default-tenant group"),
+        )
+        async_session.add(grp)
+        await async_session.flush()
+        assert grp.tenant_id == UUID("00000000-0000-0000-0000-000000000001")
+
+
+@_async
+class TestMarketGroupLazyRaise:
+    """SC#4 — Market.group is lazy='raise': access without eager-load must raise."""
+
+    async def test_group_relationship_lazy_raise(self, async_session):
+        grp = MarketGroup(
+            title="Lazy-raise group",
+            source=MarketSourceEnum.HOUSE.value,
+            slug=generate_slug("Lazy-raise group"),
+        )
+        async_session.add(grp)
+        await async_session.flush()
+
+        child = _child_market("Lazy child", grp.id)
+        async_session.add(child)
+        await async_session.flush()
+
+        # Re-load the child WITHOUT eager-loading .group; accessing the unloaded
+        # relationship must raise (lazy="raise"), never silently emit lazy I/O.
+        stmt = select(Market).where(Market.id == child.id)
+        market = (await async_session.execute(stmt)).scalar_one()
+        with pytest.raises(
+            sqlalchemy.exc.InvalidRequestError,
+            match="lazy='raise'",
+        ):
+            _ = market.group
+
+
+@_async
+class TestStandaloneMarketRegression:
+    """SC#2 — a standalone (group_id IS NULL) market is byte-for-byte unchanged.
+
+    The two additive Phase 13 columns must NOT alter the existing binary
+    read/round-trip path: the standalone ``sample_market`` has ``group_id IS NULL``
+    and still loads its two YES/NO outcomes exactly as before.
+    """
+
+    async def test_standalone_market_group_id_is_null(
+        self, async_session, sample_market
+    ):
+        assert sample_market.group_id is None
+        assert sample_market.group_item_title is None
+
+    async def test_standalone_market_outcomes_unchanged(
+        self, async_session, sample_market
+    ):
+        stmt = (
+            select(Market)
+            .where(Market.id == sample_market.id)
+            .options(selectinload(Market.outcomes))
+        )
+        market = (await async_session.execute(stmt)).scalar_one()
+        assert market.group_id is None
+        assert len(market.outcomes) == 2
+        assert {o.label for o in market.outcomes} == {"YES", "NO"}
