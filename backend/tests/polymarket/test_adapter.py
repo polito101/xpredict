@@ -390,9 +390,7 @@ class TestSyncEventsIntegration:
         # And only ONE market carries the conflicting slug (the loser never persisted).
         slug_count = (
             await async_session.execute(
-                select(func.count())
-                .select_from(Market)
-                .where(Market.slug == "pm-cr01-dup-slug"),
+                select(func.count()).select_from(Market).where(Market.slug == "pm-cr01-dup-slug"),
             )
         ).scalar_one()
         assert slug_count == 1

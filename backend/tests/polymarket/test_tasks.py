@@ -341,9 +341,7 @@ async def test_poll_events_publishes_per_category_not_cumulative() -> None:
         # single delta is published twice.
         call_state = {"n": 0}
 
-        async def fake_sync_events(
-            session: object, curated: object, *, category: str
-        ) -> int:
+        async def fake_sync_events(session: object, curated: object, *, category: str) -> int:
             call_state["n"] += 1
             mock_adapter.changed_markets.append(
                 (f"market-{category}-{call_state['n']}", [{"outcome_id": "o1", "odds": "0.6"}]),
