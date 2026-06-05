@@ -95,7 +95,7 @@
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 14-03-PLAN.md - Adapter: extract _upsert_one_market + sync_events + _upsert_market_group (first writer of market_groups; CAT-04, EVT-07, CAT-06)
+- [x] 14-03-PLAN.md - Adapter: extract _upsert_one_market + sync_events + _upsert_market_group (first writer of market_groups; CAT-04, EVT-07, CAT-06)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -170,7 +170,7 @@
 | 1-12. v1.0 MVP | v1.0 | 44/44 | âœ… Complete | 2026-06-04 |
 | A-E. Demo Polish | v1.1 | â€” | âœ… Complete | 2026-06-04 |
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | âœ… Complete | 2026-06-05 |
-| 14. Curated Per-Category Gamma Sync | v1.2 | 2/4 | In Progress|  |
+| 14. Curated Per-Category Gamma Sync | v1.2 | 3/4 | In Progress|  |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/TBD | Not started | - |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
