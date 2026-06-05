@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: verifying
-last_updated: "2026-06-05T10:11:58.458Z"
+status: in_progress
+last_updated: "2026-06-05T12:00:00.000Z"
 last_activity: 2026-06-05
 progress:
   total_phases: 6
@@ -21,16 +21,18 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 13 — Multi-outcome Model & Catalog Indexes
+**Current focus:** Phase 13 verified ✅ — PR open for Pol's review; next is Phase 14 (Curated Per-Category Gamma Sync).
 
 ## Current Position
 
-Phase: 13 (Multi-outcome Model & Catalog Indexes) — EXECUTING
+Phase: 13 (Multi-outcome Model & Catalog Indexes) — ✅ COMPLETE (verified)
 Plan: 2 of 2 (both complete)
-Status: Phase complete — ready for verification
+Status: VERIFICATION PASSED (4/4 must-haves). PR ready for Pol on branch `gsd/phase-13-multi-outcome-model-catalog-indexes`. Next: Phase 14.
 Last activity: 2026-06-05
 
 Progress: [██████████] 100%
+
+> Note: a single full `uv run pytest` flakes on this Windows host under testcontainers connection contention (cascading sqlalchemy errors across unrelated modules). All affected modules pass in isolation (markets 117 + bets/settlement 92 + wallet/polymarket/markets-service-models-protocol 114 = 323 green). Pre-existing infra limitation, not a Phase 13 regression — CI should run per-module or cap the pool.
 
 ## Milestones Shipped
 
