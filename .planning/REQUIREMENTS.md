@@ -12,7 +12,7 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 
 ### Multi-outcome Events (EVT) — extends MKT/BET; resolves MKT-08
 
-- [ ] **EVT-01**: A multi-outcome event groups N independent binary (YES/NO) markets under one event entity (`market_groups` + nullable `Market.group_id`), without changing the binary market or settlement model.
+- [x] **EVT-01**: A multi-outcome event groups N independent binary (YES/NO) markets under one event entity (`market_groups` + nullable `Market.group_id`), without changing the binary market or settlement model.
 - [ ] **EVT-02**: Player sees an event detail page rendering each outcome as an independent row with its own YES price/odds — never as a single distribution summing to 100%.
 - [ ] **EVT-03**: Player can place a bet on a single outcome of an event, reusing the existing bet path on the constituent binary market.
 - [ ] **EVT-04**: Player sees a multi-outcome event card in the catalog (top 2–4 outcomes + %, "+N more"), visually distinct from the binary market card.
@@ -94,7 +94,7 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| EVT-01 | Phase 13 (Model) | Pending |
+| EVT-01 | Phase 13 (Model) | Complete |
 | EVT-02 | Phase 17 (UI) | Pending |
 | EVT-03 | Phase 17 (UI) | Pending |
 | EVT-04 | Phase 17 (UI) | Pending |

@@ -29,7 +29,12 @@ from app.core.audit.models import AuditLog  # noqa: F401
 from app.core.config import Settings
 from app.core.feature_flags.models import FeatureFlag  # noqa: F401
 from app.db.base import Base
-from app.markets.models import Market, OddsSnapshot, Outcome  # noqa: F401  (Plan 04-01)
+from app.markets.models import (  # noqa: F401  (Plan 04-01; MarketGroup Plan 13-01)
+    Market,
+    MarketGroup,
+    OddsSnapshot,
+    Outcome,
+)
 from app.wallet.models import Account, Entry, Transfer  # noqa: F401  (Plan 03-01)
 
 config = context.config

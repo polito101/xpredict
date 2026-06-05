@@ -50,7 +50,7 @@
 
 **Build sequence (strict dependency chain — schema gates everything):** Model → Sync → Settlement → API → UI → Seed. Phase 13's migration `0011_phase13_market_groups` must exist before any code writes `market_groups` / reads `group_id`; API (16) before UI (17); Seed (18) last as the end-to-end integration harness.
 
-- [ ] **Phase 13: Multi-outcome Model & Catalog Indexes** — `market_groups` table + nullable `Market.group_id`/`group_item_title` + all catalog indexes (`pg_trgm` GIN + `odds_snapshots` composite) in migration 0011; pure additive schema seam, zero behavior change.
+- [x] **Phase 13: Multi-outcome Model & Catalog Indexes** — `market_groups` table + nullable `Market.group_id`/`group_item_title` + all catalog indexes (`pg_trgm` GIN + `odds_snapshots` composite) in migration 0011; pure additive schema seam, zero behavior change. *(verified 2026-06-05 — PR open)*
 - [ ] **Phase 14: Curated Per-Category Gamma Sync** — Gamma `/events` ingestion replaces the top-25-global poll; top-N-per-category with volume floor, ~7-tag allow-list, dedup, keep-last-good resilience; finally populates `Market.category` on mirrored rows.
 - [ ] **Phase 15: Event Settlement (House Resolve/Void + Mirrored Verify)** — `EventService` resolve-as-a-loop over the existing `SettlementService` per child; void = all-children-NO; reverse via compensating ledger; derived event status; mirrored children auto-settle via existing UMA detection (verify, no new code).
 - [ ] **Phase 16: Catalog & Event API + House Event CRUD** — `CatalogService.browse()` (ILIKE + category + status + sort + bounded LIMIT) and event/category/admin-event endpoints; house event create/edit; explicit empty/zero states; `/markets` kept for back-compat.
@@ -68,7 +68,9 @@
   2. An existing standalone (`group_id IS NULL`) binary market is read, bet on, and settled exactly as before the migration — zero behavior change.
   3. The migration enables `pg_trgm` (`CREATE EXTENSION IF NOT EXISTS pg_trgm`) and creates the GIN trigram indexes on `market_groups.title` and `markets.question`, the `market_groups` partial-unique `(source, source_event_id) WHERE source_event_id IS NOT NULL`, the `(category)` and `(status, volume_24hr)` indexes, and the `odds_snapshots (outcome_id, snapshot_at)` composite index.
   4. The `MarketGroup` ORM model and its `MarketGroup ↔ Market` relationship load via the async session and round-trip a parent group with ≥2 children.
-**Plans**: TBD
+**Plans**: 2 plans
+- [x] 13-01-PLAN.md — Schema + ORM: reversible migration `0011_phase13_market_groups` (table + 2 nullable Market columns + pg_trgm + all 6 indexes) and the `MarketGroup` ORM model + `Market.group` seam
+- [x] 13-02-PLAN.md — Tests: NEW `test_migration_0011.py` (apply/reversibility/chain/pg_trgm/6 indexes) + extend `test_models.py` (MarketGroup round-trip, `lazy="raise"`, `group_id IS NULL` regression)
 
 ### Phase 14: Curated Per-Category Gamma Sync
 **Goal**: A sync cycle ingests Polymarket via Gamma `/events` and lands a curated, per-category catalog (mirrored events grouped, children stamped, categories populated) instead of the flat top-25 — resiliently and without ever blanking the catalog.
@@ -137,7 +139,7 @@
 |-------|-----------|----------------|--------|-----------|
 | 1-12. v1.0 MVP | v1.0 | 44/44 | ✅ Complete | 2026-06-04 |
 | A-E. Demo Polish | v1.1 | — | ✅ Complete | 2026-06-04 |
-| 13. Multi-outcome Model & Catalog Indexes | v1.2 | 0/TBD | Not started | - |
+| 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 0/TBD | Not started | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/TBD | Not started | - |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |

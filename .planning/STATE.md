@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: planning
-last_updated: "2026-06-04T18:35:21.319Z"
-last_activity: 2026-06-04
+status: in_progress
+last_updated: "2026-06-05T12:00:00.000Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 17
 ---
 
 # Project State
@@ -21,16 +21,18 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** v1.2 Credible Catalog — roadmap created (6 phases, 13-18); Phase 13 (Multi-outcome Model & Catalog Indexes) ready to plan.
+**Current focus:** Phase 13 verified ✅ — PR open for Pol's review; next is Phase 14 (Curated Per-Category Gamma Sync).
 
 ## Current Position
 
-Phase: 13 of 18 (Multi-outcome Model & Catalog Indexes) — first v1.2 phase
-Plan: — (none yet)
-Status: Ready to plan
-Last activity: 2026-06-04 — v1.2 roadmap created; 29/29 P1 requirements mapped to Phases 13-18, 0 unmapped
+Phase: 13 (Multi-outcome Model & Catalog Indexes) — ✅ COMPLETE (verified)
+Plan: 2 of 2 (both complete)
+Status: VERIFICATION PASSED (4/4 must-haves). PR ready for Pol on branch `gsd/phase-13-multi-outcome-model-catalog-indexes`. Next: Phase 14.
+Last activity: 2026-06-05
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
+
+> Note: a single full `uv run pytest` flakes on this Windows host under testcontainers connection contention (cascading sqlalchemy errors across unrelated modules). All affected modules pass in isolation (markets 117 + bets/settlement 92 + wallet/polymarket/markets-service-models-protocol 114 = 323 green). Pre-existing infra limitation, not a Phase 13 regression — CI should run per-module or cap the pool.
 
 ## Milestones Shipped
 
@@ -61,6 +63,13 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-04 — v1.0/v1.1 reconciliation & milestone close.
-Stopped at: Milestones archived and closed; ready to scope v2.0.
+Last session: 2026-06-05T10:09:29.678Z
+Stopped at: Completed 13-02-PLAN.md (Wave 2 tests). Phase 13 both plans done — markets 117 green, bets+settlement 92 green (SC#2), money-lint clean. Ready for /gsd-verify-work.
 Resume file: None
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 13 P13-01 | 8min | 2 tasks | 5 files |
+| Phase 13 P13-02 | ~10min | 2 tasks | 2 files (test_migration_0011.py +349, test_models.py +137) |
