@@ -249,3 +249,15 @@ async def test_public_get_resolved_market_returns_200_with_resolution(
         assert body["resolved_at"] is not None
     finally:
         await _cleanup_admin(engine)
+
+
+async def test_public_markets_backcompat_flat_list(engine: AsyncEngine) -> None:
+    """Back-compat (Phase 16 wiring, T-16-16): GET /api/v1/markets still returns a flat
+    ``list[MarketListItem]`` after the new catalog + event-admin routers were registered
+    in ``main.py``. Registering the new surfaces must not change the legacy contract — an
+    empty markets table returns ``200`` + ``[]`` (still a list), never a paginated object.
+    """
+    async with await _client() as c:
+        resp = await c.get("/api/v1/markets")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
