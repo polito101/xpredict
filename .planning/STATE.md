@@ -21,13 +21,13 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 14 (Curated Per-Category Gamma Sync) ✅ EXECUTED + verified (11/11 must-haves) → **PR #28 OPEN**, pending Pol's review/merge. Phase 13 (#25), CI-fix (#26), docs (#27) all MERGED. Next after #28 merges: Phase 15 (Event Settlement).
+**Current focus:** Phase 14 (Curated Per-Category Gamma Sync) ✅ EXECUTED + verified (11/11) + hardened (final 4-lens audit) + **backend CI GREEN** → **PR #28 OPEN + MERGEABLE**, pending ONLY Pol's review/merge. Engineering-complete; no code work remains in Phase-14 scope. Phase 13 (#25), CI-fix (#26), docs (#27) all MERGED. Next after #28 merges: Phase 15 (Event Settlement).
 
 ## Current Position
 
 Phase: 14 (Curated Per-Category Gamma Sync) — ✅ EXECUTED + verified · **PR #28 OPEN** (pending Pol's merge)
 Plan: 4 of 4 complete (parsers+config · fetch_events · adapter sync_events + market_groups writer · poll_polymarket_events curation loop + beat swap)
-Status: VERIFICATION 11/11 must-haves (human_needed: 2 post-deploy checks — redbeat restart + tag drift). Code review found + fixed 2 blockers (CR-01/CR-02); a final 4-lens hardening audit on PR #28 then addressed NaN-volume floor, blank-conditionId dedup, lock-TTL, and dead-code. `origin/main` (#25/#26/#27) merged into the branch (clean). Only Pol merges #28. Next: Phase 15.
+Status: VERIFICATION 11/11 must-haves (human_needed: 2 post-deploy checks — redbeat restart + tag drift). Code review found + fixed 2 blockers (CR-01/CR-02); a final 4-lens hardening audit on PR #28 then addressed NaN-volume floor, blank-conditionId dedup, lock-TTL, and dead-code (see `14-AUDIT.md`). `origin/main` (#25/#26/#27) merged into the branch (clean). **backend CI GREEN (full Linux suite + ruff + mypy, all checks pass); PR #28 MERGEABLE.** Only Pol merges #28. Next: Phase 15.
 Last activity: 2026-06-05
 
 Progress: [██████████] 100%
