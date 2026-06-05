@@ -114,3 +114,58 @@ class EventDetailResponse(BaseModel):
     source: str
     deadline: datetime | None
     outcomes: list[EventChildRead]
+
+
+# --------------------------------------------------------------------------- #
+# Settle surface (EVA-03..05 over HTTP) — resolve / void / reverse with the
+# stateless two-step confirm. ``confirm: false`` (or absent) -> non-mutating
+# preview; ``confirm: true`` -> execute via the Phase-15 ``EventService``.
+# --------------------------------------------------------------------------- #
+class ResolveEventRequest(BaseModel):
+    """Body for ``POST /admin/events/{group_id}/resolve``."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    winning_outcome_id: UUID
+    justification: str = Field(min_length=1, description="Mandatory resolution justification.")
+    confirm: bool = False
+
+
+class VoidEventRequest(BaseModel):
+    """Body for ``POST /admin/events/{group_id}/void`` (every child settles on NO)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    justification: str = Field(min_length=1, description="Mandatory void justification.")
+    confirm: bool = False
+
+
+class ReverseEventRequest(BaseModel):
+    """Body for ``POST /admin/events/{group_id}/reverse`` (compensating reversal)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    justification: str = Field(min_length=1, description="Mandatory reversal justification.")
+    confirm: bool = False
+
+
+class EventActionResponse(BaseModel):
+    """Unified resolve/void/reverse response — covers BOTH preview and execute.
+
+    Preview (``preview=True``) carries the projected impact (``winners`` / ``losers``
+    for resolve/void, ``settled_children_to_reverse`` for reverse) with no mutation.
+    Execute (``preview=False``) carries the ``EventService`` result counts. Both carry
+    the ``projected_status`` the event lands in.
+    """
+
+    preview: bool
+    group_id: UUID
+    child_count: int
+    # preview-branch projection (None on the execute branch)
+    winners: int | None = None
+    losers: int | None = None
+    settled_children_to_reverse: int | None = None
+    # execute-branch result (None on the preview branch)
+    children_settled: int | None = None
+    children_failed: list[str] | None = None
+    projected_status: str
