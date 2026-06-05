@@ -21,18 +21,18 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 13 verified ✅ — PR open for Pol's review; next is Phase 14 (Curated Per-Category Gamma Sync).
+**Current focus:** Phase 13 ✅ MERGED to main (PR #25, 2026-06-05). Backend-CI-green follow-up PR #26 open (awaiting Pol's merge). Next: Phase 14 (Curated Per-Category Gamma Sync) — see HANDOFF.md before starting.
 
 ## Current Position
 
-Phase: 13 (Multi-outcome Model & Catalog Indexes) — ✅ COMPLETE (verified)
+Phase: 13 (Multi-outcome Model & Catalog Indexes) — ✅ COMPLETE · MERGED (PR #25)
 Plan: 2 of 2 (both complete)
-Status: VERIFICATION PASSED (4/4 must-haves). PR ready for Pol on branch `gsd/phase-13-multi-outcome-model-catalog-indexes`. Next: Phase 14.
+Status: VERIFICATION PASSED (4/4 must-haves); merged to main via PR #25 (2026-06-05). Follow-up CI-green PR #26 (F821 + ruff-format) OPEN — all checks green, BLOCKED on Pol's review. Next: Phase 14.
 Last activity: 2026-06-05
 
 Progress: [██████████] 100%
 
-> Note: a single full `uv run pytest` flakes on this Windows host under testcontainers connection contention (cascading sqlalchemy errors across unrelated modules). All affected modules pass in isolation (markets 117 + bets/settlement 92 + wallet/polymarket/markets-service-models-protocol 114 = 323 green). Pre-existing infra limitation, not a Phase 13 regression — CI should run per-module or cap the pool.
+> Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
 ## Milestones Shipped
 
