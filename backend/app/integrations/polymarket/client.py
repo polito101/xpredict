@@ -4,8 +4,10 @@ Wraps ``httpx.AsyncClient`` with lazy singleton pattern and ``tenacity``
 retry on transient errors (network, timeout). Connection pool is bounded
 to prevent resource exhaustion (T-06-02).
 
-No auth required — Gamma API is public. Rate limit is 300 req/10s
-(verified: docs.polymarket.com); our top-25 poll fires ~2 req/min.
+No auth required — Gamma API is public. Rate limits differ per endpoint:
+``/markets`` is 300 req/10s, ``/events`` is 500 req/10s
+(verified: docs.polymarket.com). Our top-25 poll fires ~2 req/min and the
+curated per-category events poll fires ~7 req / 5 min — both far under budget.
 """
 
 from __future__ import annotations
@@ -70,6 +72,50 @@ class GammaClient:
         log.info(
             "gamma.fetch_top_markets",
             market_count=len(data) if isinstance(data, list) else 0,
+            limit=limit,
+        )
+        return data
+
+    @retry(
+        retry=retry_if_exception_type((httpx.NetworkError, httpx.TimeoutException)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential_jitter(initial=1, max=10, jitter=2),
+        reraise=True,
+    )
+    async def fetch_events(
+        self,
+        *,
+        tag_id: str,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> list[dict[str, object]]:
+        """Fetch a page of curated events for one category (CAT-01).
+
+        Single ranked ``GET /events`` filtered by ``tag_id`` and sorted by
+        24h volume (descending). ``limit`` is hard-capped at 500 — the Gamma
+        ceiling (CAT-05) — regardless of caller input, so the client can never
+        flood the API (T-14-06). ``offset`` is exposed so the curation loop
+        (14-04) can page with a short-page stop.
+        """
+        client = self._get_client()
+        resp = await client.get(
+            "/events",
+            params={
+                "active": "true",
+                "closed": "false",
+                "tag_id": tag_id,
+                "order": "volume24hr",
+                "ascending": "false",
+                "limit": str(min(limit, 500)),  # CAT-05 hard cap
+                "offset": str(offset),
+            },
+        )
+        resp.raise_for_status()
+        data: list[dict[str, object]] = resp.json()
+        log.info(
+            "gamma.fetch_events",
+            tag_id=tag_id,
+            event_count=len(data) if isinstance(data, list) else 0,
             limit=limit,
         )
         return data
