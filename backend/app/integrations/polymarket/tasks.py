@@ -31,7 +31,7 @@ from app.celery_app import celery_app
 from app.core.config import get_settings
 from app.integrations.polymarket.adapter import PolymarketAdapter, _map_winning_outcome_id
 from app.integrations.polymarket.client import GammaClient
-from app.integrations.polymarket.schemas import GammaMarket
+from app.integrations.polymarket.schemas import GammaEvent, GammaMarket, resolve_category
 from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, OddsSnapshot
 from app.realtime.publisher import publish_odds_change_async
@@ -40,6 +40,10 @@ log = structlog.get_logger()
 
 LOCK_KEY = "xpredict:poll:polymarket:lock"
 DETECT_LOCK_KEY = "xpredict:detect:polymarket:lock"
+# Distinct lock for the curated per-category events poll (Phase 14, WR-05). NEVER
+# reuse LOCK_KEY/DETECT_LOCK_KEY — the events poll fires on its own 5-min tick and
+# must not block (or be blocked by) the 30s top-25 poll or the 60s detector.
+EVENTS_LOCK_KEY = "xpredict:poll:events:lock"
 
 # Compare-and-delete: only delete the lock if WE still own it (WR-05). An
 # unconditional ``delete`` lets a slow task that has already lost the lock
@@ -77,6 +81,32 @@ async def release_poll_lock(redis: AioRedis, token: str) -> None:
     # (shared sync/async signature); the async client always returns an awaitable
     # at runtime, so the await is correct — the union is a stub limitation.
     await redis.eval(_RELEASE_LOCK_LUA, 1, LOCK_KEY, token)  # type: ignore[misc]
+
+
+async def acquire_events_lock(redis: AioRedis) -> str | None:
+    """Acquire the curated-events poll lock (T-14-13) — distinct from the poll lock.
+
+    Mirrors ``acquire_poll_lock`` (SETNX owner-token, WR-05) but on
+    ``EVENTS_LOCK_KEY`` with TTL = POLYMARKET_EVENTS_LOCK_TTL_SECONDS (default
+    280s < the 300s events tick), so a crashed events poll auto-releases before
+    the next scheduled run. Returns the ownership token on success, else ``None``.
+    """
+    settings = get_settings()
+    ttl = settings.POLYMARKET_EVENTS_LOCK_TTL_SECONDS
+    token = uuid.uuid4().hex
+    acquired = await redis.set(EVENTS_LOCK_KEY, token, nx=True, ex=ttl)
+    return token if acquired else None
+
+
+async def release_events_lock(redis: AioRedis, token: str) -> None:
+    """Release the events poll lock — only if THIS task still owns it (WR-05).
+
+    Compare-and-delete via the shared ``_RELEASE_LOCK_LUA`` keyed on
+    ``EVENTS_LOCK_KEY`` so a task whose lock already expired (and was re-acquired
+    by another task) cannot delete the new owner's lock.
+    """
+    # See release_poll_lock for the eval stub-typing note.
+    await redis.eval(_RELEASE_LOCK_LUA, 1, EVENTS_LOCK_KEY, token)  # type: ignore[misc]
 
 
 async def _run_poll_sync(
@@ -142,6 +172,145 @@ async def _run_poll_sync(
     finally:
         await release_poll_lock(redis, lock_token)
         await client.close()
+        if redis_override is None:
+            await redis.aclose()
+
+
+async def _run_poll_events(
+    *,
+    redis_override: AioRedis | None = None,
+    session_override: AsyncSession | None = None,
+) -> None:
+    """Async logic for poll_polymarket_events — the curated per-category sync loop.
+
+    Loops ``POLYMARKET_CATEGORIES`` in PRIORITY ORDER (CAT-03). Per category:
+    fetch ``/events`` by ``tag_id`` (volume-ranked), parse to ``GammaEvent``
+    (skipping ``ValidationError`` elements), dedup by event id against a
+    cycle-level ``seen_event_ids`` set (first-by-priority — a higher-priority
+    category already took the event; CAT-02 + Pitfall 4), apply the
+    ``POLYMARKET_VOLUME_FLOOR`` on ``volume_24hr_decimal`` AFTER dedup (CAT-02),
+    take the first ``POLYMARKET_EVENTS_TOP_N``, then ``sync_events`` + COMMIT for
+    THAT category. Each category is wrapped in its own try/except: on any failure
+    it is logged, rolled back, and skipped — the other categories still sync and
+    the failed category keeps its last-good committed rows (CAT-05; the catalog
+    is never blanked because the sync only upserts, never deletes).
+
+    A distinct ``EVENTS_LOCK_KEY`` SETNX owner-token lock prevents overlapping
+    cycles (T-14-13). Testable via injected ``redis_override`` / ``session_override``.
+    """
+    from pydantic import ValidationError
+
+    settings = get_settings()
+    floor = settings.POLYMARKET_VOLUME_FLOOR
+    top_n = settings.POLYMARKET_EVENTS_TOP_N
+
+    # Redis connection — use override for tests, else create from URL.
+    redis: AioRedis
+    if redis_override is not None:
+        redis = redis_override
+    else:
+        redis = AioRedis.from_url(str(settings.REDIS_URL))
+
+    lock_token = await acquire_events_lock(redis)
+    if lock_token is None:
+        log.info("poll_events_skipped", reason="lock_held")
+        if redis_override is None:
+            await redis.aclose()
+        return
+
+    client = GammaClient()
+    session: AsyncSession | None = None
+    try:
+        # Get an async session — use override for tests, else create from factory.
+        if session_override is not None:
+            session = session_override
+        else:
+            from app.db.session import _get_session_maker
+
+            session_maker = _get_session_maker()
+            session = session_maker()
+
+        adapter = PolymarketAdapter()
+        # Cycle-level event-id dedup set — gives first-by-priority across
+        # categories (an event taken by a higher-priority category is skipped
+        # when a lower-priority category surfaces the same id; Pitfall 4).
+        seen_event_ids: set[str] = set()
+
+        for entry in settings.POLYMARKET_CATEGORIES:  # priority order (CAT-03)
+            try:
+                raw_events = await client.fetch_events(tag_id=entry.tag_id, limit=top_n)
+
+                # Parse, skipping malformed elements (T-14-12 — a poisoned element
+                # must not crash the cycle).
+                parsed: list[GammaEvent] = []
+                for raw in raw_events:
+                    try:
+                        parsed.append(GammaEvent.model_validate(raw))
+                    except ValidationError:
+                        log.warning("poll_events.parse_failed", category=entry.name)
+                        continue
+
+                # Dedup by event id across the cycle BEFORE the floor (CAT-02 /
+                # Pitfall 4 — avoids cross-category volume double-count inflating a
+                # borderline event over the floor). This skip IS first-by-priority.
+                deduped: list[GammaEvent] = []
+                for event in parsed:
+                    if event.id in seen_event_ids:
+                        continue
+                    seen_event_ids.add(event.id)
+                    # Drift logging on unmapped tags (CAT-03 — logged, never auto-added).
+                    resolve_category(event, settings.POLYMARKET_CATEGORIES)
+                    deduped.append(event)
+
+                # Volume floor AFTER dedup, then top-N (CAT-02).
+                floored = [e for e in deduped if e.volume_24hr_decimal >= floor]
+                curated = floored[:top_n]
+
+                # CAT-06: never persist an empty category — sync_events is only
+                # called with a non-empty curated list (empty-category suppression
+                # is a Phase-16 read concern, not a write).
+                if not curated:
+                    log.info("poll_events.category_empty", category=entry.name)
+                    continue
+
+                synced = await adapter.sync_events(session, curated, category=entry.name)
+                await session.commit()  # commit THIS category (CAT-05 keep-last-good)
+                log.info(
+                    "poll_events.category_synced",
+                    category=entry.name,
+                    event_count=len(curated),
+                    market_count=synced,
+                )
+
+                # Real-time publish (POST-COMMIT, per-market, on-change only) —
+                # mirrors _run_poll_sync. A Redis hiccup must never fail the poll.
+                for market_id, deltas in adapter.changed_markets:
+                    try:
+                        await publish_odds_change_async(redis, market_id, deltas)
+                    except Exception as pub_exc:
+                        log.warning(
+                            "realtime.publish_failed",
+                            market_id=market_id,
+                            error=str(pub_exc),
+                        )
+            except Exception as exc:
+                # Keep-last-good per category (CAT-05 / T-14-12): one category's
+                # Gamma 5xx / poisoned payload is logged + rolled back + skipped;
+                # the other categories still sync and this category retains its
+                # previously-committed rows (the sync never deletes).
+                log.warning("poll_events.category_failed", category=entry.name, error=str(exc))
+                sentry_sdk.capture_exception(exc)
+                if session is not None:
+                    with contextlib.suppress(Exception):
+                        await session.rollback()
+                continue
+    finally:
+        # Release the events lock + close client/redis exactly once (WR-04/WR-05).
+        await release_events_lock(redis, lock_token)
+        await client.close()
+        if session is not None and session_override is None:
+            with contextlib.suppress(Exception):
+                await session.close()
         if redis_override is None:
             await redis.aclose()
 
@@ -340,8 +509,19 @@ async def _run_detect_resolutions(
 
 @celery_app.task(name="app.integrations.polymarket.tasks.poll_polymarket_top25")  # type: ignore[untyped-decorator]
 def poll_polymarket_top25() -> None:
-    """Celery task wrapping _run_poll_sync in asyncio.run."""
+    """Celery task wrapping _run_poll_sync in asyncio.run.
+
+    Kept importable + registered for back-compat (Phase 14 dropped it from the
+    beat schedule in favour of poll_polymarket_events, but the task itself stays
+    so a lingering redbeat key is a harmless no-op until beat restarts).
+    """
     asyncio.run(_run_poll_sync())
+
+
+@celery_app.task(name="app.integrations.polymarket.tasks.poll_polymarket_events")  # type: ignore[untyped-decorator]
+def poll_polymarket_events() -> None:
+    """Beat task: curated per-category Gamma /events sync every 300s (Phase 14)."""
+    asyncio.run(_run_poll_events())
 
 
 @celery_app.task(name="app.integrations.polymarket.tasks.snapshot_odds")  # type: ignore[untyped-decorator]
