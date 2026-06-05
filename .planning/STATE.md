@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: verifying
-last_updated: "2026-06-05T17:46:37.577Z"
-last_activity: 2026-06-05
+status: completed
+stopped_at: "Completed 15-03-PLAN.md (reverse_event EVA-05 + mirrored verify EVA-06). Phase 15 event-settlement layer COMPLETE (resolve/void/reverse + derived status + mirrored verify; all 3 plans done, 72 settlement tests green, spike-004 drift_count==0 on every path). Next: /gsd-verify-work for Phase 15."
+last_updated: "2026-06-05T18:08:19.901Z"
+last_activity: 2026-06-05 -- Phase 15 marked complete
 progress:
   total_phases: 6
   completed_phases: 3
@@ -25,10 +26,10 @@ Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model �
 
 ## Current Position
 
-Phase: 15 (Event Settlement (House Resolve/Void + Mirrored Verify)) — EXECUTING
+Phase: 15 — COMPLETE
 Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-05
+Status: Phase 15 complete
+Last activity: 2026-06-05 -- Phase 15 marked complete
 
 Progress: [██████████] 100%
 
