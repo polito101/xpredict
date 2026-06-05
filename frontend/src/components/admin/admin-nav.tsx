@@ -26,6 +26,7 @@ const LINKS: { href: string; label: string; exact?: boolean }[] = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/markets", label: "Markets" },
+  { href: "/admin/events", label: "Events" },
   { href: "/admin/audit-log", label: "Audit log" },
   { href: "/admin/branding", label: "Branding" },
 ];
