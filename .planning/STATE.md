@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
 status: executing
-last_updated: "2026-06-05T19:40:30.403Z"
-last_activity: 2026-06-05 -- Phase 16 planning complete
+last_updated: "2026-06-05T20:00:09.686Z"
+last_activity: 2026-06-05
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 14
-  completed_plans: 9
+  completed_plans: 10
   percent: 50
 ---
 
@@ -21,16 +21,16 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 15 — Event Settlement ✅ COMPLETE → PR [#29](https://github.com/polito101/xpredict/pull/29) OPEN, CI 7/7 green, `mergeable=MERGEABLE`, **MERGE READY** (awaiting Pol's review/merge). Next after merge: Phase 16 (Catalog & Event API + House Event CRUD).
+**Current focus:** Phase 16 — Catalog & Event API + House Event CRUD
 
 ## Current Position
 
-Phase: 15 — COMPLETE
-Plan: 3 of 3
+Phase: 16 (Catalog & Event API + House Event CRUD) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-06-05 -- Phase 16 planning complete
+Last activity: 2026-06-05
 
-Progress: [██████████] 100%
+Progress: [███████░░░] 71%
 
 > Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
@@ -63,8 +63,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T17:46:37.568Z
-Stopped at: Completed 15-03-PLAN.md (reverse_event EVA-05 + mirrored verify EVA-06). Phase 15 event-settlement layer COMPLETE (resolve/void/reverse + derived status + mirrored verify; all 3 plans done, 72 settlement tests green, spike-004 drift_count==0 on every path). Next: /gsd-verify-work for Phase 15.
+Last session: 2026-06-05T20:00:09.680Z
+Stopped at: Completed 16-01-PLAN.md (Wave-0 catalog test scaffold: tests/catalog/ package + _factories.py). 2 tasks done (Task 1 = prior commit 86db7a8; Task 2 = 863c08a), BRW-01..05 marked complete, collection-only check clean, _factories import-cleanliness verified. Next: 16-02-PLAN.md (Phase 16 Wave 1).
 Resume file: None
 
 ## Performance Metrics
@@ -76,6 +76,7 @@ Resume file: None
 | Phase 15 P01 | 3min | 2 tasks | 2 files |
 | Phase 15 P02 | 9min | 2 tasks | 2 files |
 | Phase 15 P03 | 15min | 3 tasks | 3 files (event_service.py +140, test_event_service.py +256 reverse, test_event_mirrored.py +482 new) |
+| Phase 16 P01 | ~12min | 2 tasks | 3 files (catalog scaffold: __init__.py, conftest.py, _factories.py +457) |
 
 ## Decisions
 
@@ -86,3 +87,4 @@ Resume file: None
 - [Phase 15]: EventService.reverse_event (EVA-05) loops the UNCHANGED SettlementService.reverse_settlement per already-settled child on a FRESH session, NO winning_outcome_id (finds SETTLED bets by status). Per-child sessions do double duty: 23505-safe AND isolate the CHECK(balance>=0) floor (a winner who spent winnings makes THAT child roll back alone, siblings stay reversed; full reverse reopens all → event derives "open"). Reverse is restore+audit ONLY; re-resolve-after-reverse is a deferred Pitfall-6 gap (settle:{bet_id}:{leg} collides on 23505), flagged in code, no test.
 - [Phase 15]: EVA-06 is VERIFY-ONLY — backend/app/integrations/polymarket/tasks.py has NO diff. test_event_mirrored.py drives the UNCHANGED _run_detect_resolutions over a source=POLYMARKET market_group's children via its session_override/redis_override seam (settle with zero new code) + asserts reverse_event rejects mirrored. A grace-PRIMER market (uma_resolved_at NULL, committed first) grace-starts+commits in the detect loop to clear the candidate-SELECT read tx so each child's resolve_market opens its own begin() on a real session_override (a real session forbids begin() while a read tx is open — reproduces a real mixed-stage 60s tick); AsyncMock detect-lock (in-repo fakeredis lacks Lua eval).
 - [Phase 15]: Phase 15 event-settlement layer COMPLETE — resolve + void + reverse + derived status + mirrored verify, all with spike-004 drift_count==0 on every path; all 3 EventService mutations reject source=POLYMARKET groups (mirrored settles ONLY via the unchanged UMA detect path).
+- [Phase 16]: Wave-0 catalog test scaffold (16-01) — tests/catalog/ package; conftest inherits the parent engine/async_session fixtures and adds only the api ASGITransport client + autouse testcontainer/override fixtures. _factories.py exposes make_market, make_event (MarketGroup + N binary YES/NO children), place_bet_on_child, resolve_child + per-state drivers (open/partial/resolved/void), and _Admin/admin_override/seed_admin. place_bet_on_child funds a LEDGER-BACKED wallet via WalletService.recharge on a FRESH committed session then writes the Bet on the caller session (Pitfall 5: recharge owns its own begin()+commit, can't run on the rolled-back async_session fixture). Per-state drivers mutate child status + winning_outcome_id directly (the plan's allowed non-financial state setup) consistent with derive_event_status; all money/odds are Decimal; children are binary YES/NO only (trg_binary_outcomes_only never trips).

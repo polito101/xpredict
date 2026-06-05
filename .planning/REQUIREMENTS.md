@@ -31,11 +31,11 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 
 ### Browse & Discovery (BRW) — new
 
-- [ ] **BRW-01**: Player can text-search the catalog by event/market title (indexed substring search via `pg_trgm` GIN + ILIKE).
-- [ ] **BRW-02**: Player can browse by category via tabs/chips; empty categories are not rendered.
-- [ ] **BRW-03**: Player can filter the catalog by status (open / closing soon / resolved).
-- [ ] **BRW-04**: Player can sort the catalog by volume / closing soonest / newest.
-- [ ] **BRW-05**: Browse is bounded (curated — no heavy pagination/infinite scroll); every filter combination has an explicit empty/zero state.
+- [x] **BRW-01**: Player can text-search the catalog by event/market title (indexed substring search via `pg_trgm` GIN + ILIKE).
+- [x] **BRW-02**: Player can browse by category via tabs/chips; empty categories are not rendered.
+- [x] **BRW-03**: Player can filter the catalog by status (open / closing soon / resolved).
+- [x] **BRW-04**: Player can sort the catalog by volume / closing soonest / newest.
+- [x] **BRW-05**: Browse is bounded (curated — no heavy pagination/infinite scroll); every filter combination has an explicit empty/zero state.
 - [ ] **BRW-06**: All new catalog / browse / event surfaces respect the operator's white-label branding (`--brand-*`).
 
 ### Admin: Event Operations (EVA) — extends ADM/STL
@@ -107,11 +107,11 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | CAT-04 | Phase 14 (Sync) | Complete |
 | CAT-05 | Phase 14 (Sync) | Complete |
 | CAT-06 | Phase 14 (Sync) | Complete |
-| BRW-01 | Phase 16 (API) | Pending |
-| BRW-02 | Phase 16 (API) | Pending |
-| BRW-03 | Phase 16 (API) | Pending |
-| BRW-04 | Phase 16 (API) | Pending |
-| BRW-05 | Phase 16 (API) | Pending |
+| BRW-01 | Phase 16 (API) | Complete |
+| BRW-02 | Phase 16 (API) | Complete |
+| BRW-03 | Phase 16 (API) | Complete |
+| BRW-04 | Phase 16 (API) | Complete |
+| BRW-05 | Phase 16 (API) | Complete |
 | BRW-06 | Phase 17 (UI) | Pending |
 | EVA-01 | Phase 16 (API) | Pending |
 | EVA-02 | Phase 16 (API) | Pending |
