@@ -15,7 +15,7 @@ injected resolver), so every child MUST exist as a real ``markets`` row — ``_s
 builds a ``market_groups`` row + N HOUSE child markets (each with a ``"YES"``/``"NO"`` outcome) +
 placed bets (no house-event seed exists pre-Phase-18).
 
-Covered (EVA-03 / EVA-04 / EVA-06 + EVT-06 projection):
+Covered (EVA-03 / EVA-04 / EVA-05 / EVA-06 + EVT-06 projection):
   - resolve happy path: winner child paid, loser children swept, every liability drained, bets flip,
     spike-004 ``drift_count == 0``.
   - idempotent replay (the 23505 dangling-tx canary): a second ``resolve_event`` over the same group
@@ -24,11 +24,16 @@ Covered (EVA-03 / EVA-04 / EVA-06 + EVT-06 projection):
     ``drift_count == 0``.
   - partial failure: one child's settle raises -> settled siblings intact, failed child surfaced,
     event derives ``partially_resolved``; re-run finishes (no double-credit); ``drift_count == 0``.
+  - reverse (Plan 03, EVA-05): loop ``reverse_settlement`` per settled child on a fresh session ->
+    pre-settlement balances restored, bets flip SETTLED->PENDING, children reopen (CLOSED), event
+    derives back to ``open``; idempotent re-reverse a no-op; a winner who spent winnings makes THAT
+    child's reverse roll back alone (per-child ``CHECK(balance>=0)`` floor) while siblings reverse;
+    one ``event.reversed`` audit row; ``drift_count == 0`` on every reverse / partial-reverse path.
   - mirrored (source=POLYMARKET) reject -> raises.
   - blank/whitespace justification -> raises.
 
 NOT covered (deliberately — the deferred Pitfall-6 gap): resolve -> reverse -> RE-resolve. Reverse
-lives in Plan 03 and is scoped to restore + audit only.
+is scoped to restore + audit only (the ``settle:{bet_id}:{leg}`` keys would collide on 23505).
 """
 
 from __future__ import annotations
@@ -676,3 +681,250 @@ async def test_resolve_event_loser_child_settled_on_no_outcome() -> None:
         ).scalar_one()
     assert no_label == "NO"
     await _assert_ledger_clean()
+
+
+# --------------------------------------------------------------------------- #
+# EVA-05 — reverse loops SettlementService.reverse_settlement per already-settled
+# child on a fresh session: restore pre-settlement state / idempotent / per-child
+# balance floor / audit. Every path ends with the spike-004 drift_count == 0 gate.
+# Reverse is "restore + audit" ONLY — NO resolve->reverse->RE-resolve test (the
+# deferred Pitfall-6 settle:{bet_id}:{leg} idempotency-key collision; out of scope).
+# --------------------------------------------------------------------------- #
+async def _wallet_for_user(user_id: UUID) -> UUID:
+    """The user_wallet account id for ``user_id`` (committed read)."""
+    sm = _get_session_maker()
+    async with sm() as s:
+        return (
+            await s.execute(
+                select(Account.id).where(
+                    Account.owner_type == OWNER_USER,
+                    Account.owner_id == user_id,
+                    Account.kind == KIND_USER_WALLET,
+                    Account.currency == PLAY_USD,
+                )
+            )
+        ).scalar_one()
+
+
+async def _spend_to_house_revenue(user_id: UUID, amount: Decimal) -> None:
+    """Move ``amount`` out of ``user_id``'s wallet to ``house_revenue`` (ledger-backed).
+
+    Simulates a winner who already SPENT their winnings before a reverse: the
+    money leaves the wallet via a real ``WalletService.transfer`` (a balanced
+    double-entry move to the reconciled ``house_revenue`` sink), so clawing the
+    payout back during a reverse would drive the wallet below zero and trip the
+    ``CHECK (balance >= 0)`` floor — while the ledger as a whole stays drift-free.
+    """
+    wallet_id = await _wallet_for_user(user_id)
+    sm = _get_session_maker()
+    async with sm() as s:
+        await WalletService.transfer(
+            s,
+            kind="test_spend",
+            debit_account_id=wallet_id,
+            credit_account_id=HOUSE_REVENUE_ACCOUNT_ID,
+            amount=amount,
+            reason="winner spends winnings before reverse",
+        )
+
+
+async def test_reverse_event_restores_pre_settlement_state() -> None:
+    group_id, children, src = await _seed_house_event(3)
+    winner = children[0]
+    losers = children[1:]
+
+    # Winner child: Alice (YES) wins. loser[0]: Bob (YES) loses + Carol (NO) wins.
+    # loser[1]: Dave (YES) loses.
+    alice, alice_w = await _seed_wallet(Decimal("100.0000"))
+    bob, bob_w = await _seed_wallet(Decimal("100.0000"))
+    carol, carol_w = await _seed_wallet(Decimal("100.0000"))
+    dave, dave_w = await _seed_wallet(Decimal("100.0000"))
+
+    await _place(alice, winner.view, winner.yes_id, Decimal("40.0000"), src)
+    await _place(bob, losers[0].view, losers[0].yes_id, Decimal("40.0000"), src)
+    await _place(carol, losers[0].view, losers[0].no_id, Decimal("60.0000"), src)
+    await _place(dave, losers[1].view, losers[1].yes_id, Decimal("30.0000"), src)
+
+    # Pre-settlement balances (after placement: each wallet debited its stake).
+    alice_pre = await _balance(alice_w)  # 60
+    bob_pre = await _balance(bob_w)  # 60
+    carol_pre = await _balance(carol_w)  # 40
+    dave_pre = await _balance(dave_w)  # 70
+    promo_pre = await _balance(HOUSE_PROMO_ACCOUNT_ID)
+    revenue_pre = await _balance(HOUSE_REVENUE_ACCOUNT_ID)
+
+    await EventService.resolve_event(
+        group_id=group_id,
+        winning_outcome_id=winner.yes_id,
+        justification="resolve before reverse",
+        actor_user_id=uuid4(),
+    )
+    # Sanity: the resolve moved money (so the reverse has something to restore).
+    assert await _balance(alice_w) != alice_pre
+
+    # Reverse the whole event.
+    result = await EventService.reverse_event(
+        group_id=group_id,
+        justification="reverse for test",
+        actor_user_id=uuid4(),
+    )
+
+    assert result.child_count == 3
+    assert result.children_settled == 3  # all three reversed
+    assert result.children_failed == ()
+    assert result.status == "open"  # every child reopened (CLOSED) -> event derives open
+
+    # Every user's balance is restored to its exact pre-settlement value.
+    assert await _balance(alice_w) == alice_pre
+    assert await _balance(bob_w) == bob_pre
+    assert await _balance(carol_w) == carol_pre
+    assert await _balance(dave_w) == dave_pre
+    # House singletons net back to their pre-settlement values (append-only inverse).
+    assert await _balance(HOUSE_PROMO_ACCOUNT_ID) == promo_pre
+    assert await _balance(HOUSE_REVENUE_ACCOUNT_ID) == revenue_pre
+
+    # Every bet flips SETTLED -> PENDING; every child reopens to CLOSED.
+    for user in (alice, bob, carol, dave):
+        assert (await _bets_for_user(user))[0].status == BET_PENDING
+    for child in children:
+        assert await _market_status(child.market_id) == MarketStatus.CLOSED.value
+
+    await _assert_ledger_clean()
+
+
+async def test_reverse_event_is_idempotent() -> None:
+    group_id, children, src = await _seed_house_event(2)
+    winner = children[0]
+    loser = children[1]
+    alice, alice_w = await _seed_wallet(Decimal("100.0000"))  # YES on winner -> wins
+    bob, bob_w = await _seed_wallet(Decimal("100.0000"))  # YES on loser -> loses
+    await _place(alice, winner.view, winner.yes_id, Decimal("40.0000"), src)
+    await _place(bob, loser.view, loser.yes_id, Decimal("50.0000"), src)
+
+    await EventService.resolve_event(
+        group_id=group_id,
+        winning_outcome_id=winner.yes_id,
+        justification="resolve",
+    )
+    await EventService.reverse_event(group_id=group_id, justification="first reverse")
+
+    alice_after_first = await _balance(alice_w)
+    bob_after_first = await _balance(bob_w)
+    promo_after_first = await _balance(HOUSE_PROMO_ACCOUNT_ID)
+    revenue_after_first = await _balance(HOUSE_REVENUE_ACCOUNT_ID)
+
+    # Reverse AGAIN — every child's bets are already PENDING (no SETTLED bets), so the
+    # second pass reverses nothing. The status filter inside reverse_settlement makes
+    # this a true no-op (no double-refund); a same-session 23505 regression raises here.
+    result2 = await EventService.reverse_event(
+        group_id=group_id,
+        justification="idempotent re-reverse",
+    )
+
+    assert result2.children_failed == ()  # nothing failed
+    assert result2.child_count == 2
+    # No SETTLED bets on either child -> reverse_settlement returns 0 per child; no money moved.
+    assert await _balance(alice_w) == alice_after_first
+    assert await _balance(bob_w) == bob_after_first
+    assert await _balance(HOUSE_PROMO_ACCOUNT_ID) == promo_after_first
+    assert await _balance(HOUSE_REVENUE_ACCOUNT_ID) == revenue_after_first
+    # Bets remain PENDING (no double-flip).
+    assert (await _bets_for_user(alice))[0].status == BET_PENDING
+    assert (await _bets_for_user(bob))[0].status == BET_PENDING
+    await _assert_ledger_clean()
+
+
+async def test_reverse_event_per_child_balance_floor() -> None:
+    """A winner who spent winnings makes THAT child's reverse roll back alone (Pitfall 3).
+
+    Per-child fresh sessions (Option A) isolate the ``CHECK (balance >= 0)`` floor: the
+    floor-hit child stays settled and is surfaced in ``children_failed``; sibling
+    children reverse successfully. The ledger stays drift-free throughout.
+    """
+    group_id, children, src = await _seed_house_event(3)
+    winner = children[0]
+    loser_a = children[1]  # a NO winner (Frank) who will SPEND winnings -> floor on reverse
+    loser_b = children[2]
+
+    alice, alice_w = await _seed_wallet(Decimal("100.0000"))  # YES on winner -> wins
+    frank, frank_w = await _seed_wallet(Decimal("100.0000"))  # NO on loser_a -> wins big
+    dave, dave_w = await _seed_wallet(Decimal("100.0000"))  # YES on loser_b -> loses
+
+    await _place(alice, winner.view, winner.yes_id, Decimal("40.0000"), src)
+    await _place(frank, loser_a.view, loser_a.no_id, Decimal("40.0000"), src)
+    await _place(dave, loser_b.view, loser_b.yes_id, Decimal("30.0000"), src)
+
+    alice_pre = await _balance(alice_w)  # 60
+    dave_pre = await _balance(dave_w)  # 70
+
+    await EventService.resolve_event(
+        group_id=group_id,
+        winning_outcome_id=winner.yes_id,
+        justification="resolve before partial reverse",
+    )
+    # loser_a settled NO: Frank paid 40 / 0.5 = 80 -> 60 + 80 = 140.
+    assert await _balance(frank_w) == Decimal("140.0000")
+
+    # Frank SPENDS 120 (his winnings + most of his stake) -> wallet 20. Reversing loser_a
+    # would claw back his 80 payout (stake-return 40 + winnings 40) from a 20 wallet -> floor.
+    await _spend_to_house_revenue(frank, Decimal("120.0000"))
+    assert await _balance(frank_w) == Decimal("20.0000")
+
+    result = await EventService.reverse_event(
+        group_id=group_id,
+        justification="partial reverse — one child hits the floor",
+        actor_user_id=uuid4(),
+    )
+
+    # The floor-hit child is surfaced; its siblings reversed successfully.
+    assert result.children_failed == (loser_a.market_id,)
+    assert result.children_settled == 2
+    # The event is NOT fully open (loser_a is still RESOLVED) -> partially_resolved.
+    assert result.status == "partially_resolved"
+
+    # Sibling children fully restored: winner + loser_b reverse, their bets back to PENDING.
+    assert await _balance(alice_w) == alice_pre
+    assert await _balance(dave_w) == dave_pre
+    assert (await _bets_for_user(alice))[0].status == BET_PENDING
+    assert (await _bets_for_user(dave))[0].status == BET_PENDING
+    assert await _market_status(winner.market_id) == MarketStatus.CLOSED.value
+    assert await _market_status(loser_b.market_id) == MarketStatus.CLOSED.value
+
+    # The floor-hit child rolled back ALONE: it stays RESOLVED and its bet stays SETTLED.
+    assert await _market_status(loser_a.market_id) == MarketStatus.RESOLVED.value
+    assert (await _bets_for_user(frank))[0].status == BET_SETTLED_WON
+    assert await _balance(frank_w) == Decimal("20.0000")  # unchanged by the rolled-back reverse
+
+    # spike-004 integrity holds across the partial reverse (every move was double-entry).
+    await _assert_ledger_clean()
+
+
+async def test_reverse_event_writes_audit() -> None:
+    group_id, children, src = await _seed_house_event(2)
+    winner = children[0]
+    alice, _ = await _seed_wallet(Decimal("100.0000"))
+    await _place(alice, winner.view, winner.yes_id, Decimal("20.0000"), src)
+    admin_id = uuid4()
+
+    await EventService.resolve_event(
+        group_id=group_id,
+        winning_outcome_id=winner.yes_id,
+        justification="resolve before reverse audit",
+    )
+    await EventService.reverse_event(
+        group_id=group_id,
+        justification="reversed for audit test",
+        actor_user_id=admin_id,
+    )
+
+    rows = await _audit_for_group("event.reversed", group_id)
+    assert len(rows) == 1
+    audit = rows[0]
+    assert audit.actor == f"user:{admin_id}"
+    payload = audit.payload
+    assert payload["group_id"] == str(group_id)
+    assert payload["winning_outcome_id"] is None  # reverse carries no winner
+    assert payload["child_count"] == 2
+    assert payload["children_settled"] == 2
+    assert payload["children_failed"] == []
+    assert payload["justification"] == "reversed for audit test"
