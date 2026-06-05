@@ -15,7 +15,7 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MarketDetailLiveOdds } from "@/components/market-detail-live-odds";
@@ -66,15 +66,21 @@ export function EventDetailView({
   const [history, setHistory] = useState<PricePoint[]>(defaultHistory);
   const [selectedMarketId, setSelectedMarketId] = useState(defaultChild.id);
   const [loading, setLoading] = useState(false);
+  // Tracks the most recent selection so a late, out-of-order fetch response from
+  // an earlier selection can't clobber the panel (rapid outcome switching).
+  const latestSelectionRef = useRef(defaultChild.id);
 
   async function select(outcome: EventOutcomeRead) {
     if (outcome.market_id === selectedMarketId) return;
     setSelectedMarketId(outcome.market_id);
+    latestSelectionRef.current = outcome.market_id;
     setLoading(true);
     const [mRes, hRes] = await Promise.allSettled([
       fetchMarket(outcome.child_slug),
       fetchPriceHistory(outcome.child_slug, "7d"),
     ]);
+    // Drop a stale response if the selection moved on while we were fetching.
+    if (latestSelectionRef.current !== outcome.market_id) return;
     if (mRes.status === "fulfilled") {
       setChild(mRes.value);
       setHistory(hRes.status === "fulfilled" ? hRes.value.points : []);

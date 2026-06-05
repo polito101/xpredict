@@ -48,6 +48,11 @@ import { isSessionExpiredError } from "@/components/admin/settlement-dialog-util
 
 const DECIMAL_RE = /^\d*\.?\d+$/;
 
+function isFutureDate(v: string): boolean {
+  const d = new Date(v);
+  return !Number.isNaN(d.getTime()) && d.getTime() > Date.now();
+}
+
 const outcomeSchema = z.object({
   label: z
     .string()
@@ -65,28 +70,44 @@ const outcomeSchema = z.object({
     }, "Enter odds between 0 and 1 (e.g. 0.5)."),
 });
 
-const EventSchema = z.object({
-  title: z
-    .string()
-    .trim()
-    .min(1, "A title is required.")
-    .max(500, "Keep the title under 500 characters."),
-  category: z.string().trim().max(100, "Keep the category under 100 characters."),
-  deadline: z
-    .string()
-    .min(1, "The deadline must be in the future.")
-    .refine((v) => {
-      const d = new Date(v);
-      return !Number.isNaN(d.getTime()) && d.getTime() > Date.now();
-    }, "The deadline must be in the future."),
-  resolution_criteria: z
-    .string()
-    .trim()
-    .max(2000, "Keep the criteria under 2000 characters."),
-  outcomes: z
-    .array(outcomeSchema)
-    .min(2, "An event needs at least 2 outcomes."),
-});
+/**
+ * Deadline is required + future on create. On edit it is prefilled and only sent
+ * when changed, so an empty value is allowed (= no change) and the future rule
+ * applies only to a non-empty value — an untouched, already-set (or past/null)
+ * deadline must not block a metadata-only edit.
+ */
+function makeEventSchema(mode: "create" | "edit") {
+  return z.object({
+    title: z
+      .string()
+      .trim()
+      .min(1, "A title is required.")
+      .max(500, "Keep the title under 500 characters."),
+    category: z
+      .string()
+      .trim()
+      .max(100, "Keep the category under 100 characters."),
+    deadline:
+      mode === "create"
+        ? z
+            .string()
+            .min(1, "The deadline must be in the future.")
+            .refine(isFutureDate, "The deadline must be in the future.")
+        : z
+            .string()
+            .refine(
+              (v) => v === "" || isFutureDate(v),
+              "The deadline must be in the future.",
+            ),
+    resolution_criteria: z
+      .string()
+      .trim()
+      .max(2000, "Keep the criteria under 2000 characters."),
+    outcomes: z
+      .array(outcomeSchema)
+      .min(2, "An event needs at least 2 outcomes."),
+  });
+}
 
 export interface EventFormValues {
   title: string;
@@ -120,8 +141,9 @@ export function EventForm({
   const [submitting, setSubmitting] = React.useState(false);
   const [locked, setLocked] = React.useState(false);
 
+  const schema = React.useMemo(() => makeEventSchema(mode), [mode]);
   const form = useForm<EventFormValues>({
-    resolver: zodResolver(EventSchema),
+    resolver: zodResolver(schema),
     defaultValues: initialValues ?? EMPTY_VALUES,
     mode: "onSubmit",
   });
@@ -156,12 +178,27 @@ export function EventForm({
           created?.slug ? `/admin/events/${created.slug}` : "/admin/events",
         );
       } else {
-        const body: UpdateEventRequest = {
-          title: values.title.trim(),
-          deadline: values.deadline,
-          outcomes,
-          ...(category !== undefined ? { category } : { category: null }),
-        };
+        // Send ONLY the fields the operator actually changed. The backend uses
+        // omit-to-preserve semantics, so sending an unchanged `outcomes` would
+        // needlessly DELETE+rebuild every child (new ids/slugs, orphaned price
+        // history), and an unchanged (possibly past/empty) deadline must not be
+        // re-sent. Clearing the category sends "" (the backend ignores null, so
+        // "" is the real clear).
+        const iv = initialValues ?? EMPTY_VALUES;
+        const body: UpdateEventRequest = {};
+        const nextTitle = values.title.trim();
+        if (nextTitle !== iv.title.trim()) body.title = nextTitle;
+        const nextCategory = values.category.trim();
+        if (nextCategory !== iv.category.trim()) body.category = nextCategory;
+        if (values.deadline !== iv.deadline) body.deadline = values.deadline;
+        const ivOutcomes = JSON.stringify(
+          iv.outcomes.map((o) => ({
+            label: o.label.trim(),
+            initial_odds: o.initial_odds.trim(),
+          })),
+        );
+        if (JSON.stringify(outcomes) !== ivOutcomes) body.outcomes = outcomes;
+
         await updateEvent(groupId as string, body);
         toast.success("Event updated.");
         router.refresh();

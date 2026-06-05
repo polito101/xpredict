@@ -142,7 +142,7 @@ export function VoidEventDialog({
             >
               <p className="font-medium">Projected impact</p>
               <p className="text-zinc-600 dark:text-zinc-400">
-                All {preview.losers ?? preview.child_count} positions settle NO →{" "}
+                All {preview.losers ?? preview.child_count} outcomes settle NO →{" "}
                 {preview.projected_status}
               </p>
             </div>

@@ -41,8 +41,11 @@ export function EventDetailAdminActions({ event }: { event: EventDetail }) {
 
   const isHouse = event.source === "HOUSE";
   const { status } = event;
-  const canResolveOrVoid =
+  const canResolve =
     isHouse && (status === "open" || status === "partially_resolved");
+  // Void (settle every outcome NO) only fits a fully-open event; a
+  // partially-resolved one already has settled children that can't be re-settled.
+  const canVoid = isHouse && status === "open";
   const canReverse =
     isHouse && (status === "resolved" || status === "partially_resolved");
 
@@ -73,9 +76,9 @@ export function EventDetailAdminActions({ event }: { event: EventDetail }) {
 
   return (
     <div className="flex flex-col gap-8">
-      {(canResolveOrVoid || canReverse) && (
+      {(canResolve || canVoid || canReverse) && (
         <div className="flex flex-wrap items-center gap-3">
-          {canResolveOrVoid && (
+          {canResolve && (
             <Button
               type="button"
               variant="destructive"
@@ -84,7 +87,7 @@ export function EventDetailAdminActions({ event }: { event: EventDetail }) {
               Resolve
             </Button>
           )}
-          {canResolveOrVoid && (
+          {canVoid && (
             <Button
               type="button"
               variant="destructive"

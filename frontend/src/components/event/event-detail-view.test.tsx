@@ -150,4 +150,36 @@ describe("<EventDetailView />", () => {
     // this asserts the cap held AND it re-targeted the new child.
     expect(screen.getByTestId("live-odds")).toHaveTextContent("live:m-b");
   });
+
+  it("ignores a stale out-of-order fetch (rapid switching keeps the latest)", async () => {
+    let resolveBob!: (v: MarketDetail) => void;
+    const bobPromise = new Promise<MarketDetail>((r) => {
+      resolveBob = r;
+    });
+    fetchMarketMock.mockImplementation((slug: string) => {
+      if (slug === "who-wins-bob") return bobPromise; // resolves LATE
+      if (slug === "who-wins-carol")
+        return Promise.resolve(childDetail("m-c", "who-wins-carol", "0.20"));
+      return Promise.resolve(defaultChild);
+    });
+    fetchPriceHistoryMock.mockResolvedValue({ window: "7d", points: [] });
+    render(
+      <EventDetailView
+        event={event}
+        defaultChild={defaultChild}
+        defaultHistory={[]}
+        isAuthenticated
+      />,
+    );
+    // Select Bob (its fetch stays pending), then quickly Carol (resolves fast).
+    fireEvent.click(screen.getByRole("button", { name: "Bob, 40% YES" }));
+    fireEvent.click(screen.getByRole("button", { name: "Carol, 20% YES" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("order-form")).toHaveTextContent("order:m-c"),
+    );
+    // Bob's late response must NOT clobber the panel — it is stale.
+    resolveBob(childDetail("m-b", "who-wins-bob", "0.40"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.getByTestId("order-form")).toHaveTextContent("order:m-c");
+  });
 });

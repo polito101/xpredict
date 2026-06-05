@@ -67,7 +67,7 @@ describe("<VoidEventDialog />", () => {
       }),
     );
     await waitFor(() =>
-      expect(screen.getByText(/All 3 positions settle NO/i)).toBeInTheDocument(),
+      expect(screen.getByText(/All 3 outcomes settle NO/i)).toBeInTheDocument(),
     );
 
     voidEvent.mockResolvedValueOnce({

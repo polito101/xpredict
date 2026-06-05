@@ -64,11 +64,11 @@ export function EventCard({ event }: EventCardProps) {
       <CardContent className="p-6 pt-0">
         {/* Each outcome's OWN YES probability on its OWN bar — never summed. */}
         <ul className="flex flex-col gap-2">
-          {shown.map((o: CatalogOutcome) => {
+          {shown.map((o: CatalogOutcome, idx) => {
             const pct = toPct(o.yes_price);
             return (
               <li
-                key={o.yes_outcome_id ?? o.label}
+                key={o.yes_outcome_id ?? `${o.label}-${idx}`}
                 className="flex flex-col gap-1"
               >
                 <div className="flex items-center justify-between gap-2 text-sm">
