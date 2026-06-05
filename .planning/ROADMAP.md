@@ -50,7 +50,7 @@
 
 **Build sequence (strict dependency chain — schema gates everything):** Model → Sync → Settlement → API → UI → Seed. Phase 13's migration `0011_phase13_market_groups` must exist before any code writes `market_groups` / reads `group_id`; API (16) before UI (17); Seed (18) last as the end-to-end integration harness.
 
-- [x] **Phase 13: Multi-outcome Model & Catalog Indexes** — `market_groups` table + nullable `Market.group_id`/`group_item_title` + all catalog indexes (`pg_trgm` GIN + `odds_snapshots` composite) in migration 0011; pure additive schema seam, zero behavior change. *(verified 2026-06-05 — PR open)*
+- [x] **Phase 13: Multi-outcome Model & Catalog Indexes** — `market_groups` table + nullable `Market.group_id`/`group_item_title` + all catalog indexes (`pg_trgm` GIN + `odds_snapshots` composite) in migration 0011; pure additive schema seam, zero behavior change. *(verified + merged 2026-06-05 via PR #25)*
 - [ ] **Phase 14: Curated Per-Category Gamma Sync** — Gamma `/events` ingestion replaces the top-25-global poll; top-N-per-category with volume floor, ~7-tag allow-list, dedup, keep-last-good resilience; finally populates `Market.category` on mirrored rows.
 - [ ] **Phase 15: Event Settlement (House Resolve/Void + Mirrored Verify)** — `EventService` resolve-as-a-loop over the existing `SettlementService` per child; void = all-children-NO; reverse via compensating ledger; derived event status; mirrored children auto-settle via existing UMA detection (verify, no new code).
 - [ ] **Phase 16: Catalog & Event API + House Event CRUD** — `CatalogService.browse()` (ILIKE + category + status + sort + bounded LIMIT) and event/category/admin-event endpoints; house event create/edit; explicit empty/zero states; `/markets` kept for back-compat.
