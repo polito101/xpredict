@@ -106,3 +106,24 @@ class TestGammaClientFetchTopMarkets:
         with pytest.raises(httpx.NetworkError):
             await gamma.fetch_top_markets(1)
         assert mock_client.get.call_count == 3
+
+
+class TestGammaClientFetchEvents:
+    """Tests for fetch_events method (CAT-01 sync via GET /events)."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_events_single_get_to_events(self) -> None:
+        """CAT-01: exactly 1 GET to the /events path, returns the JSON list."""
+        mock_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_client.is_closed = False
+        sample_data = [{"id": str(i), "title": f"E{i}"} for i in range(3)]
+        mock_client.get = AsyncMock(return_value=_make_mock_response(sample_data))
+
+        gamma = GammaClient()
+        gamma._client = mock_client
+
+        result = await gamma.fetch_events(tag_id="2", limit=10)
+        assert len(result) == 3
+        assert mock_client.get.call_count == 1
+        path_arg = mock_client.get.call_args.args[0]
+        assert path_arg == "/events"
