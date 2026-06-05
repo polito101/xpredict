@@ -136,7 +136,7 @@
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 16-04-PLAN.md — Admin resolve/void/reverse HTTP surface (EVA-03..06 endpoints): stateless two-step confirm (preview vs execute) over the Phase-15 `EventService` + the ValueError→HTTP map (mirrored 409 / blank 422 / bad-outcome 422 / missing 404)
+- [x] 16-04-PLAN.md — Admin resolve/void/reverse HTTP surface (EVA-03..06 endpoints): stateless two-step confirm (preview vs execute) over the Phase-15 `EventService` + the ValueError→HTTP map (mirrored 409 / blank 422 / bad-outcome 422 / missing 404)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -185,7 +185,7 @@
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 3/3 | Complete — PR #29, CI green, merge-ready | 2026-06-05 |
-| 16. Catalog & Event API + House Event CRUD | v1.2 | 3/5 | In Progress|  |
+| 16. Catalog & Event API + House Event CRUD | v1.2 | 4/5 | In Progress|  |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
 
