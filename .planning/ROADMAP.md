@@ -131,7 +131,7 @@
 **Wave 1**
 
 - [x] 16-01-PLAN.md — Wave 0 test scaffolding: `tests/catalog/` package (httpx AsyncClient + ASGITransport fixture) + seed factories (markets, multi-state events, ledger-backed bets)
-- [ ] 16-02-PLAN.md — Catalog read API (BRW-01..05): `CatalogService` Approach B (two bounded LIMIT 100 queries merged in Python) + `public_catalog_router` (`/catalog`, `/events/{slug}`, `/categories`) + local pg_trgm search + derived-status mapping
+- [x] 16-02-PLAN.md — Catalog read API (BRW-01..05): `CatalogService` Approach B (two bounded LIMIT 100 queries merged in Python) + `public_catalog_router` (`/catalog`, `/events/{slug}`, `/categories`) + local pg_trgm search + derived-status mapping
 - [ ] 16-03-PLAN.md — Admin house-event create + edit-lock (EVA-01/02): `event_admin_router` POST `/admin/events` (group + N binary YES/NO children) + PATCH edit-lock via EXISTS(bets) → HTTP 423
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -185,7 +185,7 @@
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 3/3 | Complete — PR #29, CI green, merge-ready | 2026-06-05 |
-| 16. Catalog & Event API + House Event CRUD | v1.2 | 1/5 | In Progress|  |
+| 16. Catalog & Event API + House Event CRUD | v1.2 | 2/5 | In Progress|  |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
 
