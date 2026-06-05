@@ -9,6 +9,7 @@
 - ✅ **v1.0 MVP** — Phases 1-12 (shipped 2026-06-04) — production-grade play-money prediction market, end-to-end.
 - ✅ **v1.1 Demo Polish** — Fases A-E (shipped 2026-06-04) — brand-aware design system, seed/demo harness, player & operator polish, demo QA.
 - 📋 **v1.2 Credible Catalog** — Phases 13-18 (planned) — multi-outcome events (event-of-binaries) + curated per-category catalog + browse (search/filters/sort). Play-money, single-tenant; additive schema only.
+- 🔧 **v1.3 Live-Bets demo** — Fases LB-A/B/C (in progress, off-grid) — embed live-bets multi-player betting inside XPredict as operator: unified XPredict wallet, embedded `<live-bets-table>` widget, event-driven idempotent ledger mirror. Demo-only, additive, isolated worktree → PR.
 
 ## Phases
 
@@ -56,6 +57,14 @@
 - [ ] **Phase 16: Catalog & Event API + House Event CRUD** — `CatalogService.browse()` (ILIKE + category + status + sort + bounded LIMIT) and event/category/admin-event endpoints; house event create/edit; explicit empty/zero states; `/markets` kept for back-compat.
 - [ ] **Phase 17: Catalog Browse UI, Event Detail & Admin Event Ops** — Catalog browse island (search + category tabs + status/sort), multi-outcome event card, event detail with independent per-outcome rows/bars + bet-on-one-outcome + per-outcome charts, admin event forms; white-label on every new surface.
 - [ ] **Phase 18: Seed/Demo Harness for Multi-outcome + Categories** — Extend `bin/seed_demo.py`: ≥1 multi-outcome event per category (3-8 outcomes, plausible prices, non-flat history), open + partially-resolved + resolved + void states, filled tabs, pinned featured allow-list; idempotent `demo-reset` with green double-entry integrity check.
+
+### 🔧 v1.3 Live-Bets demo (Fases LB-A/B/C) — IN PROGRESS (off-grid)
+
+> Off the formal phase grid (like v1.1): isolated worktree (`xpredict-livebets`, branch `gsd/livebets-demo` off `main`), landed via PR, `.planning/` reconciled at merge. Plan-of-record: [`milestones/v1.3-MILESTONE-CONTEXT.md`](milestones/v1.3-MILESTONE-CONTEXT.md). Design contract: [`live-bets-integration-design`](../docs/superpowers/specs/2026-06-05-live-bets-integration-design.md).
+
+- [ ] **Fase LB-A: Backend bridge** — `app/integrations/livebets/` (httpx client + `LiveBetsBridge` + router) + additive migration (`livebets_escrow` system account + `livebets_bets` mirror table) + config + backend unit tests. Event-driven idempotent ledger mirror (debit on `bet-placed`, credit on settle), server-verified via `GET /v2/bets/{id}`.
+- [ ] **Fase LB-B: Frontend surface** — `/live` route embedding `<live-bets-table>` in XPredict chrome + wallet; DOM-event wiring to backend; "Live" nav entry; component test.
+- [ ] **Fase LB-C: Demo harness** — live-bets local stack (port remap :8080, CORS :3000, operator key, ingest clips, run orchestrator, pre-fund) + end-to-end manual demo script.
 
 ## Phase Details
 
@@ -143,5 +152,6 @@
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
+| LB-A/B/C. Live-Bets demo (off-grid) | v1.3 | 0/TBD | 🚧 Planning | - |
 
 **Known deferred at v1.0/v1.1 close** (carried into v1.2): 3 human-UAT scenarios + 3 verification gaps from Phase 12, and the **non-deferrable Spanish legal review** of ToS/token policy before any live operator demo (see [`STATE.md`](STATE.md) › Deferred Items).

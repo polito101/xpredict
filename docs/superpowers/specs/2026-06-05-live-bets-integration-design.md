@@ -53,7 +53,7 @@ Browser
 
 - `POST /v2/sessions` — body `{player_ref, table_id, ttl_seconds?}` → `{session_token (JWT, 1h default), expires_at}`. `player_ref` is opaque to live-bets (≤128 chars) → we pass the XPredict user id.
 - `GET /v2/catalog/tables` (scope `catalog:read`) — list tables.
-- `GET /v2/bets/{id}` (scope `bets:read`) — **server-side verification** of a bet's status/stake/payout before moving the ledger. Returns `{bet_id, status: PENDING|WON|LOST|VOID, market_id, side, stake, odds, potential_payout, ...}`.
+- `GET /v2/bets/{id}` (scope `bets:read`) — **server-side verification** of a bet's status/stake/payout before moving the ledger. Returns `{bet_id, status: PENDING|WON|LOST|REFUNDED|VOIDED, market_id, side, stake, odds, potential_payout, ...}`.
 - *(optional backstop)* `PUT /admin/operators/{op_id}/webhook` (scope `webhooks:manage`) — register `{url, signing_kid, status:ACTIVE}`. Webhook events: `bet.settled` / `bet.voided` / `bet.refunded` (**no `bet.placed` webhook exists**). Signing = Svix-style HMAC-SHA256 headers `webhook-id` / `webhook-timestamp` / `webhook-signature` (`v1,<base64(hmac)>`), reject if `|now − ts| > 300s`, dedupe by `webhook-id`.
 
 **Widget (placed by the frontend; the widget itself calls `POST /v2/bets` with the session token):**
@@ -73,7 +73,7 @@ Market types (for reference): `over_under` (`over`/`under`), `between` (`yes`/`n
 - `client.py` — httpx client to live-bets: `mint_session(player_ref, table_id)`, `get_bet(bet_id)`, `list_tables()`. Operator API key + base URL from settings.
 - `service.py` — `LiveBetsBridge`:
   - `record_placed(user, bet_id)` → `get_bet` (assert PENDING + read stake) → post the debit transfer. Idempotent.
-  - `record_settled(user, bet_id)` → `get_bet` (assert WON/LOST/VOID + read payout) → post the credit/loss/refund transfer. Idempotent.
+  - `record_settled(user, bet_id)` → `get_bet` (assert WON/LOST/REFUNDED/VOIDED + read payout) → post the credit/loss/refund transfer. Idempotent.
   - Reuses `WalletService._post_transfer` (the sole double-entry writer, WAL-07) inside a single owned transaction, exactly like `app/bets/service.py` and `app/settlement/service.py` do.
 - `router.py` — FastAPI routes consumed by the frontend (auth: existing player session):
   - `POST /api/live/session` → mint/renew a live-bets session for the current player.
@@ -109,11 +109,11 @@ Event-driven, **verified server-side** against live-bets, **idempotent** by `bet
 |--------|-----------|----------------------------------------|--------------------------------|-------------------|
 | Bet accepted | `live-bets-bet-placed` | status PENDING, read `stake` | `user_wallet → livebets_escrow` (stake) | `livebets:{bet_id}:placed` |
 | Win | `live-bets-result {WON, payout}` | status WON, read `payout` | `livebets_escrow → user_wallet` (stake) **+** `house_promo → user_wallet` (payout − stake) | `livebets:{bet_id}:settled` |
-| Loss | `live-bets-result {LOST}` | status LOST | `livebets_escrow → house_promo` (stake) | `livebets:{bet_id}:settled` |
-| Void / refund | webhook / reconcile | status VOID | `livebets_escrow → user_wallet` (stake) | `livebets:{bet_id}:settled` |
+| Loss | `live-bets-result {LOST}` | status LOST | `livebets_escrow → house_revenue` (stake) | `livebets:{bet_id}:settled` |
+| Refund / void | webhook / reconcile | status REFUNDED/VOIDED | `livebets_escrow → user_wallet` (stake) | `livebets:{bet_id}:settled` |
 
 - The player only ever sees the **XPredict** balance; the live-bets internal paper balance is pre-funded generously and is decorative.
-- **Idempotency:** the `idempotency_key` on `Transfer` makes the DOM event and the optional `bet.settled` webhook converge without ever double-posting. Winnings are funded from `house_promo` exactly as house-market settlement does (so the escrow account nets to zero across placed→settled).
+- **Idempotency:** the `idempotency_key` on `Transfer` makes the DOM event and the optional `bet.settled` webhook converge without ever double-posting (the two-leg WON settle uses distinct `:settled:stake` / `:settled:winnings` keys). Winnings are funded from `house_promo`, and losses sweep to `house_revenue` — exactly as house-market settlement does (so the escrow account nets to zero across placed→settled). **Note:** live-bets' real `BetStatus` enum is `PENDING|WON|LOST|REFUNDED|VOIDED` (there is no `VOID`); both `REFUNDED` and `VOIDED` take the stake-return leg.
 - **Demo-grade caveat (documented):** placement debit is triggered by a client DOM event; the server *verifies* against live-bets before posting, but a controlled demo does not need cross-DB two-phase guarantees. The optional webhook/`GET /events?since=` reconcile closes the "player closed the tab mid-round" gap.
 
 ## 9. live-bets demo setup (prerequisites)
