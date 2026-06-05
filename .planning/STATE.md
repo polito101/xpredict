@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
 status: executing
-last_updated: "2026-06-05T17:02:39.741Z"
+last_updated: "2026-06-05T17:26:15.071Z"
 last_activity: 2026-06-05
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 33
 ---
 
@@ -26,11 +26,11 @@ Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model �
 ## Current Position
 
 Phase: 15 (Event Settlement (House Resolve/Void + Mirrored Verify)) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-05
 
-Progress: [████████░░] 78%
+Progress: [█████████░] 89%
 
 > Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
@@ -63,8 +63,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T17:02:39.735Z
-Stopped at: Completed 15-01-PLAN.md (Wave 1 — EVT-06 derive_event_status pure projection + 8 unit tests GREEN, no Docker)
+Last session: 2026-06-05T17:26:15.061Z
+Stopped at: Completed 15-02-PLAN.md (EventService resolve/void + integration suite; EVA-03/EVA-04 done). Next: 15-03 (reverse_event, EVA-05).
 Resume file: None
 
 ## Performance Metrics
@@ -74,8 +74,11 @@ Resume file: None
 | Phase 13 P13-01 | 8min | 2 tasks | 5 files |
 | Phase 13 P13-02 | ~10min | 2 tasks | 2 files (test_migration_0011.py +349, test_models.py +137) |
 | Phase 15 P01 | 3min | 2 tasks | 2 files |
+| Phase 15 P02 | 9min | 2 tasks | 2 files |
 
 ## Decisions
 
 - [Phase 15]: EVT-06: event status is a derived read-time projection (derive_event_status pure free function over ChildStatus); no stored status/winning_outcome column on market_groups, no migration
 - [Phase 15]: derive_event_status + ChildStatus live module-level in backend/app/settlement/event_service.py (Wave 1 pure layer); Wave 2 EventService resolve/void/reverse class extends the same module
+- [Phase 15]: Phase-15 event resolve/void = loop the UNCHANGED SettlementService per child on a FRESH _get_session_maker() session (Option A); never two self-committing settles in one with/begin() (the 23505 dangling-tx landmine). Idempotency/locks/payouts/per-child audit all inherited.
+- [Phase 15]: EventService integration tests seed LEDGER-BACKED wallets (INSERT at 0 + WalletService.recharge) so the literal spike-004 _reconcile_async drift_count==0 gate is faithful; the older raw-balance test shortcut leaves a phantom non-ledger-backed opening balance the reconciler reports as drift.
