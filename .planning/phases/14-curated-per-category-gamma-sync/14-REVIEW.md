@@ -20,6 +20,11 @@ findings:
   warning: 5
   info: 4
   total: 11
+resolution:
+  status: blockers_resolved
+  fixed_in: ce5833b
+  tests_in: fc18448
+  note: "CR-01 (child SAVEPOINT) + CR-02 (per-category publish reset), both critical, plus WR-04 (slug-retry SAVEPOINT) fixed in ce5833b; bidirectionally-validated regression tests (pass on fix, fail on revert) in fc18448. WR-01 (blank-conditionId dedup edge case) + info items flagged for Pol's review, not blocking."
 status: issues_found
 ---
 
