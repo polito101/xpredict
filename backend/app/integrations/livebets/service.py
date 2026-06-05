@@ -219,89 +219,100 @@ class LiveBetsBridge:
         winnings; LOST = escrow->house_revenue stake; REFUNDED/VOIDED = escrow->wallet
         stake.
         """
-        # 1. VERIFY FIRST (read-only, BEFORE session.begin()).
+        # 1. VERIFY FIRST (read-only, non-DB, BEFORE session.begin()). The live-bets
+        #    GET /v2/bets/{id} status check trusts no client amount and posts nothing —
+        #    it correctly stays outside the owned tx (mirrors place_bet validating the
+        #    market before its tx).
         verified = parse_verified_bet(await client.get_bet(str(bet_id)))
         if verified.status not in LIVEBETS_SETTLED_STATUSES:
             raise LiveBetsVerificationError(
                 f"live-bets bet {bet_id} is {verified.status}, expected a settled status"
             )
 
-        # 2. Read the mirror row (the stake captured at placement — server-side truth)
-        #    and apply the PRIMARY idempotency guard (status != PENDING => replay).
-        #    Read-only, before the owned tx (mirrors verifying before place_bet's tx).
-        mirror = (
-            await session.execute(
-                select(LiveBetsBet).where(LiveBetsBet.bet_id == bet_id)
-            )
-        ).scalar_one_or_none()
-        if mirror is None:
-            # The settle arrived before placed — the demo's placed event always
-            # precedes settled (webhook backstop is out of scope per CONTEXT).
-            raise LiveBetsVerificationError(
-                f"no placed mirror row for live-bets bet {bet_id} — settle before placed"
-            )
-        if mirror.status != LIVEBETS_PENDING:
-            return MirrorResult(
-                bet_id=str(bet_id), status=mirror.status, applied=False
-            )
-
-        stake = mirror.stake  # authoritative captured stake, never a client amount
-        wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
-
-        # 3. Derive the leg specs by outcome (mirrors resolve_market's winner/loser legs).
-        specs: list[_TransferSpec] = []
-        if verified.status == LIVEBETS_WON:
-            if verified.payout is None:
-                raise LiveBetsVerificationError(
-                    f"live-bets WON bet {bet_id} has no payout — cannot verify winnings"
-                )
-            specs.append(
-                (
-                    TRANSFER_LIVEBETS_SETTLE_STAKE_RETURN,
-                    settled_stake_idempotency_key(bet_id),
-                    LIVEBETS_ESCROW_ACCOUNT_ID,
-                    wallet_id,
-                    stake,
-                )
-            )
-            winnings = verified.payout - stake
-            # Skip leg 2 when winnings <= 0 so no zero/negative amount hits
-            # CHECK (amount > 0) — mirrors settlement's `if sb.pnl > 0` guard.
-            if winnings > 0:
-                specs.append(
-                    (
-                        TRANSFER_LIVEBETS_SETTLE_WINNINGS,
-                        settled_winnings_idempotency_key(bet_id),
-                        HOUSE_PROMO_ACCOUNT_ID,
-                        wallet_id,
-                        winnings,
-                    )
-                )
-        elif verified.status in LIVEBETS_REFUND_STATUSES:
-            # REFUNDED or VOIDED — both take the single stake-return leg to the wallet.
-            specs.append(
-                (
-                    TRANSFER_LIVEBETS_VOID_REFUND,
-                    settled_idempotency_key(bet_id),
-                    LIVEBETS_ESCROW_ACCOUNT_ID,
-                    wallet_id,
-                    stake,
-                )
-            )
-        else:
-            # LOST — single leg, escrow -> house_revenue (loss sink, LOCKED decision).
-            specs.append(
-                (
-                    TRANSFER_LIVEBETS_SETTLE_LOSS,
-                    settled_idempotency_key(bet_id),
-                    LIVEBETS_ESCROW_ACCOUNT_ID,
-                    HOUSE_REVENUE_ACCOUNT_ID,
-                    stake,
-                )
-            )
-
         try:
             async with session.begin():
+                # 2. Read the mirror row (the stake captured at placement — server-side
+                #    truth) and apply the PRIMARY idempotency guard (status != PENDING =>
+                #    replay) INSIDE the owned tx. Issuing these reads before
+                #    ``session.begin()`` would autobegin an implicit tx and make
+                #    ``begin()`` raise "a transaction is already begun" — exactly the
+                #    ordering ``record_placed`` / ``recharge`` / ``resolve_market`` use
+                #    (begin first, then read/resolve). The primary guard early-returns
+                #    from inside the block, committing an empty tx (a clean no-op).
+                mirror = (
+                    await session.execute(
+                        select(LiveBetsBet).where(LiveBetsBet.bet_id == bet_id)
+                    )
+                ).scalar_one_or_none()
+                if mirror is None:
+                    # The settle arrived before placed — the demo's placed event always
+                    # precedes settled (webhook backstop is out of scope per CONTEXT).
+                    raise LiveBetsVerificationError(
+                        f"no placed mirror row for live-bets bet {bet_id} — settle before placed"
+                    )
+                if mirror.status != LIVEBETS_PENDING:
+                    return MirrorResult(
+                        bet_id=str(bet_id), status=mirror.status, applied=False
+                    )
+
+                stake = mirror.stake  # authoritative captured stake, never a client amount
+                wallet_id = await WalletService._resolve_user_wallet_id(
+                    session, user_id=user.id
+                )
+
+                # 3. Derive the leg specs by outcome (mirrors resolve_market's
+                #    winner/loser legs).
+                specs: list[_TransferSpec] = []
+                if verified.status == LIVEBETS_WON:
+                    if verified.payout is None:
+                        raise LiveBetsVerificationError(
+                            f"live-bets WON bet {bet_id} has no payout — cannot verify winnings"
+                        )
+                    specs.append(
+                        (
+                            TRANSFER_LIVEBETS_SETTLE_STAKE_RETURN,
+                            settled_stake_idempotency_key(bet_id),
+                            LIVEBETS_ESCROW_ACCOUNT_ID,
+                            wallet_id,
+                            stake,
+                        )
+                    )
+                    winnings = verified.payout - stake
+                    # Skip leg 2 when winnings <= 0 so no zero/negative amount hits
+                    # CHECK (amount > 0) — mirrors settlement's `if sb.pnl > 0` guard.
+                    if winnings > 0:
+                        specs.append(
+                            (
+                                TRANSFER_LIVEBETS_SETTLE_WINNINGS,
+                                settled_winnings_idempotency_key(bet_id),
+                                HOUSE_PROMO_ACCOUNT_ID,
+                                wallet_id,
+                                winnings,
+                            )
+                        )
+                elif verified.status in LIVEBETS_REFUND_STATUSES:
+                    # REFUNDED or VOIDED — both take the single stake-return leg to the wallet.
+                    specs.append(
+                        (
+                            TRANSFER_LIVEBETS_VOID_REFUND,
+                            settled_idempotency_key(bet_id),
+                            LIVEBETS_ESCROW_ACCOUNT_ID,
+                            wallet_id,
+                            stake,
+                        )
+                    )
+                else:
+                    # LOST — single leg, escrow -> house_revenue (loss sink, LOCKED decision).
+                    specs.append(
+                        (
+                            TRANSFER_LIVEBETS_SETTLE_LOSS,
+                            settled_idempotency_key(bet_id),
+                            LIVEBETS_ESCROW_ACCOUNT_ID,
+                            HOUSE_REVENUE_ACCOUNT_ID,
+                            stake,
+                        )
+                    )
+
                 # 4. Lock EVERY touched account in canonical UUID order BEFORE posting
                 #    (copy the resolve_market `touched = {...}; for ... sorted(...)` idiom).
                 touched = {s[2] for s in specs} | {s[3] for s in specs}
