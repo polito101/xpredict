@@ -34,3 +34,25 @@ def gamma_disputed() -> dict:
 @pytest.fixture
 def gamma_resolved() -> dict:
     return load_gamma_fixture("resolved_market")
+
+
+# Phase 14 — Curated Per-Category Gamma Sync fixtures.
+# NOTE: ``load_gamma_fixture`` returns ``json.loads(...)`` which for these three
+# fixtures is a LIST (the /events array / /tags array), not a dict. The loader
+# works unchanged; only the return type differs.
+@pytest.fixture
+def gamma_events_multi() -> list[dict]:
+    """One Crypto event with 3 Bitcoin-ladder children (grouping path)."""
+    return load_gamma_fixture("events_multi_outcome")
+
+
+@pytest.fixture
+def gamma_events_single() -> list[dict]:
+    """One Politics/World event, len==1, dual-tagged (EVT-07 standalone path)."""
+    return load_gamma_fixture("events_single_market")
+
+
+@pytest.fixture
+def gamma_tags_categories() -> list[dict]:
+    """The 7 verified category {id, label, slug} tags."""
+    return load_gamma_fixture("tags_categories")
