@@ -286,3 +286,113 @@ class TestSyncEventsIntegration:
             .all()
         )
         assert len(grps) == 1  # no duplicate group
+
+    async def test_sync_events_child_conflict_preserves_group(
+        self,
+        async_session: AsyncSession,
+    ) -> None:
+        """A child IntegrityError must NOT orphan the group row or its siblings (14-REVIEW CR-01).
+
+        Builds a 2-child Crypto event whose children share the SAME Gamma ``slug``
+        (→ identical ``pm-{slug}`` ``Market.slug``, which is UNIQUE) but have
+        DISTINCT ``id`` + ``conditionId``. The ON CONFLICT target is
+        ``(source, source_market_id)``, so the slug clash is NOT absorbed: the 1st
+        child inserts; the 2nd trips ``IntegrityError`` on the ``ix_markets_slug``
+        UNIQUE index. Under the CR-01 fix that conflict rolls back ONLY the 2nd
+        child's SAVEPOINT — the just-created ``market_groups`` row and the 1st
+        child survive in the outer transaction, so the per-category ``commit()``
+        succeeds without an FK violation on ``markets.group_id``. Under the
+        reverted (bare ``session.rollback()``) code the group row would be
+        discarded and this commit would raise.
+        """
+        from sqlalchemy import func, select
+
+        from app.integrations.polymarket.schemas import GammaEvent
+        from app.markets.models import Market, MarketGroup
+
+        adapter = PolymarketAdapter()
+
+        # Two children, SAME "slug" → same pm-{slug} Market.slug (UNIQUE clash),
+        # but DISTINCT id + conditionId so (a) they don't dedup by condition_id and
+        # (b) the 2nd is a real INSERT (ON CONFLICT on source_market_id misses) that
+        # hits the slug UNIQUE constraint. outcomes/outcomePrices are valid
+        # stringified JSON; two allow-listed Crypto tags are attached for realism.
+        event_raw = {
+            "id": "cr01-evt-1",
+            "slug": "cr01-event",
+            "title": "CR-01 child slug-conflict event",
+            "closed": False,
+            "volume24hr": 50_000.0,
+            "volume": 50_000.0,
+            "tags": [
+                {"id": "21", "label": "Crypto", "slug": "crypto"},
+                {"id": "100328", "label": "Economy", "slug": "economy"},
+            ],
+            "markets": [
+                {
+                    "id": "cr01-mkt-A",
+                    "question": "Will A resolve YES?",
+                    "conditionId": "cr01-cond-A",
+                    "slug": "cr01-dup-slug",  # SAME slug as child B
+                    "outcomes": '["Yes","No"]',
+                    "outcomePrices": '["0.6","0.4"]',
+                    "clobTokenIds": '["a1","a2"]',
+                    "volume": "100000",
+                    "groupItemTitle": "A",
+                    "closed": False,
+                },
+                {
+                    "id": "cr01-mkt-B",
+                    "question": "Will B resolve YES?",
+                    "conditionId": "cr01-cond-B",
+                    "slug": "cr01-dup-slug",  # SAME slug as child A → UNIQUE clash
+                    "outcomes": '["Yes","No"]',
+                    "outcomePrices": '["0.3","0.7"]',
+                    "clobTokenIds": '["b1","b2"]',
+                    "volume": "100000",
+                    "groupItemTitle": "B",
+                    "closed": False,
+                },
+            ],
+        }
+        event = GammaEvent.model_validate(event_raw)
+        assert len(event.markets) == 2  # both children parsed → grouping path
+
+        synced = await adapter.sync_events(async_session, [event], category="Crypto")
+        # Only the 1st child upserted; the 2nd hit the slug conflict and returned False.
+        assert synced == 1
+
+        # The per-category commit MUST NOT raise — proves no orphaned-group FK
+        # violation (the heart of CR-01). Under the reverted code this raises.
+        await async_session.commit()
+
+        # Exactly one market_groups row for the event survives.
+        grp = (
+            await async_session.execute(
+                select(MarketGroup).where(MarketGroup.source_event_id == "cr01-evt-1"),
+            )
+        ).scalar_one()
+        assert grp.category == "Crypto"
+
+        # Exactly one child Market is stamped with that group_id (the 1st).
+        stamped = (
+            (
+                await async_session.execute(
+                    select(Market).where(Market.group_id == grp.id),
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(stamped) == 1
+        assert stamped[0].source_market_id == "cr01-mkt-A"
+
+        # And only ONE market carries the conflicting slug (the loser never persisted).
+        slug_count = (
+            await async_session.execute(
+                select(func.count())
+                .select_from(Market)
+                .where(Market.slug == "pm-cr01-dup-slug"),
+            )
+        ).scalar_one()
+        assert slug_count == 1

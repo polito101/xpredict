@@ -287,6 +287,90 @@ async def test_poll_events_keeps_last_good_per_category() -> None:
 
 
 @pytest.mark.unit
+async def test_poll_events_publishes_per_category_not_cumulative() -> None:
+    """Each category publishes ONLY its own deltas, not the cumulative run (14-REVIEW CR-02).
+
+    One adapter instance is reused across all categories. Here ``sync_events`` has a
+    side_effect that APPENDS exactly one delta to ``adapter.changed_markets`` per
+    call (mirroring the real append-only accumulator), with the list starting at
+    ``[]``. Two categories (Politics tag_id="2", Sports tag_id="1") return a
+    floor-clearing event; the rest return empty. Under the CR-02 fix the loop resets
+    ``adapter.changed_markets = []`` before each ``sync_events``, so the per-category
+    publish sees ONLY that category's single delta → ``publish_odds_change_async`` is
+    awaited exactly twice total (once per category), and no delta is published twice.
+    Under the reverted (no-reset) code the accumulator would carry Politics' delta into
+    Sports' publish loop → 1 + 2 = 3 awaits, re-publishing Politics' delta.
+    """
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+    redis.eval = AsyncMock()
+    redis.aclose = AsyncMock()
+
+    politics_event = _event_payload("evt-politics", volume24hr=50_000.0, condition_id="cond-pol")
+    sports_event = _event_payload("evt-sports", volume24hr=50_000.0, condition_id="cond-spo")
+
+    async def fake_fetch(
+        *, tag_id: str, limit: int = 10, offset: int = 0
+    ) -> list[dict[str, object]]:
+        if tag_id == "2":  # Politics — floor-clearing event
+            return [politics_event]
+        if tag_id == "1":  # Sports — floor-clearing event
+            return [sports_event]
+        return []  # every other category: empty page
+
+    mock_client = AsyncMock()
+    mock_client.fetch_events = AsyncMock(side_effect=fake_fetch)
+    mock_client.close = AsyncMock()
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+    mock_session.close = AsyncMock()
+
+    publish_mock = AsyncMock()
+
+    with (
+        patch("app.integrations.polymarket.tasks.GammaClient", return_value=mock_client),
+        patch("app.integrations.polymarket.tasks.PolymarketAdapter") as mock_adapter_cls,
+        patch("app.integrations.polymarket.tasks.publish_odds_change_async", publish_mock),
+    ):
+        mock_adapter = AsyncMock()
+        # Append-only accumulator, starting empty — exactly like the real adapter.
+        mock_adapter.changed_markets = []
+        # Per-call counter gives each category a UNIQUE delta so we can prove no
+        # single delta is published twice.
+        call_state = {"n": 0}
+
+        async def fake_sync_events(
+            session: object, curated: object, *, category: str
+        ) -> int:
+            call_state["n"] += 1
+            mock_adapter.changed_markets.append(
+                (f"market-{category}-{call_state['n']}", [{"outcome_id": "o1", "odds": "0.6"}]),
+            )
+            return 1
+
+        mock_adapter.sync_events = AsyncMock(side_effect=fake_sync_events)
+        mock_adapter_cls.return_value = mock_adapter
+
+        await _run_poll_events(redis_override=redis, session_override=mock_session)
+
+    # Two categories synced (Politics + Sports) — sanity on the setup.
+    assert mock_adapter.sync_events.await_count == 2
+    synced_categories = [c.kwargs["category"] for c in mock_adapter.sync_events.await_args_list]
+    assert synced_categories == ["Politics", "Sports"]
+
+    # CR-02 core: total publishes == number of categories synced (one delta each),
+    # NOT the cumulative 1 + 2 = 3 the un-reset accumulator would produce.
+    assert publish_mock.await_count == 2
+
+    # No single delta (market_id) is published twice — each publish is a distinct market.
+    published_market_ids = [call.args[1] for call in publish_mock.await_args_list]
+    assert len(published_market_ids) == len(set(published_market_ids))
+    assert set(published_market_ids) == {"market-Politics-1", "market-Sports-2"}
+
+
+@pytest.mark.unit
 async def test_poll_events_dedup_before_floor() -> None:
     """A duplicate event id across categories is skipped — first-by-priority (CAT-02).
 
