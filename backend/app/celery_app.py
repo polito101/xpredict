@@ -11,7 +11,8 @@ task_prerun also binds task_id / task_name for log correlation (D-26).
 Beat heartbeat: touches /tmp/celerybeat.heartbeat every 30s so the
 docker-compose healthcheck (D-03) can detect a dead beat via mtime.
 
-Empty beat_schedule = {} — Phases 2-9 append their periodic tasks here.
+beat_schedule is populated inline below (Phase 14 curated events poll, odds
+snapshot, Phase 7 resolution detect) and extended via .update() (nightly reconcile).
 """
 
 from __future__ import annotations
@@ -59,7 +60,6 @@ celery_app.conf.beat_schedule = {
         "task": "app.integrations.polymarket.tasks.snapshot_odds",
         "schedule": 300.0,
     },
-    # Phases 7-9 append tasks here
     # Phase 7 — Polymarket auto-resolution (STL-01): detect UMA-resolved markets every 60s
     "detect-polymarket-resolutions": {
         "task": "app.integrations.polymarket.tasks.detect_polymarket_resolutions",
