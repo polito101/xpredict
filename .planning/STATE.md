@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: in_progress
-last_updated: "2026-06-05T12:00:00.000Z"
-last_activity: 2026-06-05
+status: executing
+last_updated: "2026-06-05T16:52:40.270Z"
+last_activity: 2026-06-05 -- Phase 15 planning complete
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 17
+  completed_phases: 2
+  total_plans: 9
+  completed_plans: 6
+  percent: 33
 ---
 
 # Project State
@@ -27,8 +27,8 @@ Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model �
 
 Phase: 14 (Curated Per-Category Gamma Sync) — ✅ EXECUTED + verified · **PR #28 OPEN** (pending Pol's merge)
 Plan: 4 of 4 complete (parsers+config · fetch_events · adapter sync_events + market_groups writer · poll_polymarket_events curation loop + beat swap)
-Status: VERIFICATION 11/11 must-haves (human_needed: 2 post-deploy checks — redbeat restart + tag drift). Code review found + fixed 2 blockers (CR-01/CR-02); a final 4-lens hardening audit on PR #28 then addressed NaN-volume floor, blank-conditionId dedup, lock-TTL, and dead-code (see `14-AUDIT.md`). `origin/main` (#25/#26/#27) merged into the branch (clean). **backend CI GREEN (full Linux suite + ruff + mypy, all checks pass); PR #28 MERGEABLE.** Only Pol merges #28. Next: Phase 15.
-Last activity: 2026-06-05
+Status: Ready to execute
+Last activity: 2026-06-05 -- Phase 15 planning complete
 
 Progress: [██████████] 100%
 
