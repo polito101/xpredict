@@ -691,7 +691,7 @@ class EventService:
         )
         await session.commit()
         reloaded = await _load_group_with_children(session, new_group_id)
-        assert reloaded is not None  # noqa: S101 — just committed above
+        assert reloaded is not None
         return reloaded
 
     @classmethod
@@ -736,6 +736,7 @@ class EventService:
             )
             await session.flush()
             new_deadline = body.deadline or existing_deadline
+            assert new_deadline is not None
             new_category = body.category if body.category is not None else group.category
             for outcome in body.outcomes:
                 await _add_event_child(
@@ -764,7 +765,7 @@ class EventService:
         # the reload reflects the committed DB rows (the new children) rather than the cache.
         session.expunge_all()
         refreshed = await _load_group_with_children(session, group_id)
-        assert refreshed is not None  # noqa: S101 — just committed above
+        assert refreshed is not None
         return refreshed
 
 

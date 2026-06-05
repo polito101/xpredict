@@ -54,7 +54,7 @@ class CreateEventRequest(BaseModel):
     @classmethod
     def _deadline_future(cls, v: datetime) -> datetime:
         checked = _future_deadline(v)
-        assert checked is not None  # noqa: S101 — deadline is required (not Optional) here
+        assert checked is not None
         return checked
 
 

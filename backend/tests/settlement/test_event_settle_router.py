@@ -131,7 +131,9 @@ async def test_void_preview_and_execute(api) -> None:
     await _place(yes_bettor, children[0].view, children[0].yes_id, Decimal("20.0000"), src)
     await _place(no_bettor, children[0].view, children[0].no_id, Decimal("20.0000"), src)
 
-    preview = await api.post(f"/admin/events/{group_id}/void", json={"justification": "Cancelled", "confirm": False})
+    preview = await api.post(
+        f"/admin/events/{group_id}/void", json={"justification": "Cancelled", "confirm": False}
+    )
     assert preview.status_code == 200, preview.text
     pbody = preview.json()
     assert pbody["preview"] is True
@@ -139,7 +141,9 @@ async def test_void_preview_and_execute(api) -> None:
     assert pbody["losers"] == 2
     assert pbody["projected_status"] == "void"
 
-    execute = await api.post(f"/admin/events/{group_id}/void", json={"justification": "Cancelled", "confirm": True})
+    execute = await api.post(
+        f"/admin/events/{group_id}/void", json={"justification": "Cancelled", "confirm": True}
+    )
     assert execute.status_code == 200, execute.text
     assert execute.json()["projected_status"] == "void"
     for child in children:
@@ -164,14 +168,16 @@ async def test_reverse_preview_and_execute(api) -> None:
     assert resolved.status_code == 200, resolved.text
 
     preview = await api.post(
-        f"/admin/events/{group_id}/reverse", json={"justification": "Operator error", "confirm": False}
+        f"/admin/events/{group_id}/reverse",
+        json={"justification": "Operator error", "confirm": False},
     )
     assert preview.status_code == 200, preview.text
     assert preview.json()["preview"] is True
     assert preview.json()["projected_status"] == "open"
 
     execute = await api.post(
-        f"/admin/events/{group_id}/reverse", json={"justification": "Operator error", "confirm": True}
+        f"/admin/events/{group_id}/reverse",
+        json={"justification": "Operator error", "confirm": True},
     )
     assert execute.status_code == 200, execute.text
     assert execute.json()["projected_status"] == "open"
@@ -228,6 +234,12 @@ async def test_value_error_missing_group_404(api) -> None:
 async def test_settle_requires_admin(api) -> None:
     # No override / no Bearer → the real current_active_admin gate returns 401.
     gid = uuid4()
-    assert (await api.post(f"/admin/events/{gid}/resolve", json=_resolve(uuid4(), confirm=True))).status_code == 401
-    assert (await api.post(f"/admin/events/{gid}/void", json={"justification": "x", "confirm": True})).status_code == 401
-    assert (await api.post(f"/admin/events/{gid}/reverse", json={"justification": "x", "confirm": True})).status_code == 401
+    assert (
+        await api.post(f"/admin/events/{gid}/resolve", json=_resolve(uuid4(), confirm=True))
+    ).status_code == 401
+    assert (
+        await api.post(f"/admin/events/{gid}/void", json={"justification": "x", "confirm": True})
+    ).status_code == 401
+    assert (
+        await api.post(f"/admin/events/{gid}/reverse", json={"justification": "x", "confirm": True})
+    ).status_code == 401

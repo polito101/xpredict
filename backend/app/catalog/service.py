@@ -219,9 +219,7 @@ class CatalogService:
 
         # --- Query A: standalone binary markets (group_id IS NULL) ----------------
         market_stmt = (
-            select(Market)
-            .where(Market.group_id.is_(None))
-            .options(selectinload(Market.outcomes))
+            select(Market).where(Market.group_id.is_(None)).options(selectinload(Market.outcomes))
         )
         if status == "open":
             market_stmt = market_stmt.where(Market.status == MarketStatus.OPEN.value)
@@ -232,9 +230,7 @@ class CatalogService:
             )
         elif status == "resolved":
             market_stmt = market_stmt.where(
-                Market.status.in_(
-                    (MarketStatus.RESOLVED.value, MarketStatus.CLOSED.value)
-                )
+                Market.status.in_((MarketStatus.RESOLVED.value, MarketStatus.CLOSED.value))
             )
         else:
             market_stmt = market_stmt.where(Market.status.in_(_VISIBLE_MARKET_STATUSES))
@@ -295,21 +291,31 @@ class CatalogService:
     async def list_categories(session: AsyncSession) -> list[str]:
         """Sorted DISTINCT non-empty categories union over standalone markets + groups (CAT-06)."""
         market_cats = (
-            await session.execute(
-                select(Market.category)
-                .where(Market.group_id.is_(None))
-                .where(Market.category.isnot(None))
-                .where(Market.category != "")
-                .where(Market.status.in_(_VISIBLE_MARKET_STATUSES))
-                .distinct()
+            (
+                await session.execute(
+                    select(Market.category)
+                    .where(Market.group_id.is_(None))
+                    .where(Market.category.isnot(None))
+                    .where(Market.category != "")
+                    .where(Market.status.in_(_VISIBLE_MARKET_STATUSES))
+                    .distinct()
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         group_cats = (
-            await session.execute(
-                select(MarketGroup.category)
-                .where(MarketGroup.category.isnot(None))
-                .where(MarketGroup.category != "")
-                .distinct()
+            (
+                await session.execute(
+                    select(MarketGroup.category)
+                    .where(MarketGroup.category.isnot(None))
+                    .where(MarketGroup.category != "")
+                    .distinct()
+                )
             )
-        ).scalars().all()
-        return sorted(set(market_cats) | set(group_cats))
+            .scalars()
+            .all()
+        )
+        # Filter None/empty (already excluded in SQL, but the column type is Optional) and
+        # dedupe across both tables.
+        return sorted({c for c in (*market_cats, *group_cats) if c})

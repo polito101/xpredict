@@ -128,13 +128,22 @@ async def test_sort(api, async_session) -> None:
     _use(async_session)
     now = datetime.now(UTC)
     hi = await make_market(
-        async_session, question="High volume?", volume=Decimal("300"), deadline=now + timedelta(days=9)
+        async_session,
+        question="High volume?",
+        volume=Decimal("300"),
+        deadline=now + timedelta(days=9),
     )
     mid = await make_market(
-        async_session, question="Mid volume?", volume=Decimal("200"), deadline=now + timedelta(days=5)
+        async_session,
+        question="Mid volume?",
+        volume=Decimal("200"),
+        deadline=now + timedelta(days=5),
     )
     lo = await make_market(
-        async_session, question="Low volume?", volume=Decimal("100"), deadline=now + timedelta(days=1)
+        async_session,
+        question="Low volume?",
+        volume=Decimal("100"),
+        deadline=now + timedelta(days=1),
     )
     # explicit created_at: lo oldest, hi newest
     lo.created_at = now - timedelta(hours=3)
@@ -151,7 +160,9 @@ async def test_sort(api, async_session) -> None:
 
     closing = _titles(await api.get("/api/v1/catalog", params={"sort": "closing_soonest"}))
     # lo has the nearest deadline (now+1d), hi the farthest (now+9d)
-    assert closing.index("Low volume?") < closing.index("Mid volume?") < closing.index("High volume?")
+    assert (
+        closing.index("Low volume?") < closing.index("Mid volume?") < closing.index("High volume?")
+    )
 
 
 async def test_empty_combos(api, async_session) -> None:

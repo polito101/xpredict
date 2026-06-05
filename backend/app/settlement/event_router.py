@@ -13,8 +13,9 @@ router by plan 16-04; router registration in ``app.main`` is plan 16-05.
 # imports.
 """
 
+from datetime import datetime
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, TypeVar
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -63,12 +64,15 @@ def _child_rows(group: MarketGroup) -> list[EventChildRead]:
     return rows
 
 
-def _event_deadline(group: MarketGroup):  # noqa: ANN202 — datetime | None, kept loose for response build
+_ResponseT = TypeVar("_ResponseT", EventCreatedResponse, EventDetailResponse)
+
+
+def _event_deadline(group: MarketGroup) -> datetime | None:
     children = list(group.markets)
     return children[0].deadline if children else None
 
 
-def _to_response(group: MarketGroup, response_cls):  # noqa: ANN001, ANN202
+def _to_response(group: MarketGroup, response_cls: type[_ResponseT]) -> _ResponseT:
     return response_cls(
         id=group.id,
         title=group.title,

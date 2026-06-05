@@ -193,10 +193,12 @@ async def test_edit_replace_outcomes_pre_bet(api, async_session) -> None:
 
     resp = await api.patch(
         f"/admin/events/{group_id}",
-        json={"outcomes": [
-            {"label": "Xray", "initial_odds": "0.7"},
-            {"label": "Yankee", "initial_odds": "0.2"},
-        ]},
+        json={
+            "outcomes": [
+                {"label": "Xray", "initial_odds": "0.7"},
+                {"label": "Yankee", "initial_odds": "0.2"},
+            ]
+        },
     )
     assert resp.status_code == 200, resp.text
     assert {o["label"] for o in resp.json()["outcomes"]} == {"Xray", "Yankee"}
