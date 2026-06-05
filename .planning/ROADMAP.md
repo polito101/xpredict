@@ -92,7 +92,10 @@
   2. Voiding a house event resolves every child on NO (YES bettors lose, NO bettors win) — explicitly NOT a stake refund — and a resolution can be reversed via compensating ledger entries (mirrors STL-07), audit-logged.
   3. Event status (open / partially-resolved / resolved / void) is computed as a read-projection derived from the constituent markets' states — there is no authoritative `winning_outcome` column on the group; settlement never routes through `closed=true` alone (still requires the spike-002 `closed` + `umaResolutionStatus="resolved"` + clear-winner guard).
   4. Mirrored (Polymarket) event children auto-settle through the existing `detect_polymarket_resolutions` path (verified, not rebuilt), and mirrored events stay admin-read-only except the existing emergency force-settle (mirrors ADM-06).
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 15-01-PLAN.md — Pure derive_event_status read-projection + ChildStatus dataclass + unit tests (EVT-06)
+- [ ] 15-02-PLAN.md — EventService.resolve_event + void_event (loop SettlementService per child on fresh sessions) + integration tests (EVA-03, EVA-04)
+- [ ] 15-03-PLAN.md — EventService.reverse_event + reverse tests + mirrored auto-settle verify via detect_polymarket_resolutions (EVA-05, EVA-06)
 
 ### Phase 16: Catalog & Event API + House Event CRUD
 **Goal**: A stable HTTP contract exposes browse/search/category/event reads and house-event create/edit/resolve/reverse — testable independently of any UI — with every filter combination returning an explicit, bounded result.
@@ -141,7 +144,7 @@
 | A-E. Demo Polish | v1.1 | — | ✅ Complete | 2026-06-04 |
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
 | 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
-| 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/TBD | Not started | - |
+| 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/3 | Not started | - |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
