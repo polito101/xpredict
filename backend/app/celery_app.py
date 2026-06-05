@@ -46,10 +46,14 @@ celery_app = Celery(
 celery_app.conf.beat_scheduler = "redbeat.RedBeatScheduler"
 celery_app.conf.redbeat_redis_url = str(settings.REDIS_URL)
 celery_app.conf.beat_schedule = {
-    # Phase 6 — Polymarket sync (MKT-05, MKT-06)
-    "poll-polymarket-top25": {
-        "task": "app.integrations.polymarket.tasks.poll_polymarket_top25",
-        "schedule": 30.0,
+    # Phase 14 — Curated per-category Gamma /events sync (CAT-01), 5-min cadence.
+    # REPLACES the Phase-6 "poll-polymarket-top25" @30s (dropped here; the task
+    # itself stays importable for back-compat). ⚠️ redbeat persists the schedule
+    # in Redis — RESTART the beat process on deploy so the dropped top-25 entry
+    # stops firing and this events poll starts (Pitfall 5 / redbeat reload).
+    "poll-polymarket-events": {
+        "task": "app.integrations.polymarket.tasks.poll_polymarket_events",
+        "schedule": 300.0,
     },
     "snapshot-odds": {
         "task": "app.integrations.polymarket.tasks.snapshot_odds",

@@ -18,16 +18,16 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 - [ ] **EVT-04**: Player sees a multi-outcome event card in the catalog (top 2–4 outcomes + %, "+N more"), visually distinct from the binary market card.
 - [ ] **EVT-05**: Player can see per-outcome price history on the event detail (reuses the existing price-history chart per child market).
 - [ ] **EVT-06**: Event status (open / partially-resolved / resolved / void) is derived from its constituent markets' states — never stored as an authoritative winning-outcome column.
-- [ ] **EVT-07**: A "single-market event" (len == 1) stays on the standalone binary path; grouping applies only to events with ≥ 2 outcomes.
+- [x] **EVT-07**: A "single-market event" (len == 1) stays on the standalone binary path; grouping applies only to events with ≥ 2 outcomes.
 
 ### Curated Catalog & Sync (CAT) — extends MKT sync
 
-- [ ] **CAT-01**: System syncs Polymarket via Gamma `GET /events` (embeds `markets[]` + `tags[]`), replacing the top-25-global `/markets` poll.
-- [ ] **CAT-02**: Catalog is curated as top-N per category with a volume floor (NOT the full active firehose); duplicates removed by `conditionId`/event id **before** applying the floor (avoids Polymarket volume double-counting).
-- [ ] **CAT-03**: Categories derive from a version-controlled allow-list of ~7 Gamma `tag_id`s (e.g. Politics, Sports, Crypto, Pop Culture, Economy, Tech, World); unmapped tags are logged for drift detection, never auto-added.
-- [ ] **CAT-04**: Polymarket-mirrored markets get their `category` populated for the first time (today always NULL).
-- [ ] **CAT-05**: Sync is resilient — keeps the last-good catalog on Gamma failure (never blanks), caps `limit` at 500 with a short-page stop, and runs on a slower cadence than the odds poll.
-- [ ] **CAT-06**: A category with zero qualifying events is suppressed at the data layer (never surfaced empty).
+- [x] **CAT-01**: System syncs Polymarket via Gamma `GET /events` (embeds `markets[]` + `tags[]`), replacing the top-25-global `/markets` poll.
+- [x] **CAT-02**: Catalog is curated as top-N per category with a volume floor (NOT the full active firehose); duplicates removed by `conditionId`/event id **before** applying the floor (avoids Polymarket volume double-counting).
+- [x] **CAT-03**: Categories derive from a version-controlled allow-list of ~7 Gamma `tag_id`s (e.g. Politics, Sports, Crypto, Pop Culture, Economy, Tech, World); unmapped tags are logged for drift detection, never auto-added.
+- [x] **CAT-04**: Polymarket-mirrored markets get their `category` populated for the first time (today always NULL).
+- [x] **CAT-05**: Sync is resilient — keeps the last-good catalog on Gamma failure (never blanks), caps `limit` at 500 with a short-page stop, and runs on a slower cadence than the odds poll.
+- [x] **CAT-06**: A category with zero qualifying events is suppressed at the data layer (never surfaced empty).
 
 ### Browse & Discovery (BRW) — new
 
@@ -100,13 +100,13 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | EVT-04 | Phase 17 (UI) | Pending |
 | EVT-05 | Phase 17 (UI) | Pending |
 | EVT-06 | Phase 15 (Settlement) | Pending |
-| EVT-07 | Phase 14 (Sync) | Pending |
-| CAT-01 | Phase 14 (Sync) | Pending |
-| CAT-02 | Phase 14 (Sync) | Pending |
-| CAT-03 | Phase 14 (Sync) | Pending |
-| CAT-04 | Phase 14 (Sync) | Pending |
-| CAT-05 | Phase 14 (Sync) | Pending |
-| CAT-06 | Phase 14 (Sync) | Pending |
+| EVT-07 | Phase 14 (Sync) | Complete |
+| CAT-01 | Phase 14 (Sync) | Complete |
+| CAT-02 | Phase 14 (Sync) | Complete |
+| CAT-03 | Phase 14 (Sync) | Complete |
+| CAT-04 | Phase 14 (Sync) | Complete |
+| CAT-05 | Phase 14 (Sync) | Complete |
+| CAT-06 | Phase 14 (Sync) | Complete |
 | BRW-01 | Phase 16 (API) | Pending |
 | BRW-02 | Phase 16 (API) | Pending |
 | BRW-03 | Phase 16 (API) | Pending |

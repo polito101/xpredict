@@ -51,7 +51,7 @@
 **Build sequence (strict dependency chain — schema gates everything):** Model → Sync → Settlement → API → UI → Seed. Phase 13's migration `0011_phase13_market_groups` must exist before any code writes `market_groups` / reads `group_id`; API (16) before UI (17); Seed (18) last as the end-to-end integration harness.
 
 - [x] **Phase 13: Multi-outcome Model & Catalog Indexes** — `market_groups` table + nullable `Market.group_id`/`group_item_title` + all catalog indexes (`pg_trgm` GIN + `odds_snapshots` composite) in migration 0011; pure additive schema seam, zero behavior change. *(verified + merged 2026-06-05 via PR #25)*
-- [ ] **Phase 14: Curated Per-Category Gamma Sync** — Gamma `/events` ingestion replaces the top-25-global poll; top-N-per-category with volume floor, ~7-tag allow-list, dedup, keep-last-good resilience; finally populates `Market.category` on mirrored rows.
+- [ ] **Phase 14: Curated Per-Category Gamma Sync** — Gamma `/events` ingestion replaces the top-25-global poll; top-N-per-category with volume floor, ~7-tag allow-list, dedup, keep-last-good resilience; finally populates `Market.category` on mirrored rows. *(EXECUTED + verified 11/11; PR #28 open — pending merge)*
 - [ ] **Phase 15: Event Settlement (House Resolve/Void + Mirrored Verify)** — `EventService` resolve-as-a-loop over the existing `SettlementService` per child; void = all-children-NO; reverse via compensating ledger; derived event status; mirrored children auto-settle via existing UMA detection (verify, no new code).
 - [ ] **Phase 16: Catalog & Event API + House Event CRUD** — `CatalogService.browse()` (ILIKE + category + status + sort + bounded LIMIT) and event/category/admin-event endpoints; house event create/edit; explicit empty/zero states; `/markets` kept for back-compat.
 - [ ] **Phase 17: Catalog Browse UI, Event Detail & Admin Event Ops** — Catalog browse island (search + category tabs + status/sort), multi-outcome event card, event detail with independent per-outcome rows/bars + bet-on-one-outcome + per-outcome charts, admin event forms; white-label on every new surface.
@@ -140,7 +140,7 @@
 | 1-12. v1.0 MVP | v1.0 | 44/44 | ✅ Complete | 2026-06-04 |
 | A-E. Demo Polish | v1.1 | — | ✅ Complete | 2026-06-04 |
 | 13. Multi-outcome Model & Catalog Indexes | v1.2 | 2/2 | ✅ Complete | 2026-06-05 |
-| 14. Curated Per-Category Gamma Sync | v1.2 | 0/TBD | Not started | - |
+| 14. Curated Per-Category Gamma Sync | v1.2 | 4/4 | 🔨 PR #28 (verified 11/11) | - |
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 0/TBD | Not started | - |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 0/TBD | Not started | - |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 0/TBD | Not started | - |

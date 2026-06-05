@@ -1,0 +1,50 @@
+[
+  {
+    "id": "108634",
+    "ticker": "will-the-iranian-regime-fall-by-june-30",
+    "slug": "will-the-iranian-regime-fall-by-june-30",
+    "title": "Will the Iranian regime fall by June 30?",
+    "description": "This market will resolve to \"Yes\" if the Islamic Republic of Iran's current ruling regime is overthrown, collapsed, or o",
+    "volume": 48539890.670947164,
+    "volume24hr": 582079.8521550015,
+    "liquidity": 778242.24107,
+    "active": true,
+    "closed": false,
+    "negRisk": false,
+    "startDate": "2025-12-17T23:04:55.928775Z",
+    "endDate": "2026-06-30T00:00:00Z",
+    "markets": [
+      {
+        "id": "958443",
+        "question": "Will the Iranian regime fall by June 30?",
+        "conditionId": "0x9352c559e9648ab4cab236087b64ca85c5b7123a4c7d9d7d4efde4a39c18056f",
+        "slug": "will-the-iranian-regime-fall-by-june-30",
+        "groupItemTitle": "",
+        "outcomes": "[\"Yes\", \"No\"]",
+        "outcomePrices": "[\"0.0225\", \"0.9775\"]",
+        "clobTokenIds": "[\"38397507750621893057346880033441136112987238933685677349709401910643842844855\", \"95949957895141858444199258452803633110472396604599808168788254125381075552218\"]",
+        "volume": "48540601.760326155",
+        "volume24hr": 582601.1385990016,
+        "liquidity": "778210.50533",
+        "closed": false,
+        "active": true,
+        "umaResolutionStatus": null,
+        "endDate": "2026-06-30T00:00:00Z",
+        "description": "This market will resolve to \"Yes\" if the Islamic Republic of Iran's current ruli",
+        "negRisk": false,
+        "volumeNum": 48540601.760326155
+      }
+    ],
+    "tags": [
+      { "id": "78", "label": "Iran", "slug": "iran" },
+      { "id": "180", "label": "Israel", "slug": "israel" },
+      { "id": "154", "label": "Middle East", "slug": "middle-east" },
+      { "id": "100265", "label": "Geopolitics", "slug": "geopolitics" },
+      { "id": "101970", "label": "World", "slug": "world" },
+      { "id": "2", "label": "Politics", "slug": "politics" },
+      { "id": "102304", "label": "Khamenei", "slug": "khamenei" },
+      { "id": "103996", "label": "Reza Pahlavi", "slug": "reza-pahlavi" },
+      { "id": "104005", "label": "Iran Regime", "slug": "iranian-leadership-regime" }
+    ]
+  }
+]

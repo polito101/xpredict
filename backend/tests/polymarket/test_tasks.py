@@ -7,12 +7,16 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from app.integrations.polymarket.tasks import (
+    EVENTS_LOCK_KEY,
     LOCK_KEY,
+    _run_poll_events,
     _run_poll_sync,
     _run_snapshot_odds,
+    acquire_events_lock,
     acquire_poll_lock,
     release_poll_lock,
 )
@@ -127,21 +131,436 @@ async def test_poll_acquires_and_releases_lock() -> None:
 
 @pytest.mark.unit
 def test_beat_schedule_entries() -> None:
-    """Beat schedule contains poll and snapshot tasks with correct intervals."""
+    """Beat schedule fires the curated events poll @300s, NOT the dropped top-25 poll.
+
+    Phase 14 swapped ``poll-polymarket-top25`` @30s out of the schedule for
+    ``poll-polymarket-events`` @300s; ``snapshot-odds`` @300s and
+    ``detect-polymarket-resolutions`` @60s are untouched (the assertions for the
+    dropped task INVERTED after the swap — SC#1).
+    """
     from app.celery_app import celery_app
 
     schedule = celery_app.conf.beat_schedule
 
-    assert "poll-polymarket-top25" in schedule
-    assert schedule["poll-polymarket-top25"]["schedule"] == 30.0
+    # The top-25 poll is dropped from the schedule (the task stays importable).
+    assert "poll-polymarket-top25" not in schedule
+
+    # The curated per-category events poll fires @300s.
+    assert "poll-polymarket-events" in schedule
+    assert schedule["poll-polymarket-events"]["schedule"] == 300.0
     assert (
-        schedule["poll-polymarket-top25"]["task"]
-        == "app.integrations.polymarket.tasks.poll_polymarket_top25"
+        schedule["poll-polymarket-events"]["task"]
+        == "app.integrations.polymarket.tasks.poll_polymarket_events"
     )
 
+    # Untouched neighbours.
     assert "snapshot-odds" in schedule
     assert schedule["snapshot-odds"]["schedule"] == 300.0
     assert schedule["snapshot-odds"]["task"] == "app.integrations.polymarket.tasks.snapshot_odds"
+    assert "detect-polymarket-resolutions" in schedule
+    assert schedule["detect-polymarket-resolutions"]["schedule"] == 60.0
+
+
+# ---------------------------------------------------------------------------
+# Unit tests — curated events poll (mock Redis + GammaClient, no DB)
+# ---------------------------------------------------------------------------
+
+
+# Category {name: (tag_id, slug)} for the fixture builder — mirrors the
+# priority-ordered POLYMARKET_CATEGORIES allow-list so a test event can carry the
+# tag matching the category it is FETCHED under (WARN-2 fix: no Politics-tagged
+# event asserted as "Sports"). Only the categories the task tests fetch under are
+# listed; extend as new categories are exercised.
+_CATEGORY_TAGS: dict[str, tuple[str, str]] = {
+    "Politics": ("2", "politics"),
+    "Sports": ("1", "sports"),
+    "Crypto": ("21", "crypto"),
+}
+
+
+def _event_payload(
+    event_id: str,
+    *,
+    volume24hr: float,
+    condition_id: str,
+    category: str = "Politics",
+) -> dict[str, object]:
+    """Minimal Gamma ``/events`` element that parses + (optionally) clears the floor.
+
+    Event-level ``volume24hr`` is a raw FLOAT (Pitfall 1) — drives the
+    ``volume_24hr_decimal`` floor check. One child market with a ``conditionId``
+    so ``sync_events`` sees a real child.
+
+    ``category`` parametrizes the event's ``tags`` so the event carries the allow-list
+    tag matching the category it is FETCHED under (WARN-2 fix). The curated sync routes
+    purely by the fetched ``tag_id`` (``entry.name``), so this does not change routing —
+    it makes the fixture HONEST: an event surfaced under Sports actually carries the
+    Sports tag, instead of a hardcoded Politics tag that contradicted the ``Sports``
+    category the caller then asserted. Defaults to Politics for callers fetching under
+    the highest-priority category.
+    """
+    tag_id, slug = _CATEGORY_TAGS[category]
+    return {
+        "id": event_id,
+        "slug": f"evt-{event_id}",
+        "title": f"Event {event_id}",
+        "closed": False,
+        "volume24hr": volume24hr,
+        "volume": volume24hr,
+        "tags": [{"id": tag_id, "label": category, "slug": slug}],
+        "markets": [
+            {
+                "id": f"mkt-{event_id}",
+                "question": f"Will event {event_id} resolve?",
+                "conditionId": condition_id,
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.6","0.4"]',
+                "clobTokenIds": '["t1","t2"]',
+                "volume": "100000",
+                "groupItemTitle": "",
+                "closed": False,
+            }
+        ],
+    }
+
+
+@pytest.mark.unit
+async def test_acquire_events_lock_uses_distinct_key() -> None:
+    """The events lock SETNX targets EVENTS_LOCK_KEY, never the poll LOCK_KEY (T-14-13)."""
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+
+    token = await acquire_events_lock(redis)
+
+    assert isinstance(token, str) and token
+    redis.set.assert_called_once()
+    call = redis.set.call_args
+    # SETNX on the DISTINCT events key — not the poll lock key.
+    assert call.args[0] == EVENTS_LOCK_KEY
+    assert call.args[0] != LOCK_KEY
+    assert call.kwargs.get("nx") is True or call[1].get("nx") is True
+    # The lock VALUE is the returned ownership token.
+    assert call.args[1] == token
+
+
+@pytest.mark.unit
+async def test_poll_events_skipped_when_lock_held() -> None:
+    """When the events lock is held, GammaClient is NOT constructed (no fetch)."""
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=False)  # lock NOT acquired
+    redis.eval = AsyncMock()
+    redis.aclose = AsyncMock()
+
+    with patch("app.integrations.polymarket.tasks.GammaClient") as mock_client_cls:
+        await _run_poll_events(redis_override=redis)
+        mock_client_cls.assert_not_called()
+
+
+@pytest.mark.unit
+async def test_poll_events_keeps_last_good_per_category() -> None:
+    """One category's fetch raising must NOT abort the others (CAT-05 / T-14-12).
+
+    Politics (tag_id="2") raises a NetworkError; Sports (tag_id="1") returns a
+    floor-clearing event. The loop must continue: ``sync_events`` is reached for
+    Sports and ``session.rollback`` is called for the failing Politics category.
+    """
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+    redis.eval = AsyncMock()
+    redis.aclose = AsyncMock()
+
+    sports_event = _event_payload(
+        "evt-sports", volume24hr=50_000.0, condition_id="cond-sports", category="Sports"
+    )
+
+    async def fake_fetch(
+        *, tag_id: str, limit: int = 10, offset: int = 0
+    ) -> list[dict[str, object]]:
+        if tag_id == "2":  # Politics — highest priority, fails
+            raise httpx.NetworkError("boom")
+        if tag_id == "1":  # Sports — next priority, succeeds with a floor-clearing event
+            return [sports_event]
+        return []  # remaining categories: empty page
+
+    mock_client = AsyncMock()
+    mock_client.fetch_events = AsyncMock(side_effect=fake_fetch)
+    mock_client.close = AsyncMock()
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+    mock_session.close = AsyncMock()
+
+    with (
+        patch("app.integrations.polymarket.tasks.GammaClient", return_value=mock_client),
+        patch("app.integrations.polymarket.tasks.PolymarketAdapter") as mock_adapter_cls,
+    ):
+        mock_adapter = AsyncMock()
+        mock_adapter.sync_events = AsyncMock(return_value=1)
+        mock_adapter.changed_markets = []
+        mock_adapter_cls.return_value = mock_adapter
+
+        await _run_poll_events(redis_override=redis, session_override=mock_session)
+
+    # The loop did NOT abort on Politics: Sports still synced (keep-last-good).
+    assert mock_adapter.sync_events.await_count == 1
+    sync_call = mock_adapter.sync_events.await_args
+    assert sync_call.kwargs["category"] == "Sports"
+    # The failing Politics category was rolled back (not committed).
+    assert mock_session.rollback.await_count >= 1
+    # Exactly one category committed (Sports); the failing one did not commit.
+    assert mock_session.commit.await_count == 1
+    # The lock was released via the owner-checked eval on the EVENTS key (WR-05).
+    redis.eval.assert_called_once()
+    assert redis.eval.call_args.args[2] == EVENTS_LOCK_KEY
+
+
+@pytest.mark.unit
+async def test_poll_events_publishes_per_category_not_cumulative() -> None:
+    """Each category publishes ONLY its own deltas, not the cumulative run (14-REVIEW CR-02).
+
+    One adapter instance is reused across all categories. Here ``sync_events`` has a
+    side_effect that APPENDS exactly one delta to ``adapter.changed_markets`` per
+    call (mirroring the real append-only accumulator), with the list starting at
+    ``[]``. Two categories (Politics tag_id="2", Sports tag_id="1") return a
+    floor-clearing event; the rest return empty. Under the CR-02 fix the loop resets
+    ``adapter.changed_markets = []`` before each ``sync_events``, so the per-category
+    publish sees ONLY that category's single delta → ``publish_odds_change_async`` is
+    awaited exactly twice total (once per category), and no delta is published twice.
+    Under the reverted (no-reset) code the accumulator would carry Politics' delta into
+    Sports' publish loop → 1 + 2 = 3 awaits, re-publishing Politics' delta.
+    """
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+    redis.eval = AsyncMock()
+    redis.aclose = AsyncMock()
+
+    politics_event = _event_payload(
+        "evt-politics", volume24hr=50_000.0, condition_id="cond-pol", category="Politics"
+    )
+    sports_event = _event_payload(
+        "evt-sports", volume24hr=50_000.0, condition_id="cond-spo", category="Sports"
+    )
+
+    async def fake_fetch(
+        *, tag_id: str, limit: int = 10, offset: int = 0
+    ) -> list[dict[str, object]]:
+        if tag_id == "2":  # Politics — floor-clearing event
+            return [politics_event]
+        if tag_id == "1":  # Sports — floor-clearing event
+            return [sports_event]
+        return []  # every other category: empty page
+
+    mock_client = AsyncMock()
+    mock_client.fetch_events = AsyncMock(side_effect=fake_fetch)
+    mock_client.close = AsyncMock()
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+    mock_session.close = AsyncMock()
+
+    publish_mock = AsyncMock()
+
+    with (
+        patch("app.integrations.polymarket.tasks.GammaClient", return_value=mock_client),
+        patch("app.integrations.polymarket.tasks.PolymarketAdapter") as mock_adapter_cls,
+        patch("app.integrations.polymarket.tasks.publish_odds_change_async", publish_mock),
+    ):
+        mock_adapter = AsyncMock()
+        # Append-only accumulator, starting empty — exactly like the real adapter.
+        mock_adapter.changed_markets = []
+        # Per-call counter gives each category a UNIQUE delta so we can prove no
+        # single delta is published twice.
+        call_state = {"n": 0}
+
+        async def fake_sync_events(session: object, curated: object, *, category: str) -> int:
+            call_state["n"] += 1
+            mock_adapter.changed_markets.append(
+                (f"market-{category}-{call_state['n']}", [{"outcome_id": "o1", "odds": "0.6"}]),
+            )
+            return 1
+
+        mock_adapter.sync_events = AsyncMock(side_effect=fake_sync_events)
+        mock_adapter_cls.return_value = mock_adapter
+
+        await _run_poll_events(redis_override=redis, session_override=mock_session)
+
+    # Two categories synced (Politics + Sports) — sanity on the setup.
+    assert mock_adapter.sync_events.await_count == 2
+    synced_categories = [c.kwargs["category"] for c in mock_adapter.sync_events.await_args_list]
+    assert synced_categories == ["Politics", "Sports"]
+
+    # CR-02 core: total publishes == number of categories synced (one delta each),
+    # NOT the cumulative 1 + 2 = 3 the un-reset accumulator would produce.
+    assert publish_mock.await_count == 2
+
+    # No single delta (market_id) is published twice — each publish is a distinct market.
+    published_market_ids = [call.args[1] for call in publish_mock.await_args_list]
+    assert len(published_market_ids) == len(set(published_market_ids))
+    assert set(published_market_ids) == {"market-Politics-1", "market-Sports-2"}
+
+
+@pytest.mark.unit
+async def test_poll_events_dedup_before_floor() -> None:
+    """A duplicate event id across categories is skipped — first-by-priority (CAT-02).
+
+    Both Politics (tag_id="2") and Sports (tag_id="1") return the SAME event id;
+    the second occurrence is dropped by the cycle-level ``seen_event_ids`` set, so
+    ``sync_events`` is called for Politics but the event is NOT re-synced for
+    Sports (Pitfall 4).
+    """
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+    redis.eval = AsyncMock()
+    redis.aclose = AsyncMock()
+
+    shared = _event_payload("evt-shared", volume24hr=50_000.0, condition_id="cond-shared")
+
+    async def fake_fetch(
+        *, tag_id: str, limit: int = 10, offset: int = 0
+    ) -> list[dict[str, object]]:
+        if tag_id in ("2", "1"):  # Politics AND Sports surface the same event
+            return [shared]
+        return []
+
+    mock_client = AsyncMock()
+    mock_client.fetch_events = AsyncMock(side_effect=fake_fetch)
+    mock_client.close = AsyncMock()
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+    mock_session.close = AsyncMock()
+
+    with (
+        patch("app.integrations.polymarket.tasks.GammaClient", return_value=mock_client),
+        patch("app.integrations.polymarket.tasks.PolymarketAdapter") as mock_adapter_cls,
+    ):
+        mock_adapter = AsyncMock()
+        mock_adapter.sync_events = AsyncMock(return_value=1)
+        mock_adapter.changed_markets = []
+        mock_adapter_cls.return_value = mock_adapter
+
+        await _run_poll_events(redis_override=redis, session_override=mock_session)
+
+    # The event synced exactly once — under Politics (higher priority), not Sports.
+    assert mock_adapter.sync_events.await_count == 1
+    assert mock_adapter.sync_events.await_args.kwargs["category"] == "Politics"
+
+
+@pytest.mark.unit
+async def test_poll_events_volume_floor_boundary() -> None:
+    """The volume floor is ``>=`` $10k: 9999 excluded, 10000 + 10001 curated (CAT-02).
+
+    Three Politics events at ``volume24hr`` = 9999 / 10000 / 10001 are fetched; the
+    ``POLYMARKET_VOLUME_FLOOR`` default is ``Decimal('10000')``. The ``>=`` boundary
+    keeps exactly the two at-or-above the floor and drops the below-floor one. We
+    capture the ``curated`` list ACTUALLY passed to ``sync_events`` and assert its
+    membership precisely (a ``>`` regression would drop 10000; a ``<`` typo would
+    keep 9999).
+    """
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+    redis.eval = AsyncMock()
+    redis.aclose = AsyncMock()
+
+    below = _event_payload("evt-below", volume24hr=9_999.0, condition_id="cond-below")
+    at = _event_payload("evt-at", volume24hr=10_000.0, condition_id="cond-at")
+    above = _event_payload("evt-above", volume24hr=10_001.0, condition_id="cond-above")
+
+    async def fake_fetch(
+        *, tag_id: str, limit: int = 10, offset: int = 0
+    ) -> list[dict[str, object]]:
+        if tag_id == "2":  # Politics — all three boundary events
+            return [above, at, below]  # ranked desc by volume (as Gamma returns)
+        return []  # every other category empty
+
+    mock_client = AsyncMock()
+    mock_client.fetch_events = AsyncMock(side_effect=fake_fetch)
+    mock_client.close = AsyncMock()
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+    mock_session.close = AsyncMock()
+
+    captured: dict[str, list[object]] = {}
+
+    with (
+        patch("app.integrations.polymarket.tasks.GammaClient", return_value=mock_client),
+        patch("app.integrations.polymarket.tasks.PolymarketAdapter") as mock_adapter_cls,
+    ):
+        mock_adapter = AsyncMock()
+        mock_adapter.changed_markets = []
+
+        async def fake_sync_events(session: object, curated: object, *, category: str) -> int:
+            # Snapshot the curated event ids the floor produced for this category.
+            captured[category] = [e.id for e in curated]  # type: ignore[attr-defined]
+            return len(curated)  # type: ignore[arg-type]
+
+        mock_adapter.sync_events = AsyncMock(side_effect=fake_sync_events)
+        mock_adapter_cls.return_value = mock_adapter
+
+        await _run_poll_events(redis_override=redis, session_override=mock_session)
+
+    # Exactly one category (Politics) curated; it kept ONLY the at/above events.
+    assert mock_adapter.sync_events.await_count == 1
+    assert "Politics" in captured
+    assert set(captured["Politics"]) == {"evt-at", "evt-above"}
+    # The below-floor event is excluded (the heart of the >= boundary).
+    assert "evt-below" not in captured["Politics"]
+
+
+@pytest.mark.unit
+async def test_poll_events_all_below_floor_suppresses_category() -> None:
+    """CAT-06: a category whose every event is below the floor never persists.
+
+    All Politics events sit below the $10k floor → ``curated`` is empty → the
+    ``if not curated: continue`` short-circuits: ``sync_events`` is NOT awaited and
+    ``session.commit`` is NOT called for that category (the ``poll_events.category_empty``
+    path). Every other category is empty too, so across the whole cycle there is zero
+    sync and zero commit — an empty category is never written (suppression is a
+    Phase-16 read concern, not a write).
+    """
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+    redis.eval = AsyncMock()
+    redis.aclose = AsyncMock()
+
+    low1 = _event_payload("evt-low1", volume24hr=500.0, condition_id="cond-low1")
+    low2 = _event_payload("evt-low2", volume24hr=9_999.0, condition_id="cond-low2")
+
+    async def fake_fetch(
+        *, tag_id: str, limit: int = 10, offset: int = 0
+    ) -> list[dict[str, object]]:
+        if tag_id == "2":  # Politics — every event below the $10k floor
+            return [low1, low2]
+        return []  # every other category empty
+
+    mock_client = AsyncMock()
+    mock_client.fetch_events = AsyncMock(side_effect=fake_fetch)
+    mock_client.close = AsyncMock()
+
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+    mock_session.rollback = AsyncMock()
+    mock_session.close = AsyncMock()
+
+    with (
+        patch("app.integrations.polymarket.tasks.GammaClient", return_value=mock_client),
+        patch("app.integrations.polymarket.tasks.PolymarketAdapter") as mock_adapter_cls,
+    ):
+        mock_adapter = AsyncMock()
+        mock_adapter.sync_events = AsyncMock(return_value=0)
+        mock_adapter.changed_markets = []
+        mock_adapter_cls.return_value = mock_adapter
+
+        await _run_poll_events(redis_override=redis, session_override=mock_session)
+
+    # CAT-06: an all-below-floor category is suppressed — no sync, no commit.
+    mock_adapter.sync_events.assert_not_awaited()
+    mock_session.commit.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -229,6 +648,124 @@ async def test_poll_upserts_markets(async_session: AsyncSession) -> None:
             delete(Market).where(Market.id == m.id),
         )
     await async_session.flush()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_poll_events_keep_last_good_is_durable(
+    async_session: AsyncSession,
+    fake_redis: object,
+) -> None:
+    """CAT-05 keep-last-good is DURABLE at the transaction level (production-shape).
+
+    The unit ``test_poll_events_keeps_last_good_per_category`` proves the LOOP doesn't
+    abort, but with a mock session it never exercises real commit/rollback semantics.
+    This drives the real ``_run_poll_events`` against testcontainers Postgres with a
+    fakeredis lock:
+
+      - Politics (tag_id="2") returns a real multi-outcome event that ``sync_events``
+        + ``session.commit()`` persists (group + 2 children).
+      - Sports (tag_id="1") then RAISES inside the category body → its ``session.rollback()``
+        must roll back ONLY Sports' (empty) work, NOT Politics' already-committed rows.
+
+    After the cycle a ``SELECT`` confirms Politics' ``market_groups`` row and BOTH child
+    ``markets`` rows are STILL present — proving the per-category commit is durable and a
+    later category's failure cannot blank the catalog (the sync only upserts, never deletes).
+    """
+    from sqlalchemy import func, select
+
+    from app.markets.models import Market, MarketGroup
+
+    # Politics: a real 2-child event (distinct ids + slugs → both upsert as a group).
+    politics_event: dict[str, object] = {
+        "id": "kld-politics-evt",
+        "slug": "kld-politics-event",
+        "title": "Keep-last-good durable Politics event",
+        "closed": False,
+        "volume24hr": 80_000.0,
+        "volume": 80_000.0,
+        "tags": [{"id": "2", "label": "Politics", "slug": "politics"}],
+        "markets": [
+            {
+                "id": "kld-pol-mkt-A",
+                "question": "Will A resolve YES?",
+                "conditionId": "kld-cond-A",
+                "slug": "kld-pol-slug-A",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.6","0.4"]',
+                "clobTokenIds": '["a1","a2"]',
+                "volume": "100000",
+                "groupItemTitle": "A",
+                "closed": False,
+            },
+            {
+                "id": "kld-pol-mkt-B",
+                "question": "Will B resolve YES?",
+                "conditionId": "kld-cond-B",
+                "slug": "kld-pol-slug-B",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.3","0.7"]',
+                "clobTokenIds": '["b1","b2"]',
+                "volume": "100000",
+                "groupItemTitle": "B",
+                "closed": False,
+            },
+        ],
+    }
+
+    async def fake_fetch(
+        *, tag_id: str, limit: int = 10, offset: int = 0
+    ) -> list[dict[str, object]]:
+        if tag_id == "2":  # Politics — real event, commits durably
+            return [politics_event]
+        if tag_id == "1":  # Sports — raises AFTER Politics already committed
+            raise httpx.NetworkError("sports boom")
+        return []  # every other category empty
+
+    mock_client = AsyncMock()
+    mock_client.fetch_events = AsyncMock(side_effect=fake_fetch)
+    mock_client.close = AsyncMock()
+
+    # Real adapter + real session: production transaction shape. Only GammaClient
+    # (network) is faked. The lock ACQUIRE uses the real fakeredis SETNX path; the
+    # RELEASE is patched to a no-op because fakeredis does not implement the Lua
+    # ``EVAL`` command the owner-checked release uses (and lock release is not what
+    # this durability test asserts — the per-category commit/rollback semantics are).
+    with (
+        patch("app.integrations.polymarket.tasks.GammaClient", return_value=mock_client),
+        patch(
+            "app.integrations.polymarket.tasks.release_events_lock",
+            new=AsyncMock(),
+        ),
+    ):
+        await _run_poll_events(redis_override=fake_redis, session_override=async_session)
+
+    # Sports' failure rolled back ONLY Sports — Politics' committed group survives.
+    grp = (
+        await async_session.execute(
+            select(MarketGroup).where(MarketGroup.source_event_id == "kld-politics-evt"),
+        )
+    ).scalar_one()
+    assert grp.category == "Politics"
+
+    # BOTH Politics child markets are still present and stamped with the group.
+    child_count = (
+        await async_session.execute(
+            select(func.count()).select_from(Market).where(Market.group_id == grp.id),
+        )
+    ).scalar_one()
+    assert child_count == 2
+
+    stamped_ids = (
+        (
+            await async_session.execute(
+                select(Market.source_market_id).where(Market.group_id == grp.id),
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert set(stamped_ids) == {"kld-pol-mkt-A", "kld-pol-mkt-B"}
 
 
 @pytest.mark.integration

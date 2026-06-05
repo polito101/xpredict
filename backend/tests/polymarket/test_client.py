@@ -106,3 +106,62 @@ class TestGammaClientFetchTopMarkets:
         with pytest.raises(httpx.NetworkError):
             await gamma.fetch_top_markets(1)
         assert mock_client.get.call_count == 3
+
+
+class TestGammaClientFetchEvents:
+    """Tests for fetch_events method (CAT-01 sync via GET /events)."""
+
+    @pytest.mark.asyncio
+    async def test_fetch_events_single_get_to_events(self) -> None:
+        """CAT-01: exactly 1 GET to the /events path, returns the JSON list."""
+        mock_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_client.is_closed = False
+        sample_data = [{"id": str(i), "title": f"E{i}"} for i in range(3)]
+        mock_client.get = AsyncMock(return_value=_make_mock_response(sample_data))
+
+        gamma = GammaClient()
+        gamma._client = mock_client
+
+        result = await gamma.fetch_events(tag_id="2", limit=10)
+        assert len(result) == 3
+        assert mock_client.get.call_count == 1
+        path_arg = mock_client.get.call_args.args[0]
+        assert path_arg == "/events"
+
+    @pytest.mark.asyncio
+    async def test_fetch_events_params(self) -> None:
+        """CAT-01: the single /events GET carries the curation params."""
+        mock_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_client.is_closed = False
+        mock_client.get = AsyncMock(
+            return_value=_make_mock_response([{"id": "1", "title": "E1"}]),
+        )
+
+        gamma = GammaClient()
+        gamma._client = mock_client
+
+        await gamma.fetch_events(tag_id="21", limit=10)
+
+        assert mock_client.get.call_count == 1
+        assert mock_client.get.call_args.args[0] == "/events"
+        params = mock_client.get.call_args.kwargs["params"]
+        assert params["tag_id"] == "21"
+        assert params["order"] == "volume24hr"
+        assert params["ascending"] == "false"
+        assert params["active"] == "true"
+        assert params["closed"] == "false"
+
+    @pytest.mark.asyncio
+    async def test_fetch_events_caps_limit(self) -> None:
+        """CAT-05: limit=999 is hard-capped — the sent limit param is '500'."""
+        mock_client = AsyncMock(spec=httpx.AsyncClient)
+        mock_client.is_closed = False
+        mock_client.get = AsyncMock(return_value=_make_mock_response([]))
+
+        gamma = GammaClient()
+        gamma._client = mock_client
+
+        await gamma.fetch_events(tag_id="2", limit=999)
+
+        params = mock_client.get.call_args.kwargs["params"]
+        assert params["limit"] == "500"
