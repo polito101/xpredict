@@ -281,9 +281,7 @@ async def _market_row(market_id: UUID) -> Market:
 
     sm = _get_session_maker()
     async with sm() as s:
-        return (
-            await s.execute(select(Market).where(Market.id == market_id))
-        ).scalar_one()
+        return (await s.execute(select(Market).where(Market.id == market_id))).scalar_one()
 
 
 async def _audit_for_market(event_type: str, market_id: UUID) -> list[AuditLog]:
