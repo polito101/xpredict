@@ -17,10 +17,19 @@ from __future__ import annotations
 
 import json
 from decimal import Decimal, InvalidOperation
+from typing import TYPE_CHECKING
 
+import structlog
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.markets.enums import MarketStatus
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from app.core.config import CategoryEntry
+
+log = structlog.get_logger()
 
 
 def _gamma_model_config() -> ConfigDict:
@@ -170,3 +179,104 @@ class GammaMarket(BaseModel):
         if self.volume_24hr is None:
             return Decimal("0")
         return _safe_decimal(self.volume_24hr)
+
+
+class GammaEventMarket(GammaMarket):
+    """A nested ``/events`` child market — ``GammaMarket`` plus the per-outcome label.
+
+    Inherits the spike-002 stringified-JSON validators, ``_derive_status`` truth
+    table, Decimal discipline, and the env-based ``extra`` policy VERBATIM. The
+    only addition is ``groupItemTitle``, the per-outcome display label used to
+    stamp ``Market.group_item_title`` (e.g. "64,000" on a Bitcoin-ladder child).
+    It is ``""`` on single-market events (EVT-07 standalone path).
+    """
+
+    group_item_title: str = Field(alias="groupItemTitle", default="")
+
+
+class GammaTag(BaseModel):
+    """Pydantic v2 model for one Gamma ``tags[]`` element on an event.
+
+    Only the fields the curated sync needs (``id`` drives category resolution;
+    ``label``/``slug`` are kept for drift logging). The env-based ``extra`` policy
+    swallows the rest of Gamma's tag fields (``forceShow`` etc.).
+    """
+
+    model_config = _gamma_model_config()
+
+    id: str
+    label: str = ""
+    slug: str = ""
+
+
+class GammaEvent(BaseModel):
+    """Pydantic v2 model for one Gamma ``/events`` array element.
+
+    CRITICAL DIVERGENCE FROM ``GammaMarket`` (Pitfall 1): event-level
+    ``volume``/``volume24hr`` are raw FLOATS in ``/events`` (not stringified
+    JSON), so they are typed ``float | None`` and converted via ``_safe_decimal``
+    in the ``*_decimal`` properties. The stringified-JSON list validator is NOT
+    applied here — it stays on the nested children (``GammaEventMarket``).
+    """
+
+    model_config = _gamma_model_config()
+
+    id: str
+    slug: str = ""
+    title: str = ""
+    description: str = ""
+    closed: bool = False
+    end_date_raw: str | None = Field(alias="endDate", default=None)
+    # ⚠️ event-level volume is FLOAT (not stringified) — NO list validator here.
+    volume_24hr: float | None = Field(alias="volume24hr", default=None)
+    volume_total: float | None = Field(alias="volume", default=None)
+    markets: list[GammaEventMarket] = Field(default_factory=list)
+    tags: list[GammaTag] = Field(default_factory=list)
+
+    @property
+    def volume_24hr_decimal(self) -> Decimal:
+        """Event 24h volume as Decimal — converts the raw float safely."""
+        return _safe_decimal(self.volume_24hr)
+
+    @property
+    def volume_total_decimal(self) -> Decimal:
+        """Event total volume as Decimal — converts the raw float safely."""
+        return _safe_decimal(self.volume_total)
+
+
+def resolve_category(
+    event: GammaEvent,
+    allow_list: Sequence[CategoryEntry],
+) -> str | None:
+    """Return the human-readable category for an event (first-by-priority, CAT-03).
+
+    ``allow_list`` is the priority-ordered ``POLYMARKET_CATEGORIES`` constant. The
+    FIRST allow-listed tag whose ``tag_id`` appears on the event wins, so a
+    dual-tagged event (e.g. World + Politics) resolves to the higher-priority
+    category (Politics). Returns ``None`` when the event carries no allow-listed
+    tag (caller skips it).
+
+    Tags present on the event but absent from every allow-list entry are logged
+    via ``gamma.unmapped_tag`` for drift visibility — they are NEVER auto-added
+    to the allow-list (CAT-03: "logged, never auto-added").
+    """
+    tag_ids = {t.id for t in event.tags}
+    allow_listed_ids = {entry.tag_id for entry in allow_list}
+
+    resolved: str | None = None
+    for entry in allow_list:  # allow_list is priority-ordered
+        if entry.tag_id in tag_ids:
+            resolved = entry.name
+            break
+
+    # Drift logging: surface every event tag not in any allow-list entry.
+    for tag in event.tags:
+        if tag.id not in allow_listed_ids:
+            log.warning(
+                "gamma.unmapped_tag",
+                event_id=event.id,
+                tag_id=tag.id,
+                label=tag.label,
+            )
+
+    return resolved
