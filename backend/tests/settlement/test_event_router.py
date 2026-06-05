@@ -182,3 +182,54 @@ async def test_create_requires_admin(api) -> None:
 async def test_patch_requires_admin(api) -> None:
     resp = await api.patch(f"/admin/events/{uuid4()}", json={"title": "nope"})
     assert resp.status_code == 401
+
+
+async def test_edit_replace_outcomes_pre_bet(api, async_session) -> None:
+    # WR-01: the whole-list outcome REPLACE path (pre-bet) drops the old children and
+    # rebuilds from the new list — each new child still exactly YES + NO.
+    admin_override(uuid4())
+    created = (await api.post("/admin/events", json=_create_body())).json()  # 3 outcomes
+    group_id = created["id"]
+
+    resp = await api.patch(
+        f"/admin/events/{group_id}",
+        json={"outcomes": [
+            {"label": "Xray", "initial_odds": "0.7"},
+            {"label": "Yankee", "initial_odds": "0.2"},
+        ]},
+    )
+    assert resp.status_code == 200, resp.text
+    assert {o["label"] for o in resp.json()["outcomes"]} == {"Xray", "Yankee"}
+
+    group = (
+        await async_session.execute(
+            select(MarketGroup)
+            .where(MarketGroup.id == group_id)
+            .options(selectinload(MarketGroup.markets).selectinload(Market.outcomes))
+        )
+    ).scalar_one()
+    children = list(group.markets)
+    assert len(children) == 2  # the 3 originals were replaced
+    assert {c.group_item_title for c in children} == {"Xray", "Yankee"}
+    for child in children:
+        assert sorted(o.label for o in child.outcomes) == ["NO", "YES"]
+
+
+async def test_edit_title_updates_child_question(api, async_session) -> None:
+    # WR-04: renaming the event re-derives each child's question (no stale title).
+    admin_override(uuid4())
+    created = (await api.post("/admin/events", json=_create_body())).json()
+    group_id = created["id"]
+
+    resp = await api.patch(f"/admin/events/{group_id}", json={"title": "Brand new title"})
+    assert resp.status_code == 200
+
+    group = (
+        await async_session.execute(
+            select(MarketGroup)
+            .where(MarketGroup.id == group_id)
+            .options(selectinload(MarketGroup.markets))
+        )
+    ).scalar_one()
+    for child in group.markets:
+        assert child.question.startswith("Brand new title — ")

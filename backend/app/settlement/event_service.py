@@ -704,10 +704,12 @@ class EventService:
     ) -> MarketGroup:
         """Pre-bet edit of a house event (EVA-02). The 423 edit-lock is enforced upstream.
 
-        Mutates ``title`` (group), ``category`` (group + children), and ``deadline``
-        (children — the group has none). When ``body.outcomes`` is supplied it REPLACES
-        the children wholesale (children cascade their outcomes on delete). Commits and
-        returns the reloaded group.
+        Mutates ``title`` (group + each child's derived ``question``), ``category``
+        (group + children), and ``deadline`` (children — the group has none). When
+        ``body.outcomes`` is supplied it REPLACES the children wholesale — the old
+        children are deleted (their ``Outcome`` rows cascade via the DB-level
+        ``outcomes.market_id`` ``ON DELETE CASCADE`` FK) and rebuilt from the new list.
+        Commits and returns the reloaded group.
         """
         group = await _load_group_with_children(session, group_id)
         if group is None:
@@ -720,14 +722,18 @@ class EventService:
             group.title = body.title
         if body.category is not None:
             group.category = body.category
-        for child in children:
-            if body.category is not None:
-                child.category = body.category
-            if body.deadline is not None:
-                child.deadline = body.deadline
 
         if body.outcomes is not None:
-            await session.execute(delete(Market).where(Market.group_id == group_id))
+            # Whole-list REPLACE. ``synchronize_session=False`` because we discard the
+            # in-session children immediately and re-query at the end — no need for the
+            # ORM to evaluate the criterion against the identity map. The to-be-deleted
+            # children are NOT mutated above (the metadata branch below is skipped), so
+            # there is no dirty-then-deleted flush hazard.
+            await session.execute(
+                delete(Market)
+                .where(Market.group_id == group_id)
+                .execution_options(synchronize_session=False)
+            )
             await session.flush()
             new_deadline = body.deadline or existing_deadline
             new_category = body.category if body.category is not None else group.category
@@ -741,8 +747,22 @@ class EventService:
                     category=new_category,
                     resolution_criteria=None,
                 )
+        else:
+            # Metadata-only edit — propagate to the existing children. A title change
+            # re-derives each child's ``question`` so it does not bear the stale title.
+            for child in children:
+                if body.category is not None:
+                    child.category = body.category
+                if body.deadline is not None:
+                    child.deadline = body.deadline
+                if body.title is not None:
+                    child.question = f"{body.title} — {child.group_item_title}?"
 
         await session.commit()
+        # The replace path deletes the old children with synchronize_session=False, so the
+        # group's already-loaded `markets` collection is stale; expunge the identity map so
+        # the reload reflects the committed DB rows (the new children) rather than the cache.
+        session.expunge_all()
         refreshed = await _load_group_with_children(session, group_id)
         assert refreshed is not None  # noqa: S101 — just committed above
         return refreshed
