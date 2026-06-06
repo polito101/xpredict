@@ -47,6 +47,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import get_settings
 from app.integrations.livebets.constants import (
     LIVEBETS_ESCROW_ACCOUNT_ID,
     LIVEBETS_PENDING,
@@ -63,7 +64,6 @@ from app.integrations.livebets.constants import (
     settled_stake_idempotency_key,
     settled_winnings_idempotency_key,
 )
-from app.core.config import get_settings
 from app.integrations.livebets.models import LiveBetsBet
 from app.integrations.livebets.schemas import MirrorResult, parse_verified_bet
 from app.wallet.constants import HOUSE_PROMO_ACCOUNT_ID, HOUSE_REVENUE_ACCOUNT_ID

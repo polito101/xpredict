@@ -35,19 +35,19 @@ from sqlalchemy import select, text
 from app.auth.deps import current_active_player
 from app.core.config import get_settings
 from app.db.session import _get_session_maker, get_async_session
-from app.integrations.livebets.router import get_livebets_client
-from app.main import app
 from app.integrations.livebets.constants import (
     LIVEBETS_ESCROW_ACCOUNT_ID,
     LIVEBETS_PENDING,
     LIVEBETS_WON,
 )
 from app.integrations.livebets.models import LiveBetsBet
+from app.integrations.livebets.router import get_livebets_client
 from app.integrations.livebets.service import (
     LiveBetsBridge,
     LiveBetsOwnershipError,
     LiveBetsVerificationError,
 )
+from app.main import app
 from app.wallet.constants import (
     HOUSE_PROMO_ACCOUNT_ID,
     KIND_USER_WALLET,
