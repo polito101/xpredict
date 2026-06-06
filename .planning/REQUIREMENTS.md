@@ -49,10 +49,10 @@ Committed scope (P1 — table stakes). Each maps to a roadmap phase. Categories 
 
 ### Seed & Demo Harness (DEMO) — extends v1.1 harness
 
-- [ ] **DEMO-01**: The seed creates ≥ 1 multi-outcome event per category, each with 3–8 outcomes and plausible per-outcome YES prices.
-- [ ] **DEMO-02**: The seed includes at least one fully-open, one partially-resolved, one fully-resolved, and one void event, each with non-flat per-outcome odds history.
-- [ ] **DEMO-03**: Every demo category tab is filled above a minimum (no empty tabs); a featured allow-list of the categories/events the sales script walks is pinned and insulated from upstream tag drift.
-- [ ] **DEMO-04**: `demo-reset` is idempotent and the double-entry integrity check passes green after seed and after reset.
+- [x] **DEMO-01**: The seed creates ≥ 1 multi-outcome event per category, each with 3–8 outcomes and plausible per-outcome YES prices.
+- [x] **DEMO-02**: The seed includes at least one fully-open, one partially-resolved, one fully-resolved, and one void event, each with non-flat per-outcome odds history.
+- [x] **DEMO-03**: Every demo category tab is filled above a minimum (no empty tabs); a featured allow-list of the categories/events the sales script walks is pinned and insulated from upstream tag drift.
+- [x] **DEMO-04**: `demo-reset` is idempotent and the double-entry integrity check passes green after seed and after reset.
 
 ## Stretch (P2 — in-scope if time, NOT blocking the milestone)
 
@@ -119,10 +119,10 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 | EVA-04 | Phase 15 (Settlement) | Complete |
 | EVA-05 | Phase 15 (Settlement) | Complete |
 | EVA-06 | Phase 15 (Settlement) | Complete |
-| DEMO-01 | Phase 18 (Seed/Demo) | Pending |
-| DEMO-02 | Phase 18 (Seed/Demo) | Pending |
-| DEMO-03 | Phase 18 (Seed/Demo) | Pending |
-| DEMO-04 | Phase 18 (Seed/Demo) | Pending |
+| DEMO-01 | Phase 18 (Seed/Demo) | Complete (PR #32, MERGE READY) |
+| DEMO-02 | Phase 18 (Seed/Demo) | Complete (PR #32, MERGE READY) |
+| DEMO-03 | Phase 18 (Seed/Demo) | Complete (PR #32, MERGE READY) |
+| DEMO-04 | Phase 18 (Seed/Demo) | Complete (PR #32, MERGE READY) |
 
 **Coverage:**
 - v1.2 P1 requirements: 29 total (EVT 7 · CAT 6 · BRW 6 · EVA 6 · DEMO 4)
@@ -139,4 +139,4 @@ Which phases cover which requirements. Populated during roadmap creation (gsd-ro
 
 ---
 *Requirements defined: 2026-06-04*
-*Last updated: 2026-06-04 — roadmap traceability populated (Phases 13–18); 29/29 P1 mapped, 0 unmapped.*
+*Last updated: 2026-06-06 — Phase 18 (DEMO-01..04) MERGE READY (PR #32, CI 7/7 green). **All 29/29 v1.2 P1 requirements complete** (EVT 7 · CAT 6 · BRW 6 · EVA 6 · DEMO 4); v1.2 engineering-complete, awaiting Pol's merges → milestone lifecycle.*
