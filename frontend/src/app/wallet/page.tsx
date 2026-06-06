@@ -197,7 +197,7 @@ function WalletContent({ balance, currency, transactions }: WalletData) {
                   <span
                     className={
                       isCredit
-                        ? "shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-emerald-600"
+                        ? "shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-emerald-400"
                         : "shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground"
                     }
                   >

@@ -46,9 +46,9 @@ export function AdminNav() {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "hidden rounded-full px-3 py-1.5 font-medium transition-colors md:inline-block",
+              "hidden rounded-full px-3 py-1.5 font-medium transition-colors md:inline-block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               active
-                ? "bg-brand-primary/12 text-brand-primary"
+                ? "bg-brand-primary/15 font-semibold text-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
@@ -59,7 +59,7 @@ export function AdminNav() {
       <span className="mx-1.5 hidden h-5 w-px bg-border md:inline-block" aria-hidden="true" />
       <Link
         href="/admin/logout"
-        className="rounded-full px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="rounded-full px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         Log out
       </Link>

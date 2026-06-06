@@ -37,7 +37,6 @@ export function XMark({
   return (
     <svg
       viewBox="0 0 120 120"
-      role="img"
       aria-hidden="true"
       className={cn("h-8 w-8", className)}
     >

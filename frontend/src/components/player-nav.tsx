@@ -38,11 +38,15 @@ function isActive(pathname: string, href: string): boolean {
   return pathname.startsWith(href);
 }
 
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
 function navLinkClass(active: boolean): string {
   return cn(
     "rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+    FOCUS_RING,
     active
-      ? "bg-brand-primary/12 text-brand-primary"
+      ? "bg-brand-primary/15 font-semibold text-foreground"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
   );
 }
@@ -98,7 +102,10 @@ export function PlayerNav({
           {playerName && (
             <Link
               href="/portfolio"
-              className="flex items-center gap-2 rounded-full border border-border bg-muted/60 py-1 pl-1 pr-3 text-sm text-foreground transition-colors hover:border-border-strong"
+              className={cn(
+                "flex items-center gap-2 rounded-full border border-border bg-muted/60 py-1 pl-1 pr-3 text-sm text-foreground transition-colors hover:border-border-strong",
+                FOCUS_RING,
+              )}
             >
               <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-brand text-[0.65rem] font-semibold text-brand-primary-foreground">
                 {playerName.charAt(0).toUpperCase()}
@@ -109,7 +116,10 @@ export function PlayerNav({
           <form action={logoutAction}>
             <button
               type="submit"
-              className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className={cn(
+                "rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                FOCUS_RING,
+              )}
             >
               Log out
             </button>
@@ -123,7 +133,10 @@ export function PlayerNav({
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
-        className="grid h-10 w-10 place-items-center rounded-full border border-border bg-muted/60 text-foreground transition-colors hover:border-border-strong sm:hidden"
+        className={cn(
+          "grid h-11 w-11 place-items-center rounded-full border border-border bg-muted/60 text-foreground transition-colors hover:border-border-strong sm:hidden",
+          FOCUS_RING,
+        )}
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
@@ -145,8 +158,9 @@ export function PlayerNav({
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "rounded-xl px-4 py-3 text-base font-medium transition-colors",
+                    FOCUS_RING,
                     active
-                      ? "bg-brand-primary/12 text-brand-primary"
+                      ? "bg-brand-primary/15 font-semibold text-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
@@ -158,7 +172,10 @@ export function PlayerNav({
             <form action={logoutAction}>
               <button
                 type="submit"
-                className="w-full rounded-xl px-4 py-3 text-left text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className={cn(
+                  "w-full rounded-xl px-4 py-3 text-left text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                  FOCUS_RING,
+                )}
               >
                 Log out
               </button>

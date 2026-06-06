@@ -30,8 +30,10 @@ export function SiteFrame({
 }) {
   const pathname = usePathname();
 
-  // The admin surface supplies its own chrome — render the page bare.
-  if (pathname.startsWith("/admin")) {
+  // The admin surface supplies its own chrome — render the page bare. Use a
+  // word-boundary check (mirrors the proxy's ADMIN_PROTECTED regex) so a future
+  // sibling like /administrators is NOT mistaken for the admin tree.
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     return <>{children}</>;
   }
 
@@ -56,13 +58,13 @@ export function SiteFrame({
             <nav className="flex flex-wrap gap-x-4 gap-y-1">
               <Link
                 href="https://github.com/polito101/xpredict/blob/main/docs/terms-of-service.md"
-                className="transition-colors hover:text-foreground"
+                className="rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 Terms of Service
               </Link>
               <Link
                 href="https://github.com/polito101/xpredict/blob/main/docs/regulatory.md"
-                className="transition-colors hover:text-foreground"
+                className="rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 Token policy
               </Link>

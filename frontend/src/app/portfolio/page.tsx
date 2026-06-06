@@ -104,7 +104,7 @@ function PnL({ value, className }: { value: string; className?: string }) {
     <span
       className={cn(
         "font-medium tabular-nums",
-        negative ? "text-muted-foreground" : "text-emerald-600",
+        negative ? "text-muted-foreground" : "text-emerald-400",
         className,
       )}
     >
@@ -177,7 +177,7 @@ function PortfolioContent({ open, settled }: Portfolio) {
 
   const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}`;
   const signClass = (n: number) =>
-    n >= 0 ? "text-emerald-600" : "text-muted-foreground";
+    n >= 0 ? "text-emerald-400" : "text-muted-foreground";
 
   return (
     <>

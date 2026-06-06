@@ -47,7 +47,7 @@ export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
       href="/"
       aria-label={name}
       className={cn(
-        "group inline-flex items-center gap-2.5 font-display text-base font-semibold tracking-tight",
+        "group inline-flex items-center gap-2.5 rounded-lg font-display text-base font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
     >
