@@ -1,7 +1,7 @@
 """Live-bets bridge (v1.3, LB-A): livebets_escrow singleton + livebets_bets mirror.
 
 Revision ID: 0011_livebets_bridge
-Revises: 0010_phase12_resolution_stakes
+Revises: 0011_phase13_market_groups
 Create Date: 2026-06-05
 
 Additive, reversible migration for the live-bets ledger mirror. It changes NO
@@ -50,7 +50,7 @@ from app.wallet.constants import OWNER_SYSTEM, PLAY_USD
 
 # revision identifiers, used by Alembic.
 revision: str = "0011_livebets_bridge"
-down_revision: str | None = "0010_phase12_resolution_stakes"
+down_revision: str | None = "0011_phase13_market_groups"
 branch_labels: str | None = None
 depends_on: str | None = None
 
@@ -119,8 +119,6 @@ def downgrade() -> None:
     A clean downgrade implies no live data was mirrored, so the escrow account is
     balance-0 and no entries reference it — the DELETE-by-id is safe.
     """
-    op.execute(
-        f"DELETE FROM accounts WHERE id = '{LIVEBETS_ESCROW_ACCOUNT_ID}';"
-    )
+    op.execute(f"DELETE FROM accounts WHERE id = '{LIVEBETS_ESCROW_ACCOUNT_ID}';")
     op.drop_index("livebets_bets_user_idx", table_name="livebets_bets")
     op.drop_table("livebets_bets")

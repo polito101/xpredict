@@ -16,7 +16,7 @@ override it via ``app.dependency_overrides`` (mirrors ``get_market_source`` in t
 bets router) and never hit the network.
 """
 
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -101,7 +101,7 @@ async def list_tables(
     """
     raw = await client.list_tables()
     items = raw.get("tables", []) if isinstance(raw, dict) else raw
-    return TablesResponse(tables=[TableItem.model_validate(t) for t in items])
+    return TablesResponse(tables=[TableItem.model_validate(t) for t in cast("list[object]", items)])
 
 
 @livebets_router.post("/bets/{bet_id}/placed", response_model=MirrorResult)
