@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: ready_to_plan
-last_updated: 2026-06-05T21:14:41.505Z
-last_activity: 2026-06-05
+status: phase_complete
+last_updated: 2026-06-06T00:00:00.000Z
+last_activity: 2026-06-06
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 14
-  completed_plans: 14
-  percent: 50
-stopped_at: Phase 16 complete (5/5) — ready to discuss Phase 17
+  completed_phases: 5
+  total_plans: 19
+  completed_plans: 19
+  percent: 83
+stopped_at: Phase 17 MERGE READY — PR #31, CI 7/7 green; Phase 18 (Seed/Demo) next
 ---
 
 # Project State
@@ -22,16 +22,16 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 17 — catalog browse ui, event detail & admin event ops
+**Current focus:** Phase 18 — seed/demo harness for multi-outcome + categories (Phase 17 frontend is MERGE READY)
 
 ## Current Position
 
-Phase: 17
+Phase: 18
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-05
+Status: Phase 17 (UI) MERGE READY — PR [#31](https://github.com/polito101/xpredict/pull/31) OPEN, CI 7/7 green, MERGEABLE, 0 drift, awaiting Pol's review/merge. Phase 18 (Seed/Demo) ready to plan.
+Last activity: 2026-06-06
 
-Progress: [███████░░░] 71%
+Progress: [████████░░] 83%
 
 > Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
@@ -64,8 +64,8 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 
 ## Session Continuity
 
-Last session: 2026-06-05T20:00:09.680Z
-Stopped at: Completed 16-01-PLAN.md (Wave-0 catalog test scaffold: tests/catalog/ package + _factories.py). 2 tasks done (Task 1 = prior commit 86db7a8; Task 2 = 863c08a), BRW-01..05 marked complete, collection-only check clean, _factories import-cleanliness verified. Next: 16-02-PLAN.md (Phase 16 Wave 1).
+Last session: 2026-06-06
+Stopped at: Phase 17 (Catalog Browse UI, Event Detail & Admin Event Ops) executed end-to-end autonomously — 5 plans (data layer → browse → event detail → admin event ops → brand sweep), ~30 frontend files, 188 vitest green + tsc/eslint/`next build --webpack` clean; 2 independent code reviews (framing LOCK / security / a11y / BRW-06 = PASS, 1 HIGH + 2 MED + 4 LOW all fixed); verification PASSED. PR [#31](https://github.com/polito101/xpredict/pull/31) OPEN, CI 7/7 green, MERGEABLE, 0 drift → MERGE READY (awaiting Pol). Next: Phase 18 (Seed/Demo) after #31 merges.
 Resume file: None
 
 ## Performance Metrics
@@ -89,3 +89,4 @@ Resume file: None
 - [Phase 15]: EVA-06 is VERIFY-ONLY — backend/app/integrations/polymarket/tasks.py has NO diff. test_event_mirrored.py drives the UNCHANGED _run_detect_resolutions over a source=POLYMARKET market_group's children via its session_override/redis_override seam (settle with zero new code) + asserts reverse_event rejects mirrored. A grace-PRIMER market (uma_resolved_at NULL, committed first) grace-starts+commits in the detect loop to clear the candidate-SELECT read tx so each child's resolve_market opens its own begin() on a real session_override (a real session forbids begin() while a read tx is open — reproduces a real mixed-stage 60s tick); AsyncMock detect-lock (in-repo fakeredis lacks Lua eval).
 - [Phase 15]: Phase 15 event-settlement layer COMPLETE — resolve + void + reverse + derived status + mirrored verify, all with spike-004 drift_count==0 on every path; all 3 EventService mutations reject source=POLYMARKET groups (mirrored settles ONLY via the unchanged UMA detect path).
 - [Phase 16]: Wave-0 catalog test scaffold (16-01) — tests/catalog/ package; conftest inherits the parent engine/async_session fixtures and adds only the api ASGITransport client + autouse testcontainer/override fixtures. _factories.py exposes make_market, make_event (MarketGroup + N binary YES/NO children), place_bet_on_child, resolve_child + per-state drivers (open/partial/resolved/void), and _Admin/admin_override/seed_admin. place_bet_on_child funds a LEDGER-BACKED wallet via WalletService.recharge on a FRESH committed session then writes the Bet on the caller session (Pitfall 5: recharge owns its own begin()+commit, can't run on the rolled-back async_session fixture). Per-state drivers mutate child status + winning_outcome_id directly (the plan's allowed non-financial state setup) consistent with derive_event_status; all money/odds are Decimal; children are binary YES/NO only (trg_binary_outcomes_only never trips).
+- [Phase 17]: First v1.2 FRONTEND phase — built entirely against the merged Phase-16 API (zero backend changes). The per-outcome framing LOCK (each outcome an independent YES bar, NEVER sum-to-100) is the gating visual invariant; tests assert >100% sums to forbid normalization. Catalog browse upgraded the homepage `/` (curated `/catalog` superset of `/markets`); event detail reuses `OrderEntryForm`/`PriceHistorySection`/`MarketDetailLiveOdds` per selected child (fetched via `fetchMarket(child_slug)` for the real YES+NO); the live-WS cap is structural (single `key={child.id}` panel remount → one socket). Admin event dialogs use the backend's server two-step (`confirm:false` preview → `confirm:true` execute). Admin events list reads the public catalog filtered to house events (no admin list endpoint — deferred). Caught + fixed a real duplicate-socket leak (per-element key on a conditional). 36 new tests.
