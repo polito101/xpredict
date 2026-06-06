@@ -1,17 +1,16 @@
 name: backend-ci
 
 on:
+  # NO `paths:` filter on purpose. `backend` is a REQUIRED status check in main's
+  # branch protection — a path-filtered required check that gets SKIPPED on a
+  # frontend-only change hangs forever as "Expected — Waiting for status to be
+  # reported" (it never runs, so it never reports). Always running it (a couple of
+  # CI minutes on FE-only changes) keeps the required check honest. If CI minutes
+  # ever matter, gate the heavy steps with dorny/paths-filter instead of skipping
+  # the whole job.
   pull_request:
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-ci.yml"
-      - ".gitleaks.toml"
   push:
     branches: [main]
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend-ci.yml"
-      - ".gitleaks.toml"
 
 permissions:
   contents: read
