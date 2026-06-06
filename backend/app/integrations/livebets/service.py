@@ -63,6 +63,7 @@ from app.integrations.livebets.constants import (
     settled_stake_idempotency_key,
     settled_winnings_idempotency_key,
 )
+from app.core.config import get_settings
 from app.integrations.livebets.models import LiveBetsBet
 from app.integrations.livebets.schemas import MirrorResult, parse_verified_bet
 from app.wallet.constants import HOUSE_PROMO_ACCOUNT_ID, HOUSE_REVENUE_ACCOUNT_ID
@@ -88,6 +89,18 @@ class LiveBetsVerificationError(Exception):
     ``GET /v2/bets/{id}`` is not in the expected state (e.g. ``record_placed`` for a
     non-PENDING bet, ``record_settled`` for a still-PENDING bet, a WON bet missing a
     payout, or a settle with no prior placed mirror row). The router maps it to a 4xx.
+    """
+
+
+class LiveBetsOwnershipError(Exception):
+    """The settle caller does not own the mirrored bet (IDOR guard, BL-01).
+
+    Raised — WITHOUT posting any ledger move — by ``record_settled`` when the mirror
+    row's ``user_id`` (the player who claimed the bet at placement) differs from the
+    calling player. The router maps this to HTTP 404 (NOT 403): "not your bet" is
+    surfaced as not-found so the existence of another player's bet is never leaked
+    (IDOR-safe). This closes the cross-player payout-theft vector — an attacker who
+    learns a foreign ``bet_id`` can no longer be credited for that bet's winnings.
     """
 
 
@@ -131,6 +144,18 @@ class LiveBetsBridge:
             )
         stake = verified.stake  # authoritative — never a client-supplied amount
 
+        # WR-02: defensive stake bounds BEFORE debiting the wallet. live-bets is the
+        # authority but a SEPARATE off-grid service; an absurd stake (or a hostile/buggy
+        # response) could otherwise drain the player's wallet in one mirrored placement.
+        # Reuse the same band BetService.place_bet enforces (bets/service.py:97-101) —
+        # cheap defense-in-depth at a money-moving trust boundary.
+        settings = get_settings()
+        if not (settings.BET_MIN_STAKE <= stake <= settings.BET_MAX_STAKE):
+            raise LiveBetsVerificationError(
+                f"live-bets bet {bet_id} stake {stake} outside allowed band "
+                f"[{settings.BET_MIN_STAKE}, {settings.BET_MAX_STAKE}]"
+            )
+
         try:
             async with session.begin():
                 wallet_id = await WalletService._resolve_user_wallet_id(
@@ -142,6 +167,18 @@ class LiveBetsBridge:
                 #    skip the transfer entirely (no double-debit). Mirrors the spirit of
                 #    _ensure_market_liability_account's pg_insert/on_conflict, but here a
                 #    conflict means "already mirrored", not "reuse infra".
+                #
+                # OWNERSHIP CLAIM (BL-01): the FIRST caller claims the bet by writing
+                # user_id=user.id; the bet_id PK then binds the bet to that player and
+                # record_settled rejects any other caller (the IDOR settle-side guard).
+                # A STRONG placement-time binding would require live-bets to expose
+                # ``player_ref`` on GET /v2/bets/{id} so we could assert it == user.id
+                # here; the live-bets contract does NOT return player_ref today, so the
+                # placement-side residual (an attacker placing first to claim/DoS a
+                # foreign bet, self-debiting their own wallet) is ACCEPTED FOR DEMO and
+                # deferred to LB-C (where we control live-bets and can return/verify
+                # player_ref). The settle-side ownership check below closes the actual
+                # payout-theft vector. See REVIEW.md BL-01.
                 insert_result = await session.execute(
                     pg_insert(LiveBetsBet)
                     .values(
@@ -250,9 +287,34 @@ class LiveBetsBridge:
                     raise LiveBetsVerificationError(
                         f"no placed mirror row for live-bets bet {bet_id} — settle before placed"
                     )
+
+                # 2b. OWNERSHIP CHECK (BL-01) — BEFORE the idempotency guard and any
+                #     post. The mirror row records the player who claimed the bet at
+                #     placement; a different caller settling this bet is an IDOR attempt
+                #     (cross-player payout theft). Reject with a not-found-flavoured error
+                #     (router -> 404) so the existence of another player's bet is never
+                #     leaked. This is the one-line, zero-dependency mitigation that closes
+                #     the actual payout-theft vector regardless of the placement residual.
+                if mirror.user_id != user.id:
+                    raise LiveBetsOwnershipError(
+                        f"bet {bet_id} mirror belongs to {mirror.user_id}, not caller {user.id}"
+                    )
+
                 if mirror.status != LIVEBETS_PENDING:
                     return MirrorResult(
                         bet_id=str(bet_id), status=mirror.status, applied=False
+                    )
+
+                # WR-03: reconcile the live-bets settle stake against the stake captured
+                # at placement. They must match — a drift (partial cancel/rebate, or a
+                # live-bets bug) would mix a live-bets payout with a mirror-row stake and
+                # silently mis-pay winnings (escrow still nets to zero, but winnings =
+                # payout - stake would use a stake the wallet never escrowed). Reject as a
+                # verification failure with zero ledger effect.
+                if verified.stake != mirror.stake:
+                    raise LiveBetsVerificationError(
+                        f"settle stake {verified.stake} != mirrored stake {mirror.stake} "
+                        f"for bet {bet_id}"
                     )
 
                 stake = mirror.stake  # authoritative captured stake, never a client amount

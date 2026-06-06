@@ -35,7 +35,11 @@ from app.integrations.livebets.schemas import (
     TableItem,
     TablesResponse,
 )
-from app.integrations.livebets.service import LiveBetsBridge, LiveBetsVerificationError
+from app.integrations.livebets.service import (
+    LiveBetsBridge,
+    LiveBetsOwnershipError,
+    LiveBetsVerificationError,
+)
 
 livebets_router = APIRouter(prefix="/api/live", tags=["livebets"])
 
@@ -99,13 +103,16 @@ async def record_placed(
     """Mirror a placed live-bets bet — debit the player's wallet into escrow (stake).
 
     Server-side verified + idempotent (``LiveBetsBridge.record_placed``). A
-    verification failure maps to 409; a missing wallet maps to 404 (mirrors the bets
-    router's exception mapping).
+    verification failure maps to 409; an ownership mismatch and a missing wallet both
+    map to 404 (mirrors the bets router's exception mapping; 404 for ownership keeps
+    a foreign bet's existence hidden — IDOR-safe, BL-01).
     """
     try:
         return await LiveBetsBridge.record_placed(
             session, user=player, bet_id=bet_id, client=client
         )
+    except LiveBetsOwnershipError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
     except LiveBetsVerificationError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except NoResultFound as exc:
@@ -122,12 +129,17 @@ async def record_settled(
     """Mirror a settled live-bets bet (WON/LOST/REFUNDED/VOIDED) into the ledger.
 
     Server-side verified + idempotent (``LiveBetsBridge.record_settled``). Same
-    exception mapping as the placed route.
+    exception mapping as the placed route: an ownership mismatch maps to 404 (a
+    non-owner settling a bet is treated as not-found to avoid leaking the bet's
+    existence — IDOR-safe, BL-01), a verification failure to 409, a missing wallet
+    to 404.
     """
     try:
         return await LiveBetsBridge.record_settled(
             session, user=player, bet_id=bet_id, client=client
         )
+    except LiveBetsOwnershipError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
     except LiveBetsVerificationError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except NoResultFound as exc:
