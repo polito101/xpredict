@@ -38,7 +38,7 @@ export default async function AdminBrandingPage() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Branding</h1>
-      <p className="mt-2 text-base text-zinc-500">
+      <p className="mt-2 text-base text-muted-foreground">
         Customize how the platform looks to your players. Changes apply on the
         next page load — no redeploy.
       </p>

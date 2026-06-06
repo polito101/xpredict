@@ -68,7 +68,7 @@ const columns: ColumnDef<AuditLogItem>[] = [
     accessorKey: "occurred_at",
     header: "Timestamp",
     cell: ({ row }) => (
-      <span className="whitespace-nowrap font-mono text-xs text-zinc-600 dark:text-zinc-400">
+      <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">
         {formatTimestamp(row.original.occurred_at)}
       </span>
     ),
@@ -87,14 +87,14 @@ const columns: ColumnDef<AuditLogItem>[] = [
     header: "Actor",
     cell: ({ row }) => {
       const actor = row.original.actor;
-      if (!actor) return <span className="text-zinc-400">—</span>;
+      if (!actor) return <span className="text-subtle-foreground">—</span>;
       if (actor.length <= 20) {
-        return <span className="text-zinc-600 dark:text-zinc-400">{actor}</span>;
+        return <span className="text-muted-foreground">{actor}</span>;
       }
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="cursor-default text-zinc-600 dark:text-zinc-400">
+            <span className="cursor-default text-muted-foreground">
               {truncate(actor, 20)}
             </span>
           </TooltipTrigger>
@@ -189,7 +189,7 @@ export function AuditLogTable({
         {/* Filter bar */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-500">Event type</span>
+            <span className="text-xs font-medium text-muted-foreground">Event type</span>
             <Select
               value={eventType === "" ? EVENT_ALL : eventType}
               onValueChange={(v) => {
@@ -232,9 +232,9 @@ export function AuditLogTable({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <Table>
-            <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+            <TableHeader className="bg-surface">
               {table.getHeaderGroups().map((hg) => (
                 <TableRow key={hg.id}>
                   {hg.headers.map((header) => (
@@ -265,10 +265,10 @@ export function AuditLogTable({
                     colSpan={columns.length}
                     className="py-12 text-center"
                   >
-                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                    <p className="text-sm font-medium text-red-400">
                       Failed to load data
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Something went wrong while loading this page. Please try
                       again.
                     </p>
@@ -280,10 +280,10 @@ export function AuditLogTable({
                     colSpan={columns.length}
                     className="py-12 text-center"
                   >
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    <p className="text-sm font-medium text-foreground">
                       No audit entries
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       No audit log entries match your filters. Try broadening the
                       date range or event type.
                     </p>

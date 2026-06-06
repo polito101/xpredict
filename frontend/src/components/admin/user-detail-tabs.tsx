@@ -52,11 +52,11 @@ export function UserDetailTabs({ initialUser }: { initialUser: UserDetail }) {
         <div className="flex flex-col gap-1">
           <h1 className="text-xl font-semibold tracking-tight">{user.email}</h1>
           {user.display_name && (
-            <p className="text-base text-zinc-600 dark:text-zinc-400">
+            <p className="text-base text-muted-foreground">
               {user.display_name}
             </p>
           )}
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted-foreground">
             Joined: {formatDate(user.created_at)}
             {" | "}
             Last active: {formatRelativeTime(user.last_activity)}

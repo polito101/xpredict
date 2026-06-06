@@ -103,7 +103,7 @@ function ColorField({
               <span
                 data-testid={`color-swatch-${name}`}
                 aria-hidden="true"
-                className="h-9 w-9 shrink-0 rounded-md border border-zinc-200"
+                className="h-9 w-9 shrink-0 rounded-md border border-border"
                 style={{
                   backgroundColor: valid ? field.value : "#f4f4f5",
                 }}
@@ -292,10 +292,10 @@ export function BrandingForm({ initial }: { initial: TenantConfigRead }) {
               <img
                 src={logoPreview}
                 alt="Logo preview"
-                className="h-16 w-auto rounded-md border border-zinc-200 object-contain"
+                className="h-16 w-auto rounded-md border border-border object-contain"
               />
             ) : (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-muted-foreground">
                 No logo uploaded — your brand name shows instead.
               </p>
             )}

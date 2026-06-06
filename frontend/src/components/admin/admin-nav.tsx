@@ -8,8 +8,8 @@
  * Contract. "Dashboard", "Users", "Audit log", "Branding" and "Markets" are all
  * real links (Plan 12-05 enabled "Markets" → /admin/markets, BLOCKER-3).
  *
- * Active:   text-zinc-900 font-semibold underline underline-offset-4 (dark: zinc-50)
- * Inactive: text-zinc-500 hover:text-zinc-900 (dark: zinc-400 hover:zinc-50)
+ * Active:   text-foreground font-semibold underline underline-offset-4 (dark: zinc-50)
+ * Inactive: text-muted-foreground hover:text-foreground (dark: zinc-400 hover:zinc-50)
  *
  * `/admin` (Dashboard) uses an EXACT-match active check (`pathname === "/admin"`)
  * — a `startsWith("/admin/")` would mark Dashboard active on every admin
@@ -35,7 +35,7 @@ export function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <div className="flex items-center gap-4 text-sm">
+    <div className="flex items-center gap-0.5 text-sm">
       {LINKS.map((link) => {
         const active = link.exact
           ? pathname === "/admin"
@@ -46,18 +46,20 @@ export function AdminNav() {
             href={link.href}
             aria-current={active ? "page" : undefined}
             className={cn(
+              "hidden rounded-full px-3 py-1.5 font-medium transition-colors md:inline-block",
               active
-                ? "font-semibold text-zinc-900 underline underline-offset-4 dark:text-zinc-50"
-                : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50",
+                ? "bg-brand-primary/12 text-brand-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
             {link.label}
           </Link>
         );
       })}
+      <span className="mx-1.5 hidden h-5 w-px bg-border md:inline-block" aria-hidden="true" />
       <Link
         href="/admin/logout"
-        className="text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+        className="rounded-full px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         Log out
       </Link>

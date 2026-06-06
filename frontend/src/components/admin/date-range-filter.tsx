@@ -24,7 +24,7 @@ export function DateRangeFilter({
       <div className="flex flex-col gap-1">
         <Label
           htmlFor="date-range-from"
-          className="text-xs font-medium text-zinc-500"
+          className="text-xs font-medium text-muted-foreground"
         >
           From
         </Label>
@@ -39,7 +39,7 @@ export function DateRangeFilter({
       <div className="flex flex-col gap-1">
         <Label
           htmlFor="date-range-to"
-          className="text-xs font-medium text-zinc-500"
+          className="text-xs font-medium text-muted-foreground"
         >
           To
         </Label>

@@ -1,33 +1,25 @@
 /**
- * Plan 03-05 Task 3 — Player wallet page (WAL-03 balance, WAL-04 history, SC#6 stub).
+ * Player wallet page (WAL-03 balance, WAL-04 history, SC#6 stub) — restyled to
+ * the premium dark system (Phase 19).
  *
- * A Server Component that shows the logged-in player their play balance, recent
- * transaction history, and a DISABLED "Add funds" button (SC#6 / PLT-05 — the
- * Stripe top-up affordance is present but inert until v2).
+ * A Server Component (behind auth — the edge middleware gates `/wallet`) showing
+ * the play balance as a big-number hero, the transaction history (now with the
+ * transaction DATE and a humanized kind + a direction icon), and a DISABLED
+ * "Add funds" button (SC#6 / PLT-05 — the Stripe top-up affordance is inert).
  *
- * Money is rendered exactly as the backend serialized it — a STRING (SC#4); we
- * never parse it to a JS number (floats would lose NUMERIC(18,4) precision,
- * PITFALLS #4). Copy is ENGLISH and avoids "deposit" (PITFALLS #3 — play money).
+ * Money is rendered exactly as the backend serialized it — a STRING (SC#4); never
+ * parsed to a JS number (PITFALLS #4). Copy is ENGLISH and avoids "deposit".
  *
- * Failure handling (v1.1 Fase C): the fetch result is a discriminated union, so
- * the page distinguishes three cases instead of silently degrading every one to
- * a misleading "0":
- *   - `unauthenticated` (no session cookie) → a sign-in prompt,
- *   - `error` (backend unreachable / non-2xx) → a non-silent RetryError, and
- *   - `ok` → the balance + history (with an empty state when there's none).
+ * Failure handling (v1.1 Fase C): the discriminated result distinguishes
+ * unauthenticated / error / ok instead of degrading every case to a fake "0".
  */
 import { cookies } from "next/headers";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { RetryError } from "@/components/retry-error";
 import { SignedOutNotice } from "@/components/signed-out-notice";
+import { formatDate } from "@/lib/admin-format";
 
 const CURRENCY = "PLAY_USD";
 
@@ -54,11 +46,12 @@ function getBackendUrl(): string {
   return process.env.BACKEND_URL || "http://localhost:8000";
 }
 
-/**
- * Fetch the player's balance + recent history server-side, forwarding the
- * session cookie. Returns a discriminated result so the page can tell apart a
- * signed-out visitor, a backend failure, and a genuinely empty wallet.
- */
+/** Humanize a transaction kind enum: "bet_placed" → "Bet placed". */
+function humanizeKind(kind: string): string {
+  const spaced = kind.replace(/_/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 async function loadWallet(): Promise<WalletResult> {
   const store = await cookies();
   const session = store.get("xpredict_session")?.value;
@@ -93,10 +86,12 @@ export default async function WalletPage() {
   const result = await loadWallet();
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-12 sm:px-6">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10 sm:px-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Wallet</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">
+          Wallet
+        </h1>
+        <p className="text-sm text-muted-foreground">
           Your play balance and recent activity.
         </p>
       </header>
@@ -118,67 +113,100 @@ export default async function WalletPage() {
 function WalletContent({ balance, currency, transactions }: WalletData) {
   return (
     <>
-      {/* Balance + Add funds (SC#6 — the Add funds button is DISABLED) */}
-      <Card>
-        <CardHeader>
-          <CardDescription>Play balance</CardDescription>
-          <CardTitle>
-            <span aria-label="wallet balance">{balance}</span>{" "}
-            <span className="text-base font-normal text-zinc-500">
-              {currency}
+      {/* Balance hero — the most-glanced number, in brand-framed dark glass. */}
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-6 sm:p-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-primary/15 blur-3xl"
+        />
+        <div className="relative flex flex-wrap items-end justify-between gap-6">
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-medium uppercase tracking-[0.16em] text-subtle-foreground">
+              Play balance
             </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-start gap-2">
-          {/*
-            SC#6 / PLT-05: the Stripe top-up affordance is present but INERT.
-            v2 enables it behind the `stripe_recharge_enabled` feature flag.
-          */}
-          <Button type="button" disabled aria-disabled="true">
-            Add funds
-          </Button>
-          <p className="text-xs text-zinc-500">Coming soon</p>
-        </CardContent>
-      </Card>
+            <div className="flex items-baseline gap-2">
+              <span
+                aria-label="wallet balance"
+                className="font-display text-4xl font-semibold tabular-nums sm:text-5xl"
+              >
+                {balance}
+              </span>
+              <span className="text-base font-medium text-muted-foreground">
+                {currency}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col items-start gap-1.5">
+            {/*
+              SC#6 / PLT-05: the Stripe top-up affordance is present but INERT.
+              v2 enables it behind the `stripe_recharge_enabled` feature flag.
+            */}
+            <Button type="button" disabled aria-disabled="true">
+              Add funds
+            </Button>
+            <p className="text-xs text-subtle-foreground">Coming soon</p>
+          </div>
+        </div>
+      </div>
 
       {/* Transaction history (WAL-04) */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium tracking-tight">Recent activity</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Recent activity</h2>
         {transactions.length === 0 ? (
-          <p className="text-sm text-zinc-500" data-testid="wallet-history-empty">
+          <p
+            className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
+            data-testid="wallet-history-empty"
+          >
             No transactions yet.
           </p>
         ) : (
-          <ul className="flex flex-col divide-y divide-zinc-200 dark:divide-zinc-800">
-            {transactions.map((tx, i) => (
-              <li
-                key={`${tx.created_at}-${i}`}
-                className="flex items-center justify-between gap-3 py-3"
-              >
-                <span className="flex min-w-0 flex-col">
-                  <span className="text-sm font-medium capitalize">
-                    {tx.kind}
-                  </span>
-                  {tx.reason ? (
-                    <span className="truncate text-xs text-zinc-500">
-                      {tx.reason}
+          <ul className="overflow-hidden rounded-2xl border border-border">
+            {transactions.map((tx, i) => {
+              const isCredit = tx.direction === "credit";
+              return (
+                <li
+                  key={`${tx.created_at}-${i}`}
+                  className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3.5 last:border-b-0"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span
+                      aria-hidden="true"
+                      className={
+                        isCredit
+                          ? "grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-500/12 text-emerald-400"
+                          : "grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
+                      }
+                    >
+                      {isCredit ? (
+                        <ArrowDownLeft className="h-4 w-4" />
+                      ) : (
+                        <ArrowUpRight className="h-4 w-4" />
+                      )}
                     </span>
-                  ) : null}
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
+                    <span className="flex min-w-0 flex-col">
+                      <span className="text-sm font-medium text-foreground">
+                        {humanizeKind(tx.kind)}
+                      </span>
+                      <span className="truncate text-xs text-subtle-foreground">
+                        {[tx.reason, formatDate(tx.created_at)]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </span>
+                  </span>
                   <span
                     className={
-                      tx.direction === "credit"
-                        ? "whitespace-nowrap text-sm font-medium text-emerald-600"
-                        : "whitespace-nowrap text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                      isCredit
+                        ? "shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-emerald-600"
+                        : "shrink-0 whitespace-nowrap text-sm font-medium tabular-nums text-muted-foreground"
                     }
                   >
-                    {tx.direction === "credit" ? "+" : "-"}
+                    {isCredit ? "+" : "-"}
                     {tx.amount} {currency}
                   </span>
-                </span>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

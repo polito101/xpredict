@@ -11,8 +11,8 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { XMark } from "@/components/brand/x-mark";
 import { Spark } from "@/components/brand/spark";
+import { HeroVisual } from "@/components/home/hero-visual";
 
 export function HeroBand({ brandName }: { brandName: string }) {
   const name = brandName.trim() || "XPredict";
@@ -58,17 +58,8 @@ export function HeroBand({ brandName }: { brandName: string }) {
           </p>
         </div>
 
-        {/* Mark */}
-        <div className="relative hidden items-center justify-center lg:flex">
-          <div
-            aria-hidden="true"
-            className="absolute h-72 w-72 rounded-full bg-brand-primary/20 blur-3xl"
-          />
-          <XMark
-            animated
-            className="relative h-56 w-56 drop-shadow-[0_8px_40px_rgba(37,99,235,0.35)] xl:h-64 xl:w-64"
-          />
-        </div>
+        {/* Node-graph visual — the three capabilities around the X core. */}
+        <HeroVisual />
       </div>
 
       {/* Audience strip — who it's for. */}

@@ -34,7 +34,7 @@ export default async function AdminEventDetailPage({
     <div className="mx-auto max-w-6xl px-6 py-12">
       <Link
         href="/admin/events"
-        className="mb-8 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50"
+        className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to events
@@ -53,10 +53,10 @@ export default async function AdminEventDetailPage({
         </>
       ) : (
         <div className="py-12 text-center">
-          <p className="text-sm font-medium text-red-700 dark:text-red-400">
+          <p className="text-sm font-medium text-red-400">
             Event not found
           </p>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             This event doesn&apos;t exist or could not be loaded.
           </p>
         </div>

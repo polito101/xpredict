@@ -73,7 +73,7 @@ const columns: ColumnDef<UserListItem>[] = [
     header: "Email",
     enableSorting: true,
     cell: ({ row }) => (
-      <span className="font-medium text-zinc-900 dark:text-zinc-50">
+      <span className="font-medium text-foreground">
         {row.original.email}
       </span>
     ),
@@ -84,7 +84,7 @@ const columns: ColumnDef<UserListItem>[] = [
     enableSorting: true,
     cell: ({ row }) => {
       const name = row.original.display_name;
-      if (!name) return <span className="text-zinc-400">—</span>;
+      if (!name) return <span className="text-subtle-foreground">—</span>;
       if (name.length <= 24) return <span>{name}</span>;
       return (
         <Tooltip>
@@ -107,7 +107,7 @@ const columns: ColumnDef<UserListItem>[] = [
     header: "Signup",
     enableSorting: true,
     cell: ({ row }) => (
-      <span className="text-zinc-600 dark:text-zinc-400">
+      <span className="text-muted-foreground">
         {formatDate(row.original.created_at)}
       </span>
     ),
@@ -117,7 +117,7 @@ const columns: ColumnDef<UserListItem>[] = [
     header: "Activity",
     enableSorting: true,
     cell: ({ row }) => (
-      <span className="text-zinc-600 dark:text-zinc-400">
+      <span className="text-muted-foreground">
         {formatRelativeTime(row.original.last_activity)}
       </span>
     ),
@@ -135,7 +135,7 @@ const columns: ColumnDef<UserListItem>[] = [
     header: "",
     enableSorting: false,
     cell: () => (
-      <span className="text-sm font-medium text-zinc-900 underline-offset-4 group-hover:underline dark:text-zinc-50">
+      <span className="text-sm font-medium text-foreground underline-offset-4 group-hover:underline">
         View
       </span>
     ),
@@ -237,7 +237,7 @@ export function UsersDataTable({
             ariaLabel="Search users by email or display name"
           />
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-500">Status</span>
+            <span className="text-xs font-medium text-muted-foreground">Status</span>
             <Select
               value={status === "" ? STATUS_ALL : status}
               onValueChange={(v) => {
@@ -268,9 +268,9 @@ export function UsersDataTable({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <Table>
-            <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+            <TableHeader className="bg-surface">
               {table.getHeaderGroups().map((hg) => (
                 <TableRow key={hg.id}>
                   {hg.headers.map((header) => {
@@ -320,10 +320,10 @@ export function UsersDataTable({
               ) : error ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="py-12 text-center">
-                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                    <p className="text-sm font-medium text-red-400">
                       Failed to load data
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Something went wrong while loading this page. Please try
                       again.
                     </p>
@@ -332,10 +332,10 @@ export function UsersDataTable({
               ) : data.items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={columns.length} className="py-12 text-center">
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    <p className="text-sm font-medium text-foreground">
                       No users found
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       No users match your current filters. Try adjusting the
                       search or filter criteria.
                     </p>

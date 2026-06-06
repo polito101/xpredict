@@ -192,11 +192,11 @@ export function ResolveEventDialog({
 
           {preview && (
             <div
-              className="rounded-md bg-zinc-50 p-3 text-sm dark:bg-zinc-800"
+              className="rounded-md bg-surface p-3 text-sm"
               role="status"
             >
               <p className="font-medium">Projected impact</p>
-              <p className="text-zinc-600 dark:text-zinc-400">
+              <p className="text-muted-foreground">
                 {preview.winners ?? 0} winning, {preview.losers ?? 0} losing
                 positions → {preview.projected_status}
               </p>

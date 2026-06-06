@@ -65,7 +65,7 @@ export function ForgotForm() {
         {successMessage ? (
           <p
             role="status"
-            className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
+            className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400"
           >
             {successMessage}
           </p>

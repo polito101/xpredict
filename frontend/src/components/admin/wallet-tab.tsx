@@ -95,13 +95,13 @@ export function WalletTab({
       {/* Balance — de-emphasise a zero balance per UI-SPEC. "Zero" is detected
           with string ops only (no float parsing): no 1-9 digit present. */}
       <div className="flex flex-col gap-1">
-        <span className="text-sm font-medium text-zinc-500">Balance</span>
+        <span className="text-sm font-medium text-muted-foreground">Balance</span>
         <span
           className={
             "text-2xl font-semibold tabular-nums " +
             (/[1-9]/.test(user.balance)
-              ? "text-zinc-900 dark:text-zinc-50"
-              : "text-zinc-400 dark:text-zinc-500")
+              ? "text-foreground"
+              : "text-subtle-foreground")
           }
         >
           {formatMoney(user.balance)}
@@ -127,9 +127,9 @@ export function WalletTab({
         <span className="text-base font-semibold tracking-tight">
           Transaction History
         </span>
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <Table>
-            <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+            <TableHeader className="bg-surface">
               <TableRow>
                 <TableHead>Type</TableHead>
                 <TableHead>Amount</TableHead>
@@ -151,10 +151,10 @@ export function WalletTab({
               ) : error ? (
                 <TableRow>
                   <TableCell colSpan={COL_COUNT} className="py-12 text-center">
-                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                    <p className="text-sm font-medium text-red-400">
                       Failed to load data
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Something went wrong while loading this page. Please try
                       again.
                     </p>
@@ -163,10 +163,10 @@ export function WalletTab({
               ) : items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={COL_COUNT} className="py-12 text-center">
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    <p className="text-sm font-medium text-foreground">
                       No transactions
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       This user has no transaction history yet.
                     </p>
                   </TableCell>
@@ -176,15 +176,15 @@ export function WalletTab({
                   const isCredit = tx.kind.toLowerCase() === "credit";
                   return (
                     <TableRow key={tx.id}>
-                      <TableCell className="capitalize text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="capitalize text-muted-foreground">
                         {tx.kind}
                       </TableCell>
                       <TableCell
                         className={
                           "tabular-nums font-medium " +
                           (isCredit
-                            ? "text-emerald-700 dark:text-emerald-400"
-                            : "text-red-700 dark:text-red-400")
+                            ? "text-emerald-400"
+                            : "text-red-400")
                         }
                       >
                         {formatSignedAmount(
@@ -192,10 +192,10 @@ export function WalletTab({
                           isCredit ? "credit" : "debit",
                         )}
                       </TableCell>
-                      <TableCell className="text-zinc-600 dark:text-zinc-400">
-                        {tx.reason ?? <span className="text-zinc-400">—</span>}
+                      <TableCell className="text-muted-foreground">
+                        {tx.reason ?? <span className="text-subtle-foreground">—</span>}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-zinc-600 dark:text-zinc-400">
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
                         {formatTimestamp(tx.created_at)}
                       </TableCell>
                     </TableRow>

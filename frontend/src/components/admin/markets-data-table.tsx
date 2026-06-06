@@ -86,7 +86,7 @@ const columns: ColumnDef<MarketListItem>[] = [
       const q = row.original.question;
       if (q.length <= 48) {
         return (
-          <span className="font-medium text-zinc-900 dark:text-zinc-50">
+          <span className="font-medium text-foreground">
             {q}
           </span>
         );
@@ -94,7 +94,7 @@ const columns: ColumnDef<MarketListItem>[] = [
       return (
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="cursor-default font-medium text-zinc-900 dark:text-zinc-50">
+            <span className="cursor-default font-medium text-foreground">
               {truncate(q, 48)}
             </span>
           </TooltipTrigger>
@@ -126,8 +126,8 @@ const columns: ColumnDef<MarketListItem>[] = [
     enableSorting: true,
     cell: ({ row }) => {
       const c = row.original.category;
-      if (!c) return <span className="text-zinc-400">—</span>;
-      return <span className="text-zinc-600 dark:text-zinc-400">{c}</span>;
+      if (!c) return <span className="text-subtle-foreground">—</span>;
+      return <span className="text-muted-foreground">{c}</span>;
     },
   },
   {
@@ -135,7 +135,7 @@ const columns: ColumnDef<MarketListItem>[] = [
     header: "Deadline",
     enableSorting: true,
     cell: ({ row }) => (
-      <span className="text-zinc-600 dark:text-zinc-400">
+      <span className="text-muted-foreground">
         {formatDate(row.original.deadline)}
       </span>
     ),
@@ -153,7 +153,7 @@ const columns: ColumnDef<MarketListItem>[] = [
     header: "Created",
     enableSorting: true,
     cell: ({ row }) => (
-      <span className="text-zinc-600 dark:text-zinc-400">
+      <span className="text-muted-foreground">
         {formatDate(row.original.created_at)}
       </span>
     ),
@@ -163,7 +163,7 @@ const columns: ColumnDef<MarketListItem>[] = [
     header: "",
     enableSorting: false,
     cell: () => (
-      <span className="text-sm font-medium text-zinc-900 underline-offset-4 group-hover:underline dark:text-zinc-50">
+      <span className="text-sm font-medium text-foreground underline-offset-4 group-hover:underline">
         View
       </span>
     ),
@@ -251,7 +251,7 @@ export function MarketsDataTable({
         {/* Filter bar */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-500">Source</span>
+            <span className="text-xs font-medium text-muted-foreground">Source</span>
             <Select
               value={source === "" ? SOURCE_ALL : source}
               onValueChange={(v) => {
@@ -270,7 +270,7 @@ export function MarketsDataTable({
             </Select>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-500">Status</span>
+            <span className="text-xs font-medium text-muted-foreground">Status</span>
             <Select
               value={status === "" ? STATUS_ALL : status}
               onValueChange={(v) => {
@@ -292,7 +292,7 @@ export function MarketsDataTable({
             </Select>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-500">Category</span>
+            <span className="text-xs font-medium text-muted-foreground">Category</span>
             <Input
               type="text"
               value={category}
@@ -308,9 +308,9 @@ export function MarketsDataTable({
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <Table>
-            <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+            <TableHeader className="bg-surface">
               {table.getHeaderGroups().map((hg) => (
                 <TableRow key={hg.id}>
                   {hg.headers.map((header) => {
@@ -369,10 +369,10 @@ export function MarketsDataTable({
                     colSpan={columns.length}
                     className="py-12 text-center"
                   >
-                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                    <p className="text-sm font-medium text-red-400">
                       Failed to load data
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Something went wrong while loading this page. Please try
                       again.
                     </p>
@@ -384,10 +384,10 @@ export function MarketsDataTable({
                     colSpan={columns.length}
                     className="py-12 text-center"
                   >
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    <p className="text-sm font-medium text-foreground">
                       No markets found
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       No markets match your current filters. Try adjusting the
                       search or filter criteria.
                     </p>

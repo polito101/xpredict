@@ -41,13 +41,7 @@ export function SourceBadge({ source, sourceUrl }: SourceBadgeProps) {
 
   if (source === "POLYMARKET") {
     return (
-      <Badge
-        variant="secondary"
-        className={cn(
-          "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-          "text-xs",
-        )}
-      >
+      <Badge variant="secondary" className="text-xs">
         Polymarket
       </Badge>
     );
