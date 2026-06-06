@@ -19,8 +19,8 @@ export default function AuthLayout({
     <main className="flex min-h-[78vh] flex-col items-center justify-center px-4 py-12">
       <div className="mb-7 flex flex-col items-center gap-3 text-center">
         <XMark className="h-12 w-12" />
-        <p className="max-w-[15rem] text-sm text-muted-foreground">
-          Predict the moment opinions cross.
+        <p className="max-w-[16rem] text-sm text-muted-foreground">
+          The prediction-market platform.
         </p>
       </div>
       <Card className="w-full max-w-md surface-glass">

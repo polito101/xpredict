@@ -21,7 +21,9 @@ export default async function LoginPage({
         <h1 className="font-display text-2xl font-semibold tracking-tight">
           Sign in
         </h1>
-        <p className="text-sm text-muted-foreground">Welcome back to XPredict</p>
+        <p className="text-sm text-muted-foreground">
+          Welcome back to XPrediction
+        </p>
       </header>
       {params.registered === "1" && (
         <p

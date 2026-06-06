@@ -23,7 +23,7 @@ export function LandingCta() {
         <div className="relative flex flex-col items-center gap-5">
           <Spark className="h-8 w-8" />
           <h2 className="max-w-2xl font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-            Build your prediction markets on XPredict.
+            Build your prediction markets on XPrediction.
           </h2>
           <p className="max-w-xl text-base text-muted-foreground">
             Trade, integrate, and launch — on infrastructure that carries your

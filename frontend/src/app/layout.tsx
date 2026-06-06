@@ -30,9 +30,9 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "XPredict — Predict the moment opinions cross",
+  title: "XPrediction — The prediction-market platform",
   description:
-    "Trade your conviction on a credible catalog of prediction markets. Play-money, premium experience.",
+    "XPrediction connects the entire prediction-market ecosystem — run native markets, integrate external ones, and launch your own. White-label, API-first infrastructure.",
 };
 
 /** Server-only backend base (never leaks into the client bundle). */

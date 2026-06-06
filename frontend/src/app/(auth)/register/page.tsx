@@ -14,7 +14,7 @@ export default function RegisterPage() {
           Create your account
         </h1>
         <p className="text-sm text-muted-foreground">
-          Get started with XPredict — it&apos;s free.
+          Get started with XPrediction — it&apos;s free.
         </p>
       </header>
       <RegisterForm />

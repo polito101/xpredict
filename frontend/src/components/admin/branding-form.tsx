@@ -256,7 +256,7 @@ export function BrandingForm({ initial }: { initial: TenantConfigRead }) {
             <FormItem>
               <FormLabel>Brand name</FormLabel>
               <FormControl>
-                <Input type="text" placeholder="XPredict" {...field} />
+                <Input type="text" placeholder="XPrediction" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

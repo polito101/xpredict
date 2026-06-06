@@ -1,14 +1,15 @@
 /**
- * CapabilityGrid — the platform's building blocks (Phase 19).
+ * CapabilityGrid — the six platform capabilities (Phase 19 positioning).
  *
- * Six real capabilities of the XPredict engine (every one ships in the codebase
- * — no vaporware): white-label theming, the market engine, settlement, real-time
- * odds, the API-first backend, and the operator backoffice. Server Component.
+ * XPrediction is more than a market or an API: it is a prediction-market
+ * Platform + Infrastructure + White-label + API + Integrations + Markets (own &
+ * external). These six map to real, shipping capabilities in the codebase — no
+ * vaporware. Server Component.
  */
 import {
-  Activity,
-  BarChart3,
+  Boxes,
   Code2,
+  Globe,
   Layers,
   Palette,
   ShieldCheck,
@@ -16,34 +17,34 @@ import {
 
 const CAPS = [
   {
-    icon: Palette,
-    title: "White-label by default",
-    body: "Your colors, logo and copy — injected at runtime from the admin. Re-skin the whole experience instantly, with no rebuild or redeploy.",
-  },
-  {
     icon: Layers,
-    title: "Prediction-market engine",
-    body: "Binary markets and multi-outcome events, with a typed catalog operators curate. Independent per-outcome odds, never a faked distribution.",
+    title: "Prediction-market platform",
+    body: "Binary markets and multi-outcome events with a curated, typed catalog — the full market engine, ready to run on day one.",
   },
   {
     icon: ShieldCheck,
-    title: "Transparent settlement",
-    body: "ACID settlement on a double-entry ledger. Every payout is auditable, balances never drift, and resolutions carry public justification.",
+    title: "Prediction infrastructure",
+    body: "ACID settlement on a double-entry ledger plus real-time odds over WebSockets, on Postgres · Redis · Celery. Balances never drift.",
   },
   {
-    icon: Activity,
-    title: "Real-time odds",
-    body: "Live probability streaming over WebSockets, backed by Redis pub/sub — markets that move the moment opinion does.",
+    icon: Palette,
+    title: "White-label",
+    body: "Your colors, logo and copy — injected at runtime from the admin. Re-skin the whole experience instantly, with no rebuild or redeploy.",
   },
   {
     icon: Code2,
-    title: "API-first backend",
-    body: "A typed FastAPI core — markets, wallets, bets, settlement, branding — designed to integrate into your product, not to lock you in.",
+    title: "API-first",
+    body: "A typed FastAPI core — markets, wallets, bets, settlement, branding — built to integrate into your product, not to lock you in.",
   },
   {
-    icon: BarChart3,
-    title: "Operator backoffice",
-    body: "A full admin & CRM: manage members, create and resolve markets, set your branding, and watch volume, DAU and house P&L.",
+    icon: Globe,
+    title: "Integrations",
+    body: "Mirror external markets from sources like Polymarket and bring partner liquidity and data into a single, coherent surface.",
+  },
+  {
+    icon: Boxes,
+    title: "Own & external markets",
+    body: "Run your own house markets and external ones side by side, in one catalog your audience browses — you curate what they see.",
   },
 ] as const;
 
@@ -53,7 +54,7 @@ export function CapabilityGrid() {
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
         <div className="mb-10 max-w-2xl">
           <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-            Production-grade building blocks.
+            Six capabilities, one platform.
           </h2>
           <p className="mt-3 text-base text-muted-foreground">
             Everything you need to run prediction markets as your own product —

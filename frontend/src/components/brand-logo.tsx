@@ -39,8 +39,12 @@ export interface BrandLogoProps {
 }
 
 export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
-  // Empty/whitespace brand name → the XPredict wordmark fallback.
-  const name = brandName.trim() || "XPredict";
+  // Visible brand = "XPrediction" (the product). White-label still wins: a real
+  // operator name renders verbatim. The legacy default "XPredict" (and an empty
+  // name) map to the product brand "XPrediction" so the canonical site is
+  // consistent regardless of the backend's stored brand_name.
+  const raw = brandName.trim();
+  const name = !raw || raw === "XPredict" ? "XPrediction" : raw;
 
   return (
     <Link
@@ -65,10 +69,10 @@ export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
         <>
           <XMark className="h-8 w-8 transition-transform duration-300 group-hover:scale-105" />
           <span className="text-foreground">
-            {name === "XPredict" ? (
+            {name === "XPrediction" ? (
               <>
-                <span className="text-metal">X</span>
-                <span>Predict</span>
+                <span className="text-gradient-brand">X</span>
+                <span>Prediction</span>
               </>
             ) : (
               name

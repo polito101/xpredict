@@ -99,7 +99,7 @@ function LiveShell({ children }: { children: React.ReactNode }) {
           Live
         </h1>
         <p className="text-sm text-muted-foreground">
-          Multiplayer live bets — your XPredict balance, in real time.
+          Multiplayer live bets — your XPrediction balance, in real time.
         </p>
       </header>
       {children}
@@ -137,7 +137,7 @@ async function LiveBody() {
           Live
         </h1>
           <p className="text-sm text-muted-foreground">
-            Multiplayer live bets with your XPredict balance.
+            Multiplayer live bets with your XPrediction balance.
           </p>
         </header>
         <SignedOutNotice resource="live" />
@@ -179,7 +179,7 @@ async function LiveBody() {
           <CardContent>
             <p className="text-sm leading-relaxed text-muted-foreground">
               The live-bets table isn&apos;t set up in this environment yet. Once
-              a table is running, it will appear here and your XPredict balance
+              a table is running, it will appear here and your XPrediction balance
               will react to every bet.
             </p>
           </CardContent>

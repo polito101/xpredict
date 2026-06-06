@@ -35,13 +35,13 @@ export function DemoShowcase({
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">
-              Live demo
+              The platform, live
             </span>
             <h2 className="mt-1 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
               See the engine running.
             </h2>
             <p className="mt-3 text-base text-muted-foreground">
-              This site is XPredict running as its own tenant. Your deployment
+              This site is XPrediction running as its own tenant. Your deployment
               works the same — it just looks like you.
             </p>
           </div>

@@ -12,7 +12,7 @@ const PILLARS = [
     icon: Activity,
     kicker: "Run",
     title: "Native markets",
-    body: "Operate XPredict's own markets — binary YES/NO and multi-outcome events — with live odds, a play-money wallet, and transparent settlement.",
+    body: "Operate XPrediction's own markets — binary YES/NO and multi-outcome events — with live odds, a play-money wallet, and transparent settlement.",
   },
   {
     icon: Globe,
@@ -36,8 +36,8 @@ export function Pillars() {
           One platform, three ways to play.
         </h2>
         <p className="mt-3 text-base text-muted-foreground">
-          Use XPredict as a destination, a distribution channel, or a foundation
-          — or all three at once.
+          Use XPrediction as a destination, a distribution channel, or a
+          foundation — or all three at once.
         </p>
       </div>
 

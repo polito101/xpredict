@@ -35,7 +35,7 @@ export default function AdminLayout({
           >
             <XMark className="h-7 w-7 transition-transform duration-300 group-hover:scale-105" />
             <span>
-              <span className="text-metal">X</span>Predict
+              <span className="text-gradient-brand">X</span>Prediction
             </span>
             <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
               Admin

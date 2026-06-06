@@ -51,7 +51,7 @@ export function SiteFrame({
       <footer className="border-t border-border/70 bg-surface/60">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="text-subtle-foreground">© XPredict</span>
+            <span className="text-subtle-foreground">© XPrediction</span>
             <span aria-hidden="true" className="text-border-strong">
               ·
             </span>

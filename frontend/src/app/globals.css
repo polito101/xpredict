@@ -130,7 +130,72 @@
   }
 }
 
+/* Hero living-network motion (the XPrediction ecosystem node). */
+@keyframes hv-orbit {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hv-orbit-rev {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+@keyframes hv-flow {
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+@keyframes hv-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@keyframes hv-core {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
 @layer utilities {
+  .hv-orbit {
+    animation: hv-orbit 80s linear infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .hv-orbit-rev {
+    animation: hv-orbit-rev 120s linear infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .hv-flow {
+    animation: hv-flow 3.5s linear infinite;
+  }
+  .hv-pulse {
+    animation: hv-pulse 3.4s ease-in-out infinite;
+  }
+  .hv-core {
+    animation: hv-core 4.5s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
   /* Electric-blue → spark-cyan gradient text (hero headlines, key numbers). */
   .text-gradient-brand {
     background-image: var(--gradient-brand);
@@ -208,7 +273,12 @@
   @media (prefers-reduced-motion: reduce) {
     .shimmer,
     .animate-spark,
-    .animate-pulse {
+    .animate-pulse,
+    .hv-orbit,
+    .hv-orbit-rev,
+    .hv-flow,
+    .hv-pulse,
+    .hv-core {
       animation: none !important;
     }
   }
