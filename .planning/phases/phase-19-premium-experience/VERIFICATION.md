@@ -57,6 +57,38 @@ Review findings (a11y contrast/focus rings, emerald-600→400 on player surfaces
 reduced-motion, /admin boundary, dead tokens, redundant aria) were all applied;
 re-verified green.
 
+## Main drift reconciled (v1.3 Live-Bets)
+
+While this phase was in flight, `main` advanced (v1.2 milestone archival + the
+**v1.3 Live-Bets demo**). Merged `origin/main` into the branch:
+- `player-nav` conflict resolved: kept the Phase 19 redesign + **added the "Live"
+  destination**; test merged.
+- The new **`/live`** route (v1.3) was restyled to the Obsidian dark system and
+  added to the auth gate (it is trading → behind auth, like the rest of the app).
+- `api.ts` / `live-actions.ts` / `live/*` taken from main. **238/238** frontend
+  tests green; webpack build green (16 routes incl. `/live`).
+
+## CI status (PR #33)
+
+- ✅ **`frontend`** — PASS (CI Linux). This phase's deliverable is green.
+- ✅ security / pip-audit / pnpm-audit / bandit / gitleaks — PASS.
+- ❌ **`backend`** — RED, but **pre-existing on `main`, NOT from this PR** (which
+  is frontend-only). Confirmed: the "Merge gsd/livebets-demo → main" run already
+  failed `backend-ci`. Two pre-existing v1.3 Live-Bets backend issues:
+  1. **Ruff format** on the 5 `livebets` files — **fixed here** (pure formatting,
+     no logic) so the check could proceed.
+  2. **Divergent alembic migration tree** — `0011_livebets_bridge` and
+     `0011_phase13_market_groups` BOTH chain from `0010` ⇒ two heads ⇒
+     `test_migration_0011` fails. **Deliberately NOT touched** (backend migration
+     architecture + a v1.3 "LOCKED" chaining decision + not locally validatable on
+     this Windows worktree; the mandate is to keep the backend intact). Resolution
+     is a backend/v1.3 owner call (an `alembic merge` migration, or re-point
+     `0011_livebets_bridge` onto the v1.2 head + update the test).
+
 ## Status
 
-**MERGE READY** pending CI + Pol's review/merge. (Only Pol merges.)
+**Frontend MERGE READY** — `frontend` CI green, all invariants preserved, review
+clean. The PR's only red is the **pre-existing v1.3 backend migration-tree
+conflict on `main`** (unrelated to this frontend work). Full-green + merge needs
+that backend fix on `main` (backend owner / Pol), after which this branch — which
+already merged `main` — goes green. Only Pol merges.
