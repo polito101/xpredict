@@ -17,10 +17,13 @@ carries ``X-API-Key`` from ``settings.LIVEBETS_API_KEY`` (set as a default heade
 the ``AsyncClient``). ``_get_client`` raises a clear ``RuntimeError`` if the key is
 unset, so a misconfigured deployment fails loudly instead of sending an empty key.
 
-Endpoints (verified against ``live-bets/docs/INTEGRATION-GUIDE.md`` §Step 2 + §Scopes):
+Endpoints (verified against the REAL live-bets phase-21 routes in
+``live-bets/live_bets/api/routes/``):
   - ``POST /v2/sessions``        — mint a player session (no scope; operator key).
   - ``GET  /v2/bets/{id}``       — server-side verification source (scope ``bets:read``).
-  - ``GET  /v2/catalog/tables``  — list tables (scope ``catalog:read``).
+  - ``GET  /tables``             — list tables (the REAL path; NOT ``/v2/catalog/tables``,
+                                   which does not exist — ``/catalog/*`` only has
+                                   ``sources`` + ``clips``).
 
 Cross-phase dependency (M1): sandbox keys are pre-scoped ``bets:place`` +
 ``catalog:read`` ONLY. The demo operator key MUST be issued WITH ``bets:read``
@@ -148,15 +151,24 @@ class LiveBetsClient:
         wait=wait_exponential_jitter(initial=1, max=10, jitter=2),
         reraise=True,
     )
-    async def list_tables(self) -> list[dict[str, object]]:
-        """List operator catalog tables — ``GET /v2/catalog/tables`` (scope ``catalog:read``)."""
+    async def list_tables(self) -> dict[str, object]:
+        """List catalog tables — ``GET /tables`` (the REAL live-bets path).
+
+        The real route (``live-bets/live_bets/api/routes/tables.py:87``) is JWT-gated
+        via ``get_current_user_id`` (NOT an operator ``Scope``); our full-scope
+        bootstrap key (provisioned in LB-C) covers it. It returns the envelope
+        ``TableListResponse {tables: [TableView{id, source_id, name, status, ...}]}``
+        (NOT a bare list), so this returns the raw dict and the router unwraps the
+        ``tables`` key before parsing. (The old ``/v2/catalog/tables`` path does NOT
+        exist on live-bets — ``/catalog/*`` only exposes ``sources`` + ``clips``.)
+        """
         client = self._get_client()
-        resp = await client.get("/v2/catalog/tables")
+        resp = await client.get("/tables")
         try:
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
             _raise_scope_or_status(exc)
-        result: list[dict[str, object]] = resp.json()
+        result: dict[str, object] = resp.json()
         return result
 
     async def close(self) -> None:

@@ -46,8 +46,23 @@ class FakeLiveBetsClient:
     async def mint_session(self, **kw: object) -> dict[str, object]:
         return {"session_token": "fake-token", "expires_at": "2026-01-01T00:00:00Z"}
 
-    async def list_tables(self) -> list[dict[str, object]]:
-        return [{"table_id": "tbl-1", "name": "Demo Table"}]
+    async def list_tables(self) -> dict[str, object]:
+        # REAL GET /tables shape: TableListResponse {tables: [TableView{...}]}.
+        # The table id field is `id` (NOT `table_id`); the router maps `id` ->
+        # our outward `table_id` and drops the other TableView fields.
+        return {
+            "tables": [
+                {
+                    "id": "tbl-1",
+                    "source_id": "src-1",
+                    "name": "Demo Table",
+                    "status": "ACTIVE",
+                    "betting_duration_seconds": 30,
+                    "live_duration_seconds": 60,
+                    "settling_duration_seconds": 15,
+                }
+            ]
+        }
 
 
 class _Player:

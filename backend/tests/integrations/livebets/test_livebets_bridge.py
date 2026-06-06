@@ -99,16 +99,24 @@ class FakeLiveBetsClient:
         status: str,
         stake: Decimal,
         market_id: object | None = None,
-        table_id: object | None = None,
+        table_id: object | None = None,  # BetView has no table_id; kept for call-site parity
         payout: Decimal | None = None,
     ) -> None:
+        # REAL live-bets BetView shape (live_bets/api/routes/bets.py): the id field
+        # is `id` (NOT `bet_id`), the side is `selection` (NOT `side`), there is NO
+        # `table_id`, and `payout` is str|None. We mirror those keys so the suite
+        # actually proves the contract the client parses.
         self._bets[str(bet_id)] = {
-            "bet_id": str(bet_id),
-            "status": status,
-            "stake": stake,
+            "id": str(bet_id),
+            "round_id": str(bet_id),  # placeholder UUID — unused by the bridge
             "market_id": market_id,
-            "table_id": table_id,
+            "selection": "over",
+            "stake": stake,
+            "locked_odds": "2.000",
+            "status": status,
             "payout": payout,
+            "placed_at": "2026-01-01T00:00:00Z",
+            "settled_at": None,
         }
 
     async def get_bet(self, bet_id: str) -> dict[str, object]:
@@ -117,8 +125,9 @@ class FakeLiveBetsClient:
     async def mint_session(self, **kw: object) -> dict[str, object]:
         return {"session_token": "fake", "expires_at": "2026-01-01T00:00:00Z"}
 
-    async def list_tables(self) -> list[dict[str, object]]:
-        return []
+    async def list_tables(self) -> dict[str, object]:
+        # REAL GET /tables envelope: TableListResponse {tables: [...]}.
+        return {"tables": []}
 
 
 def _user(user_id: UUID) -> types.SimpleNamespace:

@@ -88,9 +88,16 @@ async def list_tables(
     player: Annotated[User, Depends(current_active_player)],
     client: Annotated[LiveBetsClient, Depends(get_livebets_client)],
 ) -> TablesResponse:
-    """List the live-bets catalog tables available for the demo."""
+    """List the live-bets catalog tables available for the demo.
+
+    The REAL ``GET /tables`` returns the envelope ``TableListResponse {tables:[...]}``
+    (NOT a bare list), so unwrap the ``tables`` key before parsing. Each entry is a
+    ``TableView`` whose id field is ``id``; ``TableItem`` maps it onto our outward
+    ``table_id`` (the ``/api/live/tables`` contract to the frontend is unchanged).
+    """
     raw = await client.list_tables()
-    return TablesResponse(tables=[TableItem.model_validate(t) for t in raw])
+    items = raw.get("tables", []) if isinstance(raw, dict) else raw
+    return TablesResponse(tables=[TableItem.model_validate(t) for t in items])
 
 
 @livebets_router.post("/bets/{bet_id}/placed", response_model=MirrorResult)

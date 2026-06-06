@@ -9,12 +9,14 @@ Two groups:
     reason about. All monetary values are ``Decimal`` (never ``float``), parsed via
     ``_safe_decimal`` exactly like the polymarket parser.
 
-OPEN-QUESTION HANDLING (design §12 / risks): the integration guide documents
-``potential_payout`` for a PENDING bet but does NOT explicitly document the settled
-``payout`` field name. :func:`parse_verified_bet` parses defensively — it prefers
-``payout``, falls back to ``potential_payout``, and leaves ``payout=None`` when
-neither is present. ``record_settled`` treats an absent payout on a WON bet as a
-verification failure (it raises rather than guessing).
+REAL BetView CONTRACT (``live-bets/live_bets/api/routes/bets.py`` ``BetView``):
+``{id, round_id, market_id, selection, stake(str), locked_odds(str), status,
+payout(str|None), placed_at, settled_at}``. The bet id field is ``id`` (NOT
+``bet_id``); there is NO ``table_id`` in BetView (the mirror row keeps the
+``table_id`` captured at placement / ``None``). ``payout`` is always present as a key
+(``str`` when settled, ``None`` while pending); :func:`parse_verified_bet` reads it as
+``str|None`` and leaves ``payout=None`` when absent — ``record_settled`` treats an
+absent payout on a WON bet as a verification failure (it raises rather than guessing).
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 def _safe_decimal(value: object) -> Decimal | None:
@@ -73,13 +75,21 @@ class SessionResponse(BaseModel):
 class TableItem(BaseModel):
     """One catalog table — only the fields the demo needs.
 
-    ``extra="ignore"`` drops the many other live-bets table fields (mirrors the
-    polymarket parser's dev-mode ``extra="ignore"``).
+    Parses the REAL live-bets ``TableView`` (``GET /tables`` →
+    ``TableListResponse.tables[]``), whose id field is ``id`` (NOT ``table_id``):
+    the ``id`` alias maps live-bets ``id`` onto our outward ``table_id`` so the
+    ``/api/live/tables`` response keeps returning ``{tables:[{table_id, name}]}`` to
+    the frontend. ``name`` is mapped through unchanged. ``extra="ignore"`` drops the
+    other ``TableView`` fields (``source_id``, ``status``, the ``*_duration_seconds``)
+    — mirrors the polymarket parser's dev-mode ``extra="ignore"``.
+
+    ``populate_by_name=True`` keeps the field tolerant of an already-mapped
+    ``table_id`` key too (so the bridge/router can construct it either way).
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
-    table_id: str
+    table_id: str = Field(validation_alias="id")
     name: str | None = None
 
 
@@ -109,7 +119,10 @@ class VerifiedBet(BaseModel):
 
     Money is ``Decimal``; ``payout`` is optional (see the defensive parse in
     :func:`parse_verified_bet`). ``stake`` is required — a bet with no parseable
-    stake is a verification failure raised at parse time.
+    stake is a verification failure raised at parse time. ``bet_id`` holds the
+    BetView ``id`` (the field name is internal — the service never compares it).
+    ``table_id`` is always ``None`` (BetView has no ``table_id``); it is retained so
+    the placement path can still carry the table id captured elsewhere.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -125,17 +138,24 @@ class VerifiedBet(BaseModel):
 def parse_verified_bet(raw: dict[str, object]) -> VerifiedBet:
     """Parse the raw ``GET /v2/bets/{id}`` JSON into a typed :class:`VerifiedBet`.
 
-    - ``bet_id`` and ``status`` are required.
+    Matches the REAL live-bets ``BetView`` shape:
+    - The bet id is read from ``id`` (NOT ``bet_id``); a missing/invalid ``id``
+      raises ``ValueError``. (Stored on ``VerifiedBet.bet_id`` — the service
+      cross-checks nothing against it, so the field name is internal.)
+    - ``status`` is required.
     - ``stake`` is required and parsed as ``Decimal`` (never ``float``); a missing
       or unparseable stake raises ``ValueError`` — a verification failure, never a
       silent zero.
-    - ``payout`` prefers the settled ``payout`` field, falls back to
-      ``potential_payout``, and stays ``None`` when neither is present (the service
-      decides whether that is fatal — it is, for a WON bet).
+    - ``market_id`` is parsed when present.
+    - ``payout`` is the settled ``payout`` field (``str|None`` in BetView), parsed to
+      ``Decimal`` and left ``None`` when absent (the service decides whether that is
+      fatal — it is, for a WON bet).
+    - ``table_id`` is deliberately NOT read: BetView has no ``table_id`` field, so it
+      stays ``None`` here (the mirror row keeps the ``table_id`` captured at placement).
     """
-    bet_id = _safe_uuid(raw.get("bet_id"))
+    bet_id = _safe_uuid(raw.get("id"))
     if bet_id is None:
-        raise ValueError("live-bets bet response missing/invalid 'bet_id'")
+        raise ValueError("live-bets bet response missing/invalid 'id'")
 
     status = raw.get("status")
     if not isinstance(status, str) or not status:
@@ -145,18 +165,16 @@ def parse_verified_bet(raw: dict[str, object]) -> VerifiedBet:
     if stake is None:
         raise ValueError("live-bets bet response missing/invalid 'stake'")
 
-    # Settled payout field name is not explicitly documented — prefer `payout`,
-    # fall back to `potential_payout`, else leave None (fatal only for WON).
-    payout_raw = raw.get("payout")
-    if payout_raw is None:
-        payout_raw = raw.get("potential_payout")
-    payout = _safe_decimal(payout_raw)
+    # Real BetView exposes the settled amount as `payout` (str|None) — no
+    # `potential_payout`. None while pending => the service treats a WON bet with no
+    # payout as a verification failure (it will not guess winnings).
+    payout = _safe_decimal(raw.get("payout"))
 
     return VerifiedBet(
         bet_id=bet_id,
         status=status,
         stake=stake,
         market_id=_safe_uuid(raw.get("market_id")),
-        table_id=_safe_uuid(raw.get("table_id")),
+        table_id=None,  # BetView has no table_id; mirror keeps the placement value.
         payout=payout,
     )
