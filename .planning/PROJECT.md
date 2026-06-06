@@ -115,6 +115,7 @@ El operador puede ofrecer un catálogo creíble de mercados de predicción (mezc
 | Workflow colaborativo GSD con Linear + Slack | Pol = PM aprueba PRs, Cuco = Dev ejecuta fases. 1 PR por fase, AI review automático. | Confirmed — Phase 01 ejecutada en ~83 min con GSD full-cycle (discuss → plan → execute → verify → review) |
 | uv (Python) + pnpm (Node) como gestores de dependencias | Velocidad de resolución + lockfiles deterministas en CI/docker | Confirmed — Phase 01: ambos integrados en docker multi-stage y GitHub Actions sin fricción |
 | Celery Beat con RedBeat scheduler (Redis distributed lock) | Evita que dos instancias de beat corran en paralelo en deploy multi-pod | Confirmed — Phase 01: bug encontrado y corregido (flag -S conflictaba con señal beat_init; eliminado) |
+| `void_event` = liquidar todos los hijos a NO (NO es un refund) | Demo con resultados preseleccionados/fijos + dinero real fuera de scope; el ESTADO "void" para credibilidad (Polymarket) ya existe vía `derive_event_status`, independiente de la operación. Revisado a fondo y confirmado intencional el 2026-06-06. | ✓ Decided — sin cambios; el "cancel + refund" real se difiere al milestone de dinero real (adición limpia cuando entre un operador con stakes reales). El docstring de `void_event` ya documenta que no es refund. |
 
 ## Evolution
 
