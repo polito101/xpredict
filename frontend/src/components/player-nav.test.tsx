@@ -31,6 +31,12 @@ describe("<PlayerNav />", () => {
     expect(screen.getByText("Portfolio")).toBeInTheDocument();
   });
 
+  test("renders the Live destination linking to /live (LB-B-03)", () => {
+    render(<PlayerNav isAuthenticated={false} />);
+    expect(screen.getByText("Live")).toBeInTheDocument();
+    expect(screen.getByText("Live").closest("a")).toHaveAttribute("href", "/live");
+  });
+
   test("shows Log in / Sign up when logged out, never Log out", () => {
     render(<PlayerNav isAuthenticated={false} />);
     expect(screen.getByText("Log in")).toBeInTheDocument();
