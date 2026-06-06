@@ -1028,8 +1028,10 @@ async def _read_back_event_children(
 
     Children are matched to their spec outcome by ``group_item_title`` (the unique label),
     so each child's ``initial_odds_yes`` base for the odds walk comes from the spec — not a
-    fragile id/position assumption. Returns the children as ``SeededMarket``s (so the odds /
-    bet steps reuse the standalone path) plus a label→child map for winner selection.
+    fragile id/position assumption. Ordered by ``group_item_title`` so the returned tuple is
+    REPRODUCIBLE (the downstream bet spread keys off child position — a stable order keeps the
+    whole seed deterministic). Returns the children as ``SeededMarket``s (so the odds / bet
+    steps reuse the standalone path) plus a label→child map for winner selection.
     """
     odds_by_label = {o.label: o.initial_odds_yes for o in spec.outcomes}
     children: list[SeededMarket] = []
@@ -1037,9 +1039,9 @@ async def _read_back_event_children(
     async with session_maker() as session:
         rows = (
             await session.execute(
-                select(Market.id, Market.slug, Market.question, Market.group_item_title).where(
-                    Market.group_id == group_id
-                )
+                select(Market.id, Market.slug, Market.question, Market.group_item_title)
+                .where(Market.group_id == group_id)
+                .order_by(Market.group_item_title)
             )
         ).all()
         for market_id, slug, question, label in rows:
@@ -1127,6 +1129,8 @@ async def seed_event_bets(
     event always yields winners AND losers once settled. Each bet runs on its OWN fresh
     session (``place_bet`` owns its tx — the begin()-on-open-tx hazard); stakes stay small vs
     the funded balances so no placement overdraws. Money moves only through ``BetService``.
+    ``cfg`` is accepted for API symmetry with the other ``seed_*`` steps (it is unread here —
+    the user/event sets are passed in directly).
     """
     if not users or not events:
         return 0
@@ -1173,8 +1177,15 @@ async def seed_event_resolutions(cfg: SeedConfig, events: Sequence[SeededEvent])
     for event in events:
         if event.target_state == "open":
             continue
+        # A resolved / partially_resolved event MUST name a designated child (an explicit
+        # raise, not assert, so it still fires under ``python -O`` — this is a runnable script).
+        needs_designated = event.target_state in ("resolved", "partially_resolved")
+        if needs_designated and event.designated_child is None:
+            raise RuntimeError(
+                f"event {event.slug} is {event.target_state} but has no designated child"
+            )
         if event.target_state == "resolved":
-            assert event.designated_child is not None
+            assert event.designated_child is not None  # narrow for the type checker (raised above)
             await EventService.resolve_event(
                 group_id=event.group_id,
                 winning_outcome_id=event.designated_child.yes_outcome_id,
@@ -1190,7 +1201,10 @@ async def seed_event_resolutions(cfg: SeedConfig, events: Sequence[SeededEvent])
                 actor_user_id=admin_id,
             )
         elif event.target_state == "partially_resolved":
-            assert event.designated_child is not None
+            assert event.designated_child is not None  # narrow for the type checker (raised above)
+            # Settling the designated child on its NO leg ("eliminated") leaves the siblings
+            # OPEN -> the event derives ``partially_resolved``. The both-sides bet spread
+            # (seed_event_bets places 1 YES + 1 NO per child) guarantees a winner AND a loser.
             async with session_maker() as session:
                 await SettlementService.resolve_market(
                     session,

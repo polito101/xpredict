@@ -152,7 +152,12 @@ async def test_seed_events_cover_all_four_states() -> None:
 
 
 async def test_seed_events_fill_featured_categories() -> None:
-    """DEMO-03: every featured category tab renders and is filled above the minimum."""
+    """DEMO-03: every featured category tab renders and is filled above the minimum.
+
+    Hermetic (resets first): the catalog reads the WHOLE DB, so resetting proves THIS
+    seed fills every featured tab to the minimum on its own — borrowed rows from other
+    tests in the shared container cannot mask a coverage regression.
+    """
     cfg = SeedConfig(
         n_users=10,
         n_markets=15,
@@ -160,6 +165,7 @@ async def test_seed_events_fill_featured_categories() -> None:
         n_events=7,
         email_domain="seed-events-cats.demo.xpredict",
     )
+    await reset_demo()  # clean slate so the >=2-per-tab assertion is on this seed alone
     baseline = await _reconcile_async()
 
     result = await seed_demo(cfg)
