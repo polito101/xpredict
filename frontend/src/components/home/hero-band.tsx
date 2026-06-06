@@ -12,7 +12,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Spark } from "@/components/brand/spark";
-import { XMark } from "@/components/brand/x-mark";
+import { LogoMark } from "@/components/brand/logo-mark";
 import { HeroVisual } from "@/components/home/hero-visual";
 
 export function HeroBand({ brandName }: { brandName: string }) {
@@ -70,7 +70,7 @@ export function HeroBand({ brandName }: { brandName: string }) {
             aria-hidden="true"
             className="absolute h-44 w-44 rounded-full bg-brand-primary/20 blur-3xl"
           />
-          <XMark
+          <LogoMark
             animated
             className="relative h-32 w-32 drop-shadow-[0_8px_40px_rgba(37,99,235,0.35)]"
           />

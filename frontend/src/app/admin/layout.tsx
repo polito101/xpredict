@@ -18,7 +18,7 @@
 import Link from "next/link";
 
 import { AdminNav } from "@/components/admin/admin-nav";
-import { XMark } from "@/components/brand/x-mark";
+import { LogoMark } from "@/components/brand/logo-mark";
 
 export default function AdminLayout({
   children,
@@ -33,7 +33,7 @@ export default function AdminLayout({
             href="/admin"
             className="group inline-flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-foreground"
           >
-            <XMark className="h-7 w-7 transition-transform duration-300 group-hover:scale-105" />
+            <LogoMark className="h-7 w-7 transition-transform duration-300 group-hover:scale-105" />
             <span>
               <span className="text-gradient-brand">X</span>Prediction
             </span>

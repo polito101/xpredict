@@ -18,7 +18,7 @@
  */
 import Link from "next/link";
 
-import { XMark } from "@/components/brand/x-mark";
+import { LogoMark } from "@/components/brand/logo-mark";
 import { cn } from "@/lib/utils";
 
 /**
@@ -67,7 +67,7 @@ export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
         />
       ) : (
         <>
-          <XMark className="h-8 w-8 transition-transform duration-300 group-hover:scale-105" />
+          <LogoMark className="h-8 w-8 transition-transform duration-300 group-hover:scale-105" />
           <span className="text-foreground">
             {name === "XPrediction" ? (
               <>

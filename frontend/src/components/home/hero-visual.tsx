@@ -16,7 +16,7 @@
 
 import { useId } from "react";
 
-import { XMark } from "@/components/brand/x-mark";
+import { LogoMark } from "@/components/brand/logo-mark";
 
 const CX = 360;
 const CY = 360;
@@ -202,7 +202,7 @@ export function HeroVisual() {
         />
         <foreignObject x={CX - 52} y={CY - 52} width="104" height="104">
           <div className="flex h-full w-full items-center justify-center">
-            <XMark animated className="h-[5.5rem] w-[5.5rem]" />
+            <LogoMark animated className="h-[5.5rem] w-[5.5rem]" />
           </div>
         </foreignObject>
       </svg>

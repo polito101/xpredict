@@ -23,13 +23,17 @@ backend**, and know exactly what is ready and what is left.
   before the backend is updated. **To make it authoritative, set the definitive
   backend's `tenant_config.brand_name = "XPrediction"`** (one row; or via
   `/admin/branding`). Real operator names still override (white-label intact).
-- **Logo:** the official "X" (blue/silver bevel + central spark) is rendered as a
-  faithful, theme-aware **SVG** (`components/brand/x-mark.tsx` + `spark.tsx`) — used
-  as the DEFAULT mark. To use the exact **raster** asset instead, upload it via
-  `/admin/branding` (the white-label `<img src=/branding/logo>` path already
-  overrides the default mark, no code change), or drop an SVG/PNG and point
-  `BrandLogo`. The official PNG file was not committed (only shown in chat); the
-  vector is production-ready.
+- **Logo (action required — 1 file):** every product-mark surface (navbar default,
+  hero core + mobile mark, auth, admin) renders the official asset through
+  `components/brand/logo-mark.tsx` (`LogoMark`), which loads
+  **`frontend/public/brand/xprediction-logo.png`**. **Drop the official PNG at that
+  exact path** and the real asset appears everywhere with no code change. Until the
+  file exists, `LogoMark` falls back to the faithful vector `x-mark.tsx` (nothing
+  broken). The official PNG could not be committed from chat (a pasted image can't
+  be written to disk from this side; the filesystem had no saved copy) — so this
+  one drop is the only remaining step. See `frontend/public/brand/README.md`.
+  (The white-label OPERATOR logo is separate: uploaded via `/admin/branding`,
+  served at `/branding/logo`, and rendered over the default mark in the navbar.)
 
 ---
 
