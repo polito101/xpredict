@@ -14,6 +14,7 @@
 import { HeroBand } from "@/components/home/hero-band";
 import { Pillars } from "@/components/home/pillars";
 import { CapabilityGrid } from "@/components/home/capability-grid";
+import { ApiSection } from "@/components/home/api-section";
 import {
   DemoShowcase,
   type DemoStat,
@@ -66,6 +67,7 @@ export default async function Landing() {
       <HeroBand brandName={brandName} />
       <Pillars />
       <CapabilityGrid />
+      <ApiSection />
       <DemoShowcase featured={featured} stats={stats} />
       <HowItWorks />
       <LandingCta />

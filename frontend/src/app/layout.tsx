@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { BrandLogo } from "@/components/brand-logo";
-import { PlayerNav } from "@/components/player-nav";
+import { SiteFrame } from "@/components/site-frame";
 import { Aurora } from "@/components/brand/aurora";
 import {
   fetchBrandingPublic,
@@ -108,43 +106,14 @@ export default async function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Aurora />
-
-        <header className="sticky top-0 z-40 border-b border-border/70 surface-glass">
-          <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-            <BrandLogo brandName={b.brand_name} logoUrl={b.logo_url} />
-            <PlayerNav isAuthenticated={isAuthenticated} playerName={playerName} />
-          </div>
-        </header>
-
-        <div className="flex-1">{children}</div>
-
-        <footer className="border-t border-border/70 bg-surface/60">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div className="flex items-center gap-2">
-              <span className="text-subtle-foreground">© XPredict</span>
-              <span aria-hidden="true" className="text-border-strong">
-                ·
-              </span>
-              <nav className="flex flex-wrap gap-x-4 gap-y-1">
-                <Link
-                  href="https://github.com/polito101/xpredict/blob/main/docs/terms-of-service.md"
-                  className="transition-colors hover:text-foreground"
-                >
-                  Terms of Service
-                </Link>
-                <Link
-                  href="https://github.com/polito101/xpredict/blob/main/docs/regulatory.md"
-                  className="transition-colors hover:text-foreground"
-                >
-                  Token policy
-                </Link>
-              </nav>
-            </div>
-            <p className="text-subtle-foreground">
-              Play-money tokens have no monetary value.
-            </p>
-          </div>
-        </footer>
+        <SiteFrame
+          brandName={b.brand_name}
+          logoUrl={b.logo_url}
+          isAuthenticated={isAuthenticated}
+          playerName={playerName}
+        >
+          {children}
+        </SiteFrame>
         <Toaster />
       </body>
     </html>
