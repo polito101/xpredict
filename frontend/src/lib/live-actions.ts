@@ -1,0 +1,199 @@
+/**
+ * LB-B-01 — Live-bets mirror Server Actions (design §5 DOM events, §8 money flow).
+ *
+ * The `"use client"` widget host (`app/live/live-table.tsx`) fires these from the
+ * `<live-bets-table>` DOM events. They are the ONLY authed path that mirrors
+ * live-bets money into the XPredict ledger. Mirrors `bet-actions.ts`:
+ *
+ *   - reads the player's HttpOnly `xpredict_session` cookie via `next/headers`
+ *     `cookies()` (the cookie value NEVER enters client JS — T-LBB-01 / T-09-13);
+ *   - forwards it as a `Cookie: xpredict_session=...` header to the server-only
+ *     `${BACKEND_URL}` (no `NEXT_PUBLIC_` prefix, so the backend origin never
+ *     leaks into the client bundle).
+ *
+ * The LB-A backend (`backend/app/integrations/livebets/router.py`, gated by
+ * `current_active_player`) is the AUTHORITY: it re-verifies the bet against
+ * live-bets (`GET /v2/bets/{id}`) and the transfers are idempotent. There is NO
+ * `user_id` parameter — the player is resolved from the forwarded session, and a
+ * foreign `bet_id` maps to 404 (IDOR-safe, design §8 / T-LBB-02). Per design D-3
+ * (Approach A) these DOM events are the mirror triggers; `applied:false` is the
+ * legitimate idempotent no-op for a duplicate event, NOT an error.
+ *
+ * `betId` is kept opaque (the backend parses it as a UUID). LB-A status codes map
+ * to the discriminated result: 200 ok · 401 unauthenticated · 404 not_found ·
+ * 409 conflict · other → error.
+ *
+ * The `LiveSession` shape is re-used from `./api` (Next forbids non-async value
+ * exports from a `"use server"` file, so types are imported, not re-declared here).
+ */
+"use server";
+
+import { cookies } from "next/headers";
+
+import type { LiveSession } from "./api";
+
+/**
+ * Result of `recordLivePlaced` / `recordLiveSettled`. `applied` echoes LB-A
+ * `MirrorResult.applied` — `false` is a benign idempotent no-op (design §8).
+ */
+export type LiveActionResult =
+  | { ok: true; applied: boolean }
+  | { ok: false; reason: "unauthenticated" | "not_found" | "conflict" | "error" };
+
+/**
+ * Result of `mintLiveSession` — carries the renewed live-bets session token on
+ * success so the widget host can re-set the `session-token` attribute.
+ */
+export type LiveSessionResult =
+  | { ok: true; session_token: string; expires_at: string }
+  | { ok: false; reason: "unauthenticated" | "not_found" | "conflict" | "error" };
+
+/** Server-only backend base (NO `NEXT_PUBLIC_` — mirrors `bet-actions.ts`). */
+function getBackendUrl(): string {
+  return process.env.BACKEND_URL || "http://localhost:8000";
+}
+
+/**
+ * Map a non-2xx LB-A status to the discriminated failure reason shared by all
+ * three actions: 401 unauthenticated · 404 not_found · 409 conflict · else error.
+ */
+function reasonForStatus(
+  status: number,
+): "unauthenticated" | "not_found" | "conflict" | "error" {
+  switch (status) {
+    case 401:
+      return "unauthenticated";
+    case 404:
+      return "not_found";
+    case 409:
+      return "conflict";
+    default:
+      return "error";
+  }
+}
+
+/**
+ * Read the HttpOnly session cookie server-side. Returns `undefined` when absent
+ * (the caller short-circuits to `{ok:false, reason:"unauthenticated"}` without
+ * calling the backend — mirrors `placeBetAction`).
+ */
+async function readSession(): Promise<string | undefined> {
+  const store = await cookies();
+  return store.get("xpredict_session")?.value;
+}
+
+/**
+ * Mirror a PLACED live-bets bet — debits the player's XPredict wallet into
+ * escrow (stake) via LB-A `POST /api/live/bets/{betId}/placed`. The backend
+ * re-verifies status PENDING + reads the stake; a tampered event payload can
+ * only pass `betId` (T-LBB-04). `applied:false` = already mirrored (no-op).
+ */
+export async function recordLivePlaced(
+  betId: string,
+): Promise<LiveActionResult> {
+  const session = await readSession();
+  if (!session) return { ok: false, reason: "unauthenticated" };
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `${getBackendUrl()}/api/live/bets/${encodeURIComponent(betId)}/placed`,
+      {
+        method: "POST",
+        headers: { Cookie: `xpredict_session=${session}` },
+        cache: "no-store",
+      },
+    );
+  } catch {
+    return { ok: false, reason: "error" };
+  }
+
+  if (res.status === 200) {
+    const data = (await res.json().catch(() => null)) as {
+      applied?: unknown;
+    } | null;
+    return { ok: true, applied: data?.applied === true };
+  }
+  return { ok: false, reason: reasonForStatus(res.status) };
+}
+
+/**
+ * Mirror a SETTLED live-bets bet (WON/LOST/REFUNDED/VOIDED) into the ledger via
+ * LB-A `POST /api/live/bets/{betId}/settled`. The backend re-reads the payout
+ * from live-bets (a tampered `payout` in the DOM event is ignored — T-LBB-04)
+ * and is idempotent. `applied:false` = already settled (no-op).
+ */
+export async function recordLiveSettled(
+  betId: string,
+): Promise<LiveActionResult> {
+  const session = await readSession();
+  if (!session) return { ok: false, reason: "unauthenticated" };
+
+  let res: Response;
+  try {
+    res = await fetch(
+      `${getBackendUrl()}/api/live/bets/${encodeURIComponent(betId)}/settled`,
+      {
+        method: "POST",
+        headers: { Cookie: `xpredict_session=${session}` },
+        cache: "no-store",
+      },
+    );
+  } catch {
+    return { ok: false, reason: "error" };
+  }
+
+  if (res.status === 200) {
+    const data = (await res.json().catch(() => null)) as {
+      applied?: unknown;
+    } | null;
+    return { ok: true, applied: data?.applied === true };
+  }
+  return { ok: false, reason: reasonForStatus(res.status) };
+}
+
+/**
+ * Re-mint the player's live-bets session via LB-A `POST /api/live/session` (for
+ * the `live-bets-session-expired` handler; the `/live` page does the FIRST mint
+ * via `fetchLiveSession`). Sends `{ table_id }` only when supplied; otherwise
+ * LB-A defaults from `LIVEBETS_DEFAULT_TABLE_ID`. On success returns the new
+ * token + expiry so the host can `setAttribute("session-token", ...)`.
+ */
+export async function mintLiveSession(
+  tableId?: string,
+): Promise<LiveSessionResult> {
+  const session = await readSession();
+  if (!session) return { ok: false, reason: "unauthenticated" };
+
+  let res: Response;
+  try {
+    res = await fetch(`${getBackendUrl()}/api/live/session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: `xpredict_session=${session}`,
+      },
+      body: JSON.stringify(tableId === undefined ? {} : { table_id: tableId }),
+      cache: "no-store",
+    });
+  } catch {
+    return { ok: false, reason: "error" };
+  }
+
+  if (res.status === 200) {
+    const data = (await res.json().catch(() => null)) as Partial<LiveSession> | null;
+    if (
+      data &&
+      typeof data.session_token === "string" &&
+      typeof data.expires_at === "string"
+    ) {
+      return {
+        ok: true,
+        session_token: data.session_token,
+        expires_at: data.expires_at,
+      };
+    }
+    return { ok: false, reason: "error" };
+  }
+  return { ok: false, reason: reasonForStatus(res.status) };
+}
