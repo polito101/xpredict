@@ -212,9 +212,7 @@ async def _count_bets_table() -> int:
     """
     sm = _get_session_maker()
     async with sm() as s:
-        exists = (
-            await s.execute(text("SELECT to_regclass('public.bets')"))
-        ).scalar_one()
+        exists = (await s.execute(text("SELECT to_regclass('public.bets')"))).scalar_one()
         if exists is None:
             return 0
         return (await s.execute(text("SELECT count(*) FROM bets"))).scalar_one()
@@ -291,9 +289,7 @@ async def test_placed_then_lost_sweeps_stake_to_house_revenue_escrow_nets_to_zer
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
 
     client.set_bet(bet_id, status="LOST", stake=stake)
     async with sm() as s:
@@ -333,9 +329,7 @@ async def test_placed_then_refund_returns_stake_escrow_nets_to_zero(refund_statu
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
     assert await _balance(wallet_id) == Decimal("60.0000")  # 100 - 40 staked
 
     client.set_bet(bet_id, status=refund_status, stake=stake)
@@ -374,9 +368,7 @@ async def test_won_with_no_winnings_posts_only_stake_return_leg() -> None:
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
 
     # payout == stake -> winnings (payout - stake) == 0 -> the winnings leg is skipped.
     client.set_bet(bet_id, status=LIVEBETS_WON, stake=stake, payout=stake)
@@ -442,9 +434,7 @@ async def test_duplicate_settled_is_noop_primary_guard() -> None:
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
 
     client.set_bet(bet_id, status=LIVEBETS_WON, stake=stake, payout=payout)
     async with sm() as s1:
@@ -485,9 +475,7 @@ async def test_won_secondary_idempotency_key_collision_is_caught() -> None:
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
     wallet_after_placed = await _balance(wallet_id)
     escrow_after_placed = await _livebets_escrow_balance()
     assert wallet_after_placed == Decimal("80.0000")
@@ -522,11 +510,7 @@ async def test_won_secondary_idempotency_key_collision_is_caught() -> None:
     assert mirror.settled_at is None
     # Only the placed leg + the poison row carry/own a related transfer; no settle legs
     # with this bet_id metadata were committed.
-    settle_legs = [
-        t
-        for t in await _transfers_for_bet(bet_id)
-        if t.kind != "livebets_placed"
-    ]
+    settle_legs = [t for t in await _transfers_for_bet(bet_id) if t.kind != "livebets_placed"]
     assert settle_legs == []
 
 
@@ -544,9 +528,7 @@ async def test_record_placed_rejects_non_pending_bet() -> None:
     sm = _get_session_maker()
     with pytest.raises(LiveBetsVerificationError):
         async with sm() as s:
-            await LiveBetsBridge.record_placed(
-                s, user=_user(user_id), bet_id=bet_id, client=client
-            )
+            await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
 
     # Zero ledger effect: wallet untouched, no mirror row, no transfers for the bet.
     assert await _balance(wallet_id) == Decimal("100.0000")
@@ -567,9 +549,7 @@ async def test_record_settled_rejects_still_pending_bet() -> None:
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
     wallet_after_placed = await _balance(wallet_id)
     legs_after_placed = len(await _transfers_for_bet(bet_id))
 
@@ -601,9 +581,7 @@ async def test_record_settled_won_without_payout_rejected() -> None:
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
     wallet_after_placed = await _balance(wallet_id)
     escrow_after_placed = await _livebets_escrow_balance()
     legs_after_placed = len(await _transfers_for_bet(bet_id))
@@ -645,9 +623,7 @@ async def test_stake_authority_is_server_side_not_request() -> None:
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=server_stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
     # EXACTLY server_stake moved wallet -> escrow.
     assert await _balance(wallet_id) == Decimal("100.0000") - server_stake
     assert await _livebets_escrow_balance() - escrow_before == server_stake
@@ -658,9 +634,7 @@ async def test_stake_authority_is_server_side_not_request() -> None:
 
     client.set_bet(bet_id, status=LIVEBETS_WON, stake=server_stake, payout=payout)
     async with sm() as s:
-        await LiveBetsBridge.record_settled(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_settled(s, user=_user(user_id), bet_id=bet_id, client=client)
     # Wallet net = 100 - 37.5 + 37.5 + 22.5 = 122.5; escrow nets to zero; winnings
     # (22.5) funded by house_promo.
     assert await _balance(wallet_id) == Decimal("122.5000")
