@@ -55,7 +55,7 @@
 - [x] **Phase 15: Event Settlement (House Resolve/Void + Mirrored Verify)** — `EventService` resolve-as-a-loop over the existing `SettlementService` per child; void = all-children-NO; reverse via compensating ledger; derived event status; mirrored children auto-settle via existing UMA detection (verify, no new code). (completed 2026-06-05 — PR [#29](https://github.com/polito101/xpredict/pull/29), CI 7/7 green, MERGE READY)
 - [x] **Phase 16: Catalog & Event API + House Event CRUD** — `CatalogService.browse()` (ILIKE + category + status + sort + bounded LIMIT) and event/category/admin-event endpoints; house event create/edit; explicit empty/zero states; `/markets` kept for back-compat. (completed 2026-06-05)
 - [x] **Phase 17: Catalog Browse UI, Event Detail & Admin Event Ops** — Catalog browse island (search + category tabs + status/sort), multi-outcome event card, event detail with independent per-outcome rows/bars + bet-on-one-outcome + per-outcome charts, admin event forms; white-label on every new surface. *(completed 2026-06-06 — PR [#31](https://github.com/polito101/xpredict/pull/31), CI 7/7 green, MERGE READY; the per-outcome framing LOCK never sums to 100%)*
-- [ ] **Phase 18: Seed/Demo Harness for Multi-outcome + Categories** — Extend `bin/seed_demo.py`: ≥1 multi-outcome event per category (3-8 outcomes, plausible prices, non-flat history), open + partially-resolved + resolved + void states, filled tabs, pinned featured allow-list; idempotent `demo-reset` with green double-entry integrity check.
+- [x] **Phase 18: Seed/Demo Harness for Multi-outcome + Categories** — Extend `bin/seed_demo.py`: ≥1 multi-outcome event per category (3-8 outcomes, plausible prices, non-flat history), open + partially-resolved + resolved + void states, filled tabs, pinned featured allow-list; idempotent `demo-reset` with green double-entry integrity check. *(completed 2026-06-06 — PR [#32](https://github.com/polito101/xpredict/pull/32), CI 7/7 green, MERGE READY; the milestone's end-to-end integration acceptance test — exercises model→sync→settlement→API→UI through the merged service layer)*
 
 ## Phase Details
 
@@ -172,7 +172,9 @@
   3. Every demo category tab is filled above a minimum (no empty tabs), and the specific categories/events the sales script walks are pinned via a featured allow-list insulated from upstream tag drift.
   4. `demo-reset` is idempotent, and the spike-004 double-entry integrity check passes green after both seed and reset.
 
-**Plans**: TBD
+**Plans**: 1 (completed — 18-01: multi-outcome event seeding across categories + states + reset fix + integrity)
+
+- [x] 18-01-PLAN.md — Extend `bin/seed_demo.py`: marquee event per featured category + 4-state resolution (resolve/void/partial) + non-flat event-child odds + `market_groups` reset fix + integrity self-check + Makefile targets; 7 new tests (DEMO-01..04)
 
 ## Progress
 
@@ -187,6 +189,6 @@
 | 15. Event Settlement (House Resolve/Void + Mirrored Verify) | v1.2 | 3/3 | Complete — PR #29, CI green, merge-ready | 2026-06-05 |
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 5/5 | Complete    | 2026-06-05 |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 5/5 | MERGE READY — PR #31, CI 7/7 green | 2026-06-06 |
-| 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 0/TBD | Not started | - |
+| 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 1/1 | MERGE READY — PR #32, CI 7/7 green | 2026-06-06 |
 
 **Known deferred at v1.0/v1.1 close** (carried into v1.2): 3 human-UAT scenarios + 3 verification gaps from Phase 12, and the **non-deferrable Spanish legal review** of ToS/token policy before any live operator demo (see [`STATE.md`](STATE.md) › Deferred Items).

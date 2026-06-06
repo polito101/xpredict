@@ -7,11 +7,11 @@ last_updated: 2026-06-06T00:00:00.000Z
 last_activity: 2026-06-06
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
-  percent: 83
-stopped_at: Phase 17 MERGE READY — PR #31, CI 7/7 green; Phase 18 (Seed/Demo) next
+  completed_phases: 6
+  total_plans: 20
+  completed_plans: 20
+  percent: 100
+stopped_at: Phase 18 MERGE READY — PR #32, CI 7/7 green; v1.2 engineering-complete (awaiting Pol's merges → milestone lifecycle)
 ---
 
 # Project State
@@ -22,16 +22,16 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** Phase 18 — seed/demo harness for multi-outcome + categories (Phase 17 frontend is MERGE READY)
+**Current focus:** v1.2 ENGINEERING-COMPLETE — Phase 18 (Seed/Demo) MERGE READY (PR #32). All 6 phases done; milestone lifecycle (audit/complete/cleanup) pending Pol's merges.
 
 ## Current Position
 
 Phase: 18
-Plan: Not started
-Status: Phase 17 (UI) MERGE READY — PR [#31](https://github.com/polito101/xpredict/pull/31) OPEN, CI 7/7 green, MERGEABLE, 0 drift, awaiting Pol's review/merge. Phase 18 (Seed/Demo) ready to plan.
+Plan: 18-01 (complete)
+Status: Phase 18 (Seed/Demo Harness) MERGE READY — PR [#32](https://github.com/polito101/xpredict/pull/32) OPEN, CI 7/7 green, MERGEABLE, 0 drift (0 behind / 5 ahead), awaiting Pol's review/merge. Last v1.2 phase → milestone complete on merge.
 Last activity: 2026-06-06
 
-Progress: [████████░░] 83%
+Progress: [██████████] 100%
 
 > Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
 
@@ -65,7 +65,7 @@ Full decision log lives in PROJECT.md (Key Decisions); per-phase execution detai
 ## Session Continuity
 
 Last session: 2026-06-06
-Stopped at: Phase 17 (Catalog Browse UI, Event Detail & Admin Event Ops) executed end-to-end autonomously — 5 plans (data layer → browse → event detail → admin event ops → brand sweep), ~30 frontend files, 188 vitest green + tsc/eslint/`next build --webpack` clean; 2 independent code reviews (framing LOCK / security / a11y / BRW-06 = PASS, 1 HIGH + 2 MED + 4 LOW all fixed); verification PASSED. PR [#31](https://github.com/polito101/xpredict/pull/31) OPEN, CI 7/7 green, MERGEABLE, 0 drift → MERGE READY (awaiting Pol). Next: Phase 18 (Seed/Demo) after #31 merges.
+Stopped at: Phase 18 (Seed/Demo Harness for Multi-outcome + Categories) executed end-to-end autonomously — 1 plan (`bin/seed_demo.py` extended: one marquee multi-outcome event per canonical category, all 4 event states, non-flat odds history, `market_groups` reset fix, integrity self-check, Makefile targets), 5 commits, +1103/-32 in 8 files. 19/19 `tests/seed/` green (testcontainers) + ruff/mypy clean; 2 independent code reviews (money discipline / 23505 / CR-01 / reset-CASCADE / integrity / overdraw = all HOLD, CLEAN; MED/LOW/NIT fixed); verification PASSED (DEMO-01..04). PR [#32](https://github.com/polito101/xpredict/pull/32) OPEN, CI 7/7 green, MERGEABLE, 0 drift → MERGE READY (awaiting Pol). v1.2 is the LAST phase → milestone lifecycle (audit/complete/cleanup) once Pol merges.
 Resume file: None
 
 ## Performance Metrics
@@ -90,3 +90,4 @@ Resume file: None
 - [Phase 15]: Phase 15 event-settlement layer COMPLETE — resolve + void + reverse + derived status + mirrored verify, all with spike-004 drift_count==0 on every path; all 3 EventService mutations reject source=POLYMARKET groups (mirrored settles ONLY via the unchanged UMA detect path).
 - [Phase 16]: Wave-0 catalog test scaffold (16-01) — tests/catalog/ package; conftest inherits the parent engine/async_session fixtures and adds only the api ASGITransport client + autouse testcontainer/override fixtures. _factories.py exposes make_market, make_event (MarketGroup + N binary YES/NO children), place_bet_on_child, resolve_child + per-state drivers (open/partial/resolved/void), and _Admin/admin_override/seed_admin. place_bet_on_child funds a LEDGER-BACKED wallet via WalletService.recharge on a FRESH committed session then writes the Bet on the caller session (Pitfall 5: recharge owns its own begin()+commit, can't run on the rolled-back async_session fixture). Per-state drivers mutate child status + winning_outcome_id directly (the plan's allowed non-financial state setup) consistent with derive_event_status; all money/odds are Decimal; children are binary YES/NO only (trg_binary_outcomes_only never trips).
 - [Phase 17]: First v1.2 FRONTEND phase — built entirely against the merged Phase-16 API (zero backend changes). The per-outcome framing LOCK (each outcome an independent YES bar, NEVER sum-to-100) is the gating visual invariant; tests assert >100% sums to forbid normalization. Catalog browse upgraded the homepage `/` (curated `/catalog` superset of `/markets`); event detail reuses `OrderEntryForm`/`PriceHistorySection`/`MarketDetailLiveOdds` per selected child (fetched via `fetchMarket(child_slug)` for the real YES+NO); the live-WS cap is structural (single `key={child.id}` panel remount → one socket). Admin event dialogs use the backend's server two-step (`confirm:false` preview → `confirm:true` execute). Admin events list reads the public catalog filtered to house events (no admin list endpoint — deferred). Caught + fixed a real duplicate-socket leak (per-element key on a conditional). 36 new tests.
+- [Phase 18]: Seed/Demo harness for multi-outcome — extends `bin/seed_demo.py` through the MERGED service layer (zero new domain code). Events created via `EventService.create_house_event` (own session, commits once). 4 states: resolved (`resolve_event` winner-YES/losers-NO) · void (`void_event` all-NO) · partial (single-child `SettlementService.resolve_market` on the NO leg → derives `partially_resolved`) · open (untouched). DEMO-04 fix: `market_groups` was MISSING from `_RESET_TABLES` (markets.group_id FK points markets→groups, so TRUNCATE markets doesn't cascade into groups) → re-seed of deterministic event slugs would collide on the UNIQUE slug; added it. Featured allow-list PINNED (hardcoded 7 canonical names) + coherence guard vs `POLYMARKET_CATEGORIES` (drift-insulated); standalone templates retagged onto the canonical 7. Event children reuse the `SeededMarket` shape so `seed_odds_history` works unchanged (non-flat per-outcome history). Money discipline + 23505 session-per-call preserved throughout; reconcile green after seed AND reset. Event slugs namespaced by `email_domain` for test isolation (clean slugs for the real demo). `_read_back_event_children` ORDER BY label = deterministic. 7 new tests; 2 independent reviews CLEAN.
