@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ADMIN_PROTECTED = /^\/admin(\/|$)/;
-const PLAYER_PROTECTED = /^\/(markets|events|portfolio|wallet)(\/|$)/;
+const PLAYER_PROTECTED = /^\/(markets|events|portfolio|wallet|live)(\/|$)/;
 const ADMIN_LOGIN = "/admin/login";
 const PLAYER_LOGIN = "/login";
 
@@ -59,5 +59,6 @@ export const config = {
     "/events/:path*",
     "/portfolio/:path*",
     "/wallet/:path*",
+    "/live/:path*",
   ],
 };

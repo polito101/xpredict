@@ -65,7 +65,7 @@ describe("proxy()", () => {
   });
 
   // Phase 19: the player app lives behind authentication.
-  it.each(["/markets", "/markets/some-slug", "/events/x", "/portfolio", "/wallet"])(
+  it.each(["/markets", "/markets/some-slug", "/events/x", "/portfolio", "/wallet", "/live"])(
     "redirects_unauthenticated_player_route — %s → /login when no session",
     (path) => {
       const req = buildRequest(path);

@@ -29,8 +29,19 @@ describe("<PlayerNav />", () => {
   test("renders the primary destinations when authenticated", () => {
     render(<PlayerNav isAuthenticated={true} />);
     expect(screen.getByText("Markets")).toBeInTheDocument();
+    expect(screen.getByText("Live")).toBeInTheDocument();
     expect(screen.getByText("Wallet")).toBeInTheDocument();
     expect(screen.getByText("Portfolio")).toBeInTheDocument();
+  });
+
+  // LB-B-03 (v1.3 Live-Bets) — the Live destination links to /live. In the
+  // Phase 19 redesign the app destinations show only when authenticated.
+  test("links the Live destination to /live", () => {
+    render(<PlayerNav isAuthenticated={true} />);
+    expect(screen.getByText("Live").closest("a")).toHaveAttribute(
+      "href",
+      "/live",
+    );
   });
 
   test("shows only Log in / Sign up when logged out (no app destinations, no Log out)", () => {

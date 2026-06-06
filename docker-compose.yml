@@ -91,6 +91,12 @@ services:
       - "8000:8000"
     environment:
       <<: *backend-env
+      # Live-bets demo (LB-C): the backend (a container) reaches the demo live-bets
+      # instance on the HOST — container `localhost` != host, so use
+      # host.docker.internal. Key/table come from .env.local (gitignored).
+      LIVEBETS_API_BASE: http://host.docker.internal:8002
+      LIVEBETS_API_KEY: ${LIVEBETS_API_KEY:-}
+      LIVEBETS_DEFAULT_TABLE_ID: ${LIVEBETS_DEFAULT_TABLE_ID:-}
     volumes: *backend-volumes
     depends_on:
       db: { condition: service_healthy }
@@ -182,6 +188,9 @@ services:
       # MKT-04). Use `https://`/`wss://` behind TLS in prod.
       NEXT_PUBLIC_API_URL: http://localhost:8000
       NEXT_PUBLIC_WS_URL: ws://localhost:8000
+      # Live-bets demo (LB-C): the widget script is fetched by the BROWSER, so it
+      # must be host-reachable (:8002 on the host, CORS-enabled for :3000).
+      NEXT_PUBLIC_LIVEBETS_WIDGET_SRC: ${NEXT_PUBLIC_LIVEBETS_WIDGET_SRC:-http://localhost:8002/static/widget.js}
       # Server-only base for SSR / Server Components (lib/api.ts apiBase()),
       # which run INSIDE this container and reach the api over the compose
       # network. Never exposed to the browser.

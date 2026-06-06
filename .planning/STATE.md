@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Credible Catalog
-status: phase_complete
-last_updated: 2026-06-06T00:00:00.000Z
-last_activity: 2026-06-06
+status: v1.2 shipped — awaiting next milestone
+last_updated: "2026-06-06"
+last_activity: 2026-06-06 — Milestone v1.2 completed, archived, tagged v1.2
 progress:
   total_phases: 6
   completed_phases: 6
   total_plans: 20
   completed_plans: 20
   percent: 100
-stopped_at: Phase 18 MERGE READY — PR #32, CI 7/7 green; v1.2 engineering-complete (awaiting Pol's merges → milestone lifecycle)
 ---
 
 # Project State
@@ -22,18 +21,14 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 Roadmap: .planning/ROADMAP.md — v1.2 Credible Catalog = Phases 13-18 (Model → Sync → Settlement → API → UI → Seed).
 
 **Core value:** El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de Polymarket y house) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
-**Current focus:** v1.2 ENGINEERING-COMPLETE — Phase 18 (Seed/Demo) MERGE READY (PR #32). All 6 phases done; milestone lifecycle (audit/complete/cleanup) pending Pol's merges.
+**Current focus:** v1.2 SHIPPED — all 6 phases merged to `main`, milestone audited (29/29 reqs, verdict tech_debt), archived to `milestones/v1.2-*` + tagged `v1.2`. Next milestone (v1.3) not yet defined — run `/gsd-new-milestone`.
 
 ## Current Position
 
-Phase: 18
-Plan: 18-01 (complete)
-Status: Phase 18 (Seed/Demo Harness) MERGE READY — PR [#32](https://github.com/polito101/xpredict/pull/32) OPEN, CI 7/7 green, MERGEABLE, 0 drift (0 behind / 5 ahead), awaiting Pol's review/merge. Last v1.2 phase → milestone complete on merge.
-Last activity: 2026-06-06
-
-Progress: [██████████] 100%
-
-> Note (Windows worktree ONLY — not a code issue): on this Windows worktree the full `uv run pytest` flakes (testcontainers connection contention across unrelated modules) AND `ruff check`/`format` results flip-flop (the worktree file set flickers 148↔202 between identical runs). **Linux CI runs the full suite (`pytest tests/ -x`) + ruff + mypy GREEN** (PR #26 `backend` job, 1m45s). Diagnose backend on Linux CI, not the Windows worktree. See [[xprediction-backend-fullsuite-testcontainers-flake]].
+Phase: Milestone v1.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-06 — Milestone v1.2 completed and archived
 
 ## Milestones Shipped
 
@@ -51,6 +46,13 @@ Acknowledged and carried forward at the v1.0/v1.1 close (2026-06-04). Source: `g
 | human-UAT | Phase 12 `12-HUMAN-UAT.md` | 3 scenarios open | PM-accepted human-verify items from the v1.0 closure phase. |
 | verification | Phases 03 / 04 / 05 | 3 VERIFICATION.md missing | Flagged by the 2026-06-02 v1.0 audit; backends tested + shipped, formal VERIFICATION.md never written. |
 | legal (gating) | Spanish counsel review of ToS + token policy | Open — **not deferrable** | Must complete **before any live demo to a real operator**. Carried from Phase 11. |
+
+Acknowledged at the **v1.2 close (2026-06-06)** (`audit-open`):
+
+| Category | Item | Status | Notes |
+|----------|------|--------|-------|
+| human-UAT | Phase 14 `14-HUMAN-UAT.md` | 2 scenarios open | Live runtime checks — redbeat schedule reload on deploy (top-25 entry stops firing, events poll starts); Gamma `tag_id` allow-list drift re-verify. Only closeable on a real deploy. |
+| verification | Phase 14 `14-VERIFICATION.md` | human_needed | Same 2 live checks; 11/11 static must-haves verified. |
 
 ## Accumulated Context
 
@@ -91,3 +93,7 @@ Resume file: None
 - [Phase 16]: Wave-0 catalog test scaffold (16-01) — tests/catalog/ package; conftest inherits the parent engine/async_session fixtures and adds only the api ASGITransport client + autouse testcontainer/override fixtures. _factories.py exposes make_market, make_event (MarketGroup + N binary YES/NO children), place_bet_on_child, resolve_child + per-state drivers (open/partial/resolved/void), and _Admin/admin_override/seed_admin. place_bet_on_child funds a LEDGER-BACKED wallet via WalletService.recharge on a FRESH committed session then writes the Bet on the caller session (Pitfall 5: recharge owns its own begin()+commit, can't run on the rolled-back async_session fixture). Per-state drivers mutate child status + winning_outcome_id directly (the plan's allowed non-financial state setup) consistent with derive_event_status; all money/odds are Decimal; children are binary YES/NO only (trg_binary_outcomes_only never trips).
 - [Phase 17]: First v1.2 FRONTEND phase — built entirely against the merged Phase-16 API (zero backend changes). The per-outcome framing LOCK (each outcome an independent YES bar, NEVER sum-to-100) is the gating visual invariant; tests assert >100% sums to forbid normalization. Catalog browse upgraded the homepage `/` (curated `/catalog` superset of `/markets`); event detail reuses `OrderEntryForm`/`PriceHistorySection`/`MarketDetailLiveOdds` per selected child (fetched via `fetchMarket(child_slug)` for the real YES+NO); the live-WS cap is structural (single `key={child.id}` panel remount → one socket). Admin event dialogs use the backend's server two-step (`confirm:false` preview → `confirm:true` execute). Admin events list reads the public catalog filtered to house events (no admin list endpoint — deferred). Caught + fixed a real duplicate-socket leak (per-element key on a conditional). 36 new tests.
 - [Phase 18]: Seed/Demo harness for multi-outcome — extends `bin/seed_demo.py` through the MERGED service layer (zero new domain code). Events created via `EventService.create_house_event` (own session, commits once). 4 states: resolved (`resolve_event` winner-YES/losers-NO) · void (`void_event` all-NO) · partial (single-child `SettlementService.resolve_market` on the NO leg → derives `partially_resolved`) · open (untouched). DEMO-04 fix: `market_groups` was MISSING from `_RESET_TABLES` (markets.group_id FK points markets→groups, so TRUNCATE markets doesn't cascade into groups) → re-seed of deterministic event slugs would collide on the UNIQUE slug; added it. Featured allow-list PINNED (hardcoded 7 canonical names) + coherence guard vs `POLYMARKET_CATEGORIES` (drift-insulated); standalone templates retagged onto the canonical 7. Event children reuse the `SeededMarket` shape so `seed_odds_history` works unchanged (non-flat per-outcome history). Money discipline + 23505 session-per-call preserved throughout; reconcile green after seed AND reset. Event slugs namespaced by `email_domain` for test isolation (clean slugs for the real demo). `_read_back_event_children` ORDER BY label = deterministic. 7 new tests; 2 independent reviews CLEAN.
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
