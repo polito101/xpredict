@@ -20,7 +20,7 @@ export function HeroBand({ brandName }: { brandName: string }) {
   const name = !raw || raw === "XPredict" ? "XPrediction" : raw;
   return (
     <section className="relative overflow-hidden">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.15fr_0.85fr] lg:py-28">
+      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.82fr_1.18fr] lg:py-28">
         {/* Copy */}
         <div className="flex flex-col items-start gap-6 text-balance">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1 text-xs font-medium text-muted-foreground">
