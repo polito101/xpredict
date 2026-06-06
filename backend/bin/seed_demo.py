@@ -1,10 +1,15 @@
-"""Seed a believable demo dataset for sales demos (v1.1 Demo Polish — Fase B).
+"""Seed a believable demo dataset for sales demos (v1.1 Demo Polish — Fase B;
+extended in v1.2 Phase 18 with multi-outcome events + curated categories).
 
 Populates the DB with realistic, fully-wired data so EVERY player screen has
 content: home (open house markets), market-detail (a real price-chart from odds
 history), portfolio (open + settled positions with P&L) and wallet (a funded
-balance with transaction history). A companion ``--reset`` mode wipes the demo
-dataset back to a clean migrated schema.
+balance with transaction history). v1.2 adds one marquee multi-outcome EVENT per
+featured category (a ``market_groups`` row + N independent binary YES/NO children
+— the framing LOCK: per-outcome YES prices never sum to 100%), spanning every
+event state (open / partially-resolved / resolved / void) so the catalog browse,
+category tabs, and event detail all read as the real reference. A companion
+``--reset`` mode wipes the demo dataset back to a clean migrated schema.
 
 Mirrors ``bin/create_admin.py``: an ``async`` core driven by ``asyncio.run`` that
 opens its own sessions via ``app.db.session._get_session_maker()``. Run it with::
@@ -42,10 +47,12 @@ from app.bets.adapters import HouseMarketReadAdapter
 from app.bets.service import BetService
 from app.core.config import get_settings
 from app.db.session import _get_session_maker
-from app.markets.models import OddsSnapshot, Outcome
+from app.markets.models import Market, OddsSnapshot, Outcome
 from app.markets.schemas import MarketCreate
 from app.markets.service import MarketService
 from app.settlement.adapters import HouseMarketResolveAdapter
+from app.settlement.event_schemas import CreateEventRequest, OutcomeInput
+from app.settlement.event_service import EventService
 from app.settlement.service import SettlementService
 from app.wallet.constants import (
     HOUSE_PROMO_ACCOUNT_ID,
@@ -55,6 +62,7 @@ from app.wallet.constants import (
     OWNER_SYSTEM,
     PLAY_USD,
 )
+from app.wallet.reconcile import _reconcile_async
 from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
@@ -102,18 +110,77 @@ _DISPLAY_NAMES: tuple[str, ...] = (
 )
 
 
+# --------------------------------------------------------------------------- #
+# Canonical categories (DEMO-03). The demo catalog reads in exactly the curated
+# allow-list the sales script walks — the SAME 7 names the Gamma sync maps to
+# (``settings.POLYMARKET_CATEGORIES``). The set is PINNED here (hardcoded house
+# events, never synced) so it is insulated from upstream Gamma tag drift; a
+# coherence guard (``_assert_featured_categories_match_canonical``) keeps the pin
+# aligned with the catalog's category vocabulary so no featured tab renders empty.
+# --------------------------------------------------------------------------- #
+FEATURED_CATEGORIES: tuple[str, ...] = (
+    "Politics",
+    "Sports",
+    "Crypto",
+    "Pop Culture",
+    "Economy",
+    "Tech",
+    "World",
+)
+
+# DEMO-03 "filled above a minimum": each featured tab carries at least this many
+# catalog items (its marquee multi-outcome event + >=1 standalone market).
+MIN_ITEMS_PER_FEATURED_CATEGORY = 2
+
+# Fold the v1.1 standalone-market template categories onto the canonical 7 so the
+# whole demo catalog reads in exactly the featured tabs (no stray non-canonical
+# tabs) and every featured tab clears the minimum. Money-neutral relabelling.
+_CATEGORY_CANONICAL_MAP: dict[str, str] = {
+    "Space": "World",
+    "Climate": "World",
+    "Entertainment": "Pop Culture",
+    "Commodities": "Economy",
+    "Finance": "Economy",
+}
+
+
+def _canonical_category(category: str) -> str:
+    """Map a template category onto the canonical featured set (identity if already canonical)."""
+    return _CATEGORY_CANONICAL_MAP.get(category, category)
+
+
+def _assert_featured_categories_match_canonical() -> None:
+    """Guard: the seed's featured set must equal the catalog's canonical category names.
+
+    Pins the demo (hardcoded events) while making upstream/config drift LOUD rather
+    than silent — if ``POLYMARKET_CATEGORIES`` gains/renames a category the seed
+    would otherwise leave a tab thin or mislabelled. Raises so a drifted demo never
+    ships a half-empty catalog.
+    """
+    canonical = {entry.name for entry in get_settings().POLYMARKET_CATEGORIES}
+    featured = set(FEATURED_CATEGORIES)
+    if featured != canonical:
+        raise RuntimeError(
+            "demo featured categories drifted from the canonical allow-list "
+            f"(POLYMARKET_CATEGORIES): featured={sorted(featured)} canonical={sorted(canonical)}"
+        )
+
+
 @dataclass(frozen=True)
 class SeedConfig:
     """Size + namespace of the demo dataset.
 
     ``email_domain`` is overridable so each integration test seeds under its own
     namespace (the append-only ledger means tests cannot clean up by deleting
-    rows; a private domain keeps assertions scoped and collision-free).
+    rows; a private domain keeps assertions scoped and collision-free). ``n_events``
+    sizes the multi-outcome event set (0 disables events — used by the standalone
+    tests); the default seeds one marquee event per featured category.
     """
 
     n_users: int = 10
     n_markets: int = 15
     n_resolved_markets: int = 4
+    n_events: int = 7
     email_domain: str = DEMO_EMAIL_DOMAIN
 
 
@@ -424,7 +491,7 @@ def build_market_specs(cfg: SeedConfig) -> list[DemoMarketSpec]:
             DemoMarketSpec(
                 question=question,
                 resolution_criteria=criteria,
-                category=category,
+                category=_canonical_category(category),
                 initial_odds_yes=odds,
                 deadline_offset_days=offset,
                 resolve_to=resolve_to,
@@ -741,6 +808,404 @@ async def seed_resolutions(cfg: SeedConfig, markets: Sequence[SeededMarket]) -> 
 
 
 # --------------------------------------------------------------------------- #
+# Bloque 5.5 — multi-outcome events (DEMO-01..03). One marquee house event per
+# featured category, modelled as a MarketGroup + N independent binary YES/NO
+# children (event-of-binaries — per-outcome YES prices are INDEPENDENT, never
+# sum-to-100). Built through the merged EventService/SettlementService so the
+# whole v1.2 stack is exercised end-to-end (the milestone integration test).
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class EventOutcomeSpec:
+    """One outcome of a demo event: a label + its independent initial YES odds."""
+
+    label: str
+    initial_odds_yes: Decimal  # (0, 1); independent per outcome (NOT a distribution)
+
+
+@dataclass(frozen=True)
+class DemoEventSpec:
+    """The deterministic description of one demo multi-outcome event.
+
+    ``target_state`` is the event status the seed drives the group to (one of
+    ``open`` / ``partially_resolved`` / ``resolved`` / ``void``). ``winner_index``
+    indexes ``outcomes``: for ``resolved`` it is the YES-winning child; for
+    ``partially_resolved`` it is the single child that settles (on NO — "eliminated")
+    while the rest stay open; for ``open`` / ``void`` it is ``None``.
+    """
+
+    slug: str
+    title: str
+    category: str
+    resolution_criteria: str
+    deadline_offset_days: int
+    outcomes: tuple[EventOutcomeSpec, ...]  # 3-8 (DEMO-01)
+    target_state: str
+    winner_index: int | None
+
+
+# The 7 marquee events — one per FEATURED_CATEGORIES entry, ordered so the FIRST
+# FOUR cover all four event states (resolved, partial, void, open) and a small
+# ``n_events`` still exercises every state. Per-outcome odds are plausible standalone
+# YES probabilities and deliberately do NOT sum to 1 (the framing LOCK).
+_EVENT_TEMPLATES: tuple[DemoEventSpec, ...] = (
+    DemoEventSpec(
+        slug="demo-evt-00-politics-senate",
+        title="Which party controls the Senate after the next election?",
+        category="Politics",
+        resolution_criteria=(
+            "Resolves to the party holding a majority of seats per the certified result; "
+            "the winning outcome settles YES and the others NO."
+        ),
+        deadline_offset_days=60,
+        outcomes=(
+            EventOutcomeSpec(label="Democrats", initial_odds_yes=Decimal("0.46")),
+            EventOutcomeSpec(label="Republicans", initial_odds_yes=Decimal("0.52")),
+            EventOutcomeSpec(label="Independent caucus", initial_odds_yes=Decimal("0.07")),
+        ),
+        target_state="resolved",
+        winner_index=1,
+    ),
+    DemoEventSpec(
+        slug="demo-evt-01-sports-ucl",
+        title="Which club will win the Champions League?",
+        category="Sports",
+        resolution_criteria=(
+            "Resolves to the club lifting the trophy in the final; eliminated clubs settle NO "
+            "as the bracket progresses."
+        ),
+        deadline_offset_days=45,
+        outcomes=(
+            EventOutcomeSpec(label="Real Madrid", initial_odds_yes=Decimal("0.30")),
+            EventOutcomeSpec(label="Manchester City", initial_odds_yes=Decimal("0.28")),
+            EventOutcomeSpec(label="Bayern Munich", initial_odds_yes=Decimal("0.18")),
+            EventOutcomeSpec(label="Paris Saint-Germain", initial_odds_yes=Decimal("0.14")),
+            EventOutcomeSpec(label="Arsenal", initial_odds_yes=Decimal("0.12")),
+            EventOutcomeSpec(label="Inter", initial_odds_yes=Decimal("0.09")),
+        ),
+        target_state="partially_resolved",
+        winner_index=2,  # Bayern eliminated (settles NO); the rest stay open
+    ),
+    DemoEventSpec(
+        slug="demo-evt-02-economy-rate-cut",
+        title="In which quarter will the central bank first cut its policy rate?",
+        category="Economy",
+        resolution_criteria=(
+            "Resolves to the quarter of the first rate cut; if the bank holds rates all year the "
+            "event voids (every outcome settles NO)."
+        ),
+        deadline_offset_days=120,
+        outcomes=(
+            EventOutcomeSpec(label="Q1", initial_odds_yes=Decimal("0.15")),
+            EventOutcomeSpec(label="Q2", initial_odds_yes=Decimal("0.30")),
+            EventOutcomeSpec(label="Q3", initial_odds_yes=Decimal("0.28")),
+            EventOutcomeSpec(label="Q4", initial_odds_yes=Decimal("0.20")),
+        ),
+        target_state="void",
+        winner_index=None,
+    ),
+    DemoEventSpec(
+        slug="demo-evt-03-crypto-top-return",
+        title="Which asset posts the highest return this year?",
+        category="Crypto",
+        resolution_criteria=(
+            "Resolves to the asset with the highest year-to-date return per a major index."
+        ),
+        deadline_offset_days=200,
+        outcomes=(
+            EventOutcomeSpec(label="Bitcoin", initial_odds_yes=Decimal("0.34")),
+            EventOutcomeSpec(label="Ethereum", initial_odds_yes=Decimal("0.26")),
+            EventOutcomeSpec(label="Solana", initial_odds_yes=Decimal("0.22")),
+            EventOutcomeSpec(label="XRP", initial_odds_yes=Decimal("0.10")),
+            EventOutcomeSpec(label="Dogecoin", initial_odds_yes=Decimal("0.08")),
+        ),
+        target_state="open",
+        winner_index=None,
+    ),
+    DemoEventSpec(
+        slug="demo-evt-04-pop-culture-aoty",
+        title="Who will win Album of the Year?",
+        category="Pop Culture",
+        resolution_criteria=(
+            "Resolves to the artist awarded Album of the Year at the official ceremony."
+        ),
+        deadline_offset_days=120,
+        outcomes=(
+            EventOutcomeSpec(label="Taylor Swift", initial_odds_yes=Decimal("0.32")),
+            EventOutcomeSpec(label="Billie Eilish", initial_odds_yes=Decimal("0.22")),
+            EventOutcomeSpec(label="SZA", initial_odds_yes=Decimal("0.20")),
+            EventOutcomeSpec(label="Olivia Rodrigo", initial_odds_yes=Decimal("0.16")),
+            EventOutcomeSpec(label="Kendrick Lamar", initial_odds_yes=Decimal("0.14")),
+        ),
+        target_state="open",
+        winner_index=None,
+    ),
+    DemoEventSpec(
+        slug="demo-evt-05-tech-frontier-model",
+        title="Which lab ships the next frontier model first?",
+        category="Tech",
+        resolution_criteria=(
+            "Resolves to the first lab to publicly release a model topping the agreed benchmark."
+        ),
+        deadline_offset_days=180,
+        outcomes=(
+            EventOutcomeSpec(label="OpenAI", initial_odds_yes=Decimal("0.30")),
+            EventOutcomeSpec(label="Google DeepMind", initial_odds_yes=Decimal("0.26")),
+            EventOutcomeSpec(label="Anthropic", initial_odds_yes=Decimal("0.24")),
+            EventOutcomeSpec(label="Meta", initial_odds_yes=Decimal("0.12")),
+            EventOutcomeSpec(label="xAI", initial_odds_yes=Decimal("0.10")),
+        ),
+        target_state="open",
+        winner_index=None,
+    ),
+    DemoEventSpec(
+        slug="demo-evt-06-world-olympics-host",
+        title="Which city will host the 2036 Summer Olympics?",
+        category="World",
+        resolution_criteria=(
+            "Resolves to the city awarded the Games by the official selection committee."
+        ),
+        deadline_offset_days=800,
+        outcomes=(
+            EventOutcomeSpec(label="Istanbul", initial_odds_yes=Decimal("0.30")),
+            EventOutcomeSpec(label="Doha", initial_odds_yes=Decimal("0.28")),
+            EventOutcomeSpec(label="Jakarta", initial_odds_yes=Decimal("0.22")),
+            EventOutcomeSpec(label="Santiago", initial_odds_yes=Decimal("0.18")),
+        ),
+        target_state="open",
+        winner_index=None,
+    ),
+)
+
+
+def build_event_specs(cfg: SeedConfig) -> list[DemoEventSpec]:
+    """Build the deterministic demo-event list for ``cfg`` (pure; no I/O).
+
+    Returns the first ``cfg.n_events`` marquee templates. The ordering guarantees the
+    first four cover all four event states, so any ``n_events >= 4`` exercises every state.
+    """
+    return list(_EVENT_TEMPLATES[: cfg.n_events])
+
+
+def _event_slug(spec: DemoEventSpec, cfg: SeedConfig) -> str:
+    """The group slug to create for ``spec`` under ``cfg``.
+
+    The real demo (the canonical ``DEMO_EMAIL_DOMAIN``) keeps the clean, link-friendly
+    ``spec.slug``. Other namespaces (integration tests) suffix the domain so the GLOBAL
+    ``market_groups.slug`` UNIQUE constraint never collides when several seed runs share
+    one Postgres container — the same way users/markets isolate by ``email_domain``.
+    """
+    if cfg.email_domain == DEMO_EMAIL_DOMAIN:
+        return spec.slug
+    return f"{spec.slug}--{cfg.email_domain.replace('.', '-')}"
+
+
+@dataclass(frozen=True)
+class SeededEvent:
+    """A seeded multi-outcome event — its group id + children (as ``SeededMarket``s).
+
+    ``designated_child`` is the child the resolution step acts on: the YES winner for a
+    ``resolved`` event, or the single ``partially_resolved`` child that settles on NO
+    (eliminated). ``None`` for ``open`` / ``void`` events.
+    """
+
+    group_id: UUID
+    slug: str
+    title: str
+    category: str
+    target_state: str
+    children: tuple[SeededMarket, ...]
+    designated_child: SeededMarket | None
+
+
+async def _read_back_event_children(
+    session_maker: async_sessionmaker[AsyncSession],
+    group_id: UUID,
+    spec: DemoEventSpec,
+) -> tuple[list[SeededMarket], dict[str, SeededMarket]]:
+    """Read each child's slug + YES/NO outcome ids post-commit (mirrors ``seed_markets``).
+
+    Children are matched to their spec outcome by ``group_item_title`` (the unique label),
+    so each child's ``initial_odds_yes`` base for the odds walk comes from the spec — not a
+    fragile id/position assumption. Returns the children as ``SeededMarket``s (so the odds /
+    bet steps reuse the standalone path) plus a label→child map for winner selection.
+    """
+    odds_by_label = {o.label: o.initial_odds_yes for o in spec.outcomes}
+    children: list[SeededMarket] = []
+    by_label: dict[str, SeededMarket] = {}
+    async with session_maker() as session:
+        rows = (
+            await session.execute(
+                select(Market.id, Market.slug, Market.question, Market.group_item_title).where(
+                    Market.group_id == group_id
+                )
+            )
+        ).all()
+        for market_id, slug, question, label in rows:
+            outcomes = (
+                await session.execute(
+                    select(Outcome.id, Outcome.label).where(Outcome.market_id == market_id)
+                )
+            ).all()
+            yes_id = next(oid for oid, lbl in outcomes if lbl.upper() == "YES")
+            no_id = next(oid for oid, lbl in outcomes if lbl.upper() == "NO")
+            child = SeededMarket(
+                id=market_id,
+                slug=slug,
+                question=question,
+                yes_outcome_id=yes_id,
+                no_outcome_id=no_id,
+                initial_odds_yes=odds_by_label[label],
+                resolve_to=None,
+            )
+            children.append(child)
+            by_label[label] = child
+    return children, by_label
+
+
+async def seed_events(cfg: SeedConfig) -> list[SeededEvent]:
+    """Seed one marquee multi-outcome house event per featured category (DEMO-01).
+
+    Each event is created via ``EventService.create_house_event`` on its OWN fresh session
+    (it commits once internally — a plain-ORM insert, NOT a settle loop, so the 23505
+    dangling-tx landmine is out of reach). Deterministic group slugs make the demo URLs
+    stable; the demo-admin guard + ``--reset`` keep the whole seed idempotent (no collision
+    on a clean DB). Returns the seeded events for the odds / bet / resolution steps.
+    """
+    specs = build_event_specs(cfg)
+    if not specs:
+        return []
+    session_maker = _get_session_maker()
+    admin_id = await _ensure_demo_admin(session_maker, cfg)
+
+    seeded: list[SeededEvent] = []
+    for spec in specs:
+        deadline = datetime.now(UTC) + timedelta(days=spec.deadline_offset_days)
+        slug = _event_slug(spec, cfg)
+        body = CreateEventRequest(
+            title=spec.title,
+            category=spec.category,
+            deadline=deadline,
+            resolution_criteria=spec.resolution_criteria,
+            slug=slug,
+            outcomes=[
+                OutcomeInput(label=o.label, initial_odds=o.initial_odds_yes) for o in spec.outcomes
+            ],
+        )
+        async with session_maker() as session:
+            group = await EventService.create_house_event(session, admin_id=admin_id, body=body)
+            group_id = group.id  # capture before the session closes (expire_on_commit=False)
+        children, by_label = await _read_back_event_children(session_maker, group_id, spec)
+        designated = (
+            by_label[spec.outcomes[spec.winner_index].label]
+            if spec.winner_index is not None
+            else None
+        )
+        seeded.append(
+            SeededEvent(
+                group_id=group_id,
+                slug=slug,
+                title=spec.title,
+                category=spec.category,
+                target_state=spec.target_state,
+                children=tuple(children),
+                designated_child=designated,
+            )
+        )
+    return seeded
+
+
+async def seed_event_bets(
+    cfg: SeedConfig,
+    users: Sequence[SeededUser],
+    events: Sequence[SeededEvent],
+) -> int:
+    """Place a deterministic both-sides spread on every event child (returns count).
+
+    Two bets per child (one YES, one NO) from rotating users, so a resolved / void / partial
+    event always yields winners AND losers once settled. Each bet runs on its OWN fresh
+    session (``place_bet`` owns its tx — the begin()-on-open-tx hazard); stakes stay small vs
+    the funded balances so no placement overdraws. Money moves only through ``BetService``.
+    """
+    if not users or not events:
+        return 0
+    session_maker = _get_session_maker()
+    market_source = HouseMarketReadAdapter()
+    placed = 0
+    cursor = 0
+    for event in events:
+        for child_index, child in enumerate(event.children):
+            for side_index, side in enumerate(("YES", "NO")):
+                user = users[cursor % len(users)]
+                cursor += 1
+                outcome_id = child.yes_outcome_id if side == "YES" else child.no_outcome_id
+                stake = _BET_STAKES[(child_index + side_index) % len(_BET_STAKES)]
+                async with session_maker() as session:
+                    await BetService.place_bet(
+                        session,
+                        user_id=user.id,
+                        market_id=child.id,
+                        outcome_id=outcome_id,
+                        stake=stake,
+                        market_source=market_source,
+                    )
+                placed += 1
+    return placed
+
+
+async def seed_event_resolutions(cfg: SeedConfig, events: Sequence[SeededEvent]) -> int:
+    """Drive each event to its target state through the real settlement layer (returns count).
+
+    ``resolved`` → ``EventService.resolve_event`` (winner child on YES, the rest on NO);
+    ``void`` → ``EventService.void_event`` (every child on NO); ``partially_resolved`` →
+    a single ``SettlementService.resolve_market`` settling the designated child on its NO
+    leg (eliminated) while the others stay open. ``open`` events are left untouched. Each
+    path settles per-child on its own fresh session (inherited from the services), so the
+    ledger reconciles green. Returns the number of events whose state was advanced.
+    """
+    if not events:
+        return 0
+    session_maker = _get_session_maker()
+    admin_id = await _ensure_demo_admin(session_maker, cfg)
+    resolver = HouseMarketResolveAdapter()
+    advanced = 0
+    for event in events:
+        if event.target_state == "open":
+            continue
+        if event.target_state == "resolved":
+            assert event.designated_child is not None
+            await EventService.resolve_event(
+                group_id=event.group_id,
+                winning_outcome_id=event.designated_child.yes_outcome_id,
+                justification=f"Demo resolution: '{event.designated_child.question}' settled YES "
+                "per the official source.",
+                actor_user_id=admin_id,
+            )
+        elif event.target_state == "void":
+            await EventService.void_event(
+                group_id=event.group_id,
+                justification="Demo void: the event was cancelled with no winning outcome "
+                "(every outcome settles NO).",
+                actor_user_id=admin_id,
+            )
+        elif event.target_state == "partially_resolved":
+            assert event.designated_child is not None
+            async with session_maker() as session:
+                await SettlementService.resolve_market(
+                    session,
+                    market_id=event.designated_child.id,
+                    winning_outcome_id=event.designated_child.no_outcome_id,  # eliminated → NO
+                    market_resolver=resolver,
+                    justification="Demo partial: this outcome was eliminated; the remaining "
+                    "outcomes stay open.",
+                    actor_user_id=admin_id,
+                )
+        advanced += 1
+    return advanced
+
+
+# --------------------------------------------------------------------------- #
 # Bloque 6 — reset. Wipe the demo dataset back to a clean migrated state.
 # --------------------------------------------------------------------------- #
 
@@ -751,12 +1216,17 @@ _HOUSE_PROMO_OPENING_BALANCE = Decimal("1000000000.0000")
 # (entries->transfers/accounts, outcomes->markets, refresh_tokens->users, ...).
 # TRUNCATE does NOT fire the per-row append-only triggers on transfers/entries/
 # audit_log, so it is the ONE way to clear the immutable ledger (DELETE is blocked).
+# ``market_groups`` is listed explicitly: ``markets.group_id -> market_groups.id``
+# means truncating ``markets`` does NOT cascade into the groups (the FK points the
+# other way), so without this a re-seed of deterministic event slugs would collide
+# on the ``market_groups.slug`` UNIQUE constraint (DEMO-04 idempotency).
 _RESET_TABLES: tuple[str, ...] = (
     "users",
     "accounts",
     "transfers",
     "entries",
     "markets",
+    "market_groups",
     "outcomes",
     "odds_snapshots",
     "bets",
@@ -811,13 +1281,21 @@ class AlreadySeeded(RuntimeError):
 
 @dataclass(frozen=True)
 class SeedResult:
-    """Count summary of one seed run (+ OPEN market slugs for chart checks / links)."""
+    """Count summary of one seed run (+ OPEN market slugs for chart checks / links).
+
+    ``bets`` / ``resolutions`` count the standalone-market spine; ``event_bets`` /
+    ``event_resolutions`` count the multi-outcome event surface separately so each
+    layer stays independently assertable.
+    """
 
     users: int
     markets: int
     odds_snapshots: int
     bets: int
     resolutions: int
+    events: int
+    event_bets: int
+    event_resolutions: int
     open_market_slugs: tuple[str, ...]
 
 
@@ -848,12 +1326,21 @@ async def seed_demo(cfg: SeedConfig | None = None) -> SeedResult:
             f"demo already seeded (demo-admin@{cfg.email_domain} exists) — "
             "run with --reset to wipe and re-seed"
         )
+    # Fail loud if the pinned featured set drifted from the canonical catalog vocabulary
+    # before doing any work (DEMO-03 — a drifted demo must never ship a half-empty catalog).
+    _assert_featured_categories_match_canonical()
 
     users = await seed_users(cfg)
     markets = await seed_markets(cfg)
-    n_snapshots = await seed_odds_history(cfg, markets)
+    events = await seed_events(cfg)
+    # Odds history covers BOTH standalone markets and every event child — one bulk pass so the
+    # per-outcome price charts render non-flat everywhere (DEMO-02).
+    chartable = list(markets) + [child for event in events for child in event.children]
+    n_snapshots = await seed_odds_history(cfg, chartable)
     n_bets = await seed_bets(cfg, users, markets)
+    n_event_bets = await seed_event_bets(cfg, users, events)
     n_resolved = await seed_resolutions(cfg, markets)
+    n_event_resolved = await seed_event_resolutions(cfg, events)
 
     return SeedResult(
         users=len(users),
@@ -861,24 +1348,49 @@ async def seed_demo(cfg: SeedConfig | None = None) -> SeedResult:
         odds_snapshots=n_snapshots,
         bets=n_bets,
         resolutions=n_resolved,
+        events=len(events),
+        event_bets=n_event_bets,
+        event_resolutions=n_event_resolved,
         open_market_slugs=tuple(m.slug for m in markets if m.resolve_to is None),
+    )
+
+
+async def verify_integrity() -> dict[str, int]:
+    """Run the spike-004 double-entry reconciliation (DEMO-04). GREEN == ``drift_count`` 0.
+
+    Thin wrapper over ``app.wallet.reconcile._reconcile_async`` (opens its own committed
+    session). Surfaced by the CLI after seed + reset so the operator sees the ledger is
+    consistent — every demo value movement went through the validated services.
+    """
+    return await _reconcile_async()
+
+
+def _summary_line(result: SeedResult, *, prefix: str) -> str:
+    """One-line count summary of a seed run."""
+    return (
+        f"{prefix}: {result.users} users, {result.markets} markets, "
+        f"{result.events} events, {result.bets + result.event_bets} bets, "
+        f"{result.resolutions + result.event_resolutions} resolved, "
+        f"{result.odds_snapshots} odds snapshots."
     )
 
 
 async def main(argv: Sequence[str] | None = None, *, cfg: SeedConfig | None = None) -> int:
     """CLI entry point. ``--reset`` wipes + re-seeds; otherwise populate (guarded).
 
-    Returns a process exit code: 0 on success, 1 if the demo is already seeded.
+    Returns a process exit code: 0 on success, 1 if the demo is already seeded. Both the
+    seed and reset paths print the spike-004 integrity result (``drift=0`` is green).
     """
     args = list(sys.argv[1:] if argv is None else argv)
 
     if "--reset" in args:
         await reset_demo()
         result = await seed_demo(cfg)
+        integrity = await verify_integrity()
+        print(_summary_line(result, prefix="Reset + re-seeded demo"))
         print(
-            f"Reset + re-seeded demo: {result.users} users, {result.markets} markets, "
-            f"{result.bets} bets, {result.resolutions} resolved, "
-            f"{result.odds_snapshots} odds snapshots."
+            f"integrity: accounts={integrity['accounts_checked']} "
+            f"drift={integrity['drift_count']}"
         )
         return 0
 
@@ -887,11 +1399,9 @@ async def main(argv: Sequence[str] | None = None, *, cfg: SeedConfig | None = No
     except AlreadySeeded as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    print(
-        f"Seeded demo: {result.users} users, {result.markets} markets, "
-        f"{result.bets} bets, {result.resolutions} resolved, "
-        f"{result.odds_snapshots} odds snapshots."
-    )
+    integrity = await verify_integrity()
+    print(_summary_line(result, prefix="Seeded demo"))
+    print(f"integrity: accounts={integrity['accounts_checked']} drift={integrity['drift_count']}")
     return 0
 
 
