@@ -8,11 +8,11 @@ XPredict es una plataforma white-label de mercados de predicción. Los usuarios 
 
 El operador puede ofrecer un catálogo creíble de mercados de predicción (mezcla de mercados de Polymarket y propios de la casa) con liquidación correcta y CRM para gestionar usuarios, todo bajo su marca — sin construir ni operar la pieza técnica.
 
-## Current Milestone: v1.2 Credible Catalog
+## Last Shipped: v1.2 Credible Catalog (2026-06-06)
 
-**Goal:** Replicar fielmente el catálogo de Polymarket — mercados multi-outcome (modelados como eventos de binarios) y navegación creíble por categorías con búsqueda y filtros — para que el producto se vea como la referencia real. Sigue play-money y single-tenant.
+**Delivered:** Replicó fielmente el catálogo de Polymarket — mercados multi-outcome (modelados como eventos de binarios) y navegación creíble por categorías con búsqueda y filtros — para que el producto se vea como la referencia real. Sigue play-money y single-tenant. Próximo milestone (v1.3) sin definir → `/gsd-new-milestone`.
 
-**Target features:**
+**Shipped features:**
 - **Multi-outcome (evento de binarios)** — eventos que agrupan N outcomes YES/NO; mirror de Polymarket + creados por el admin (house). Reusa el settlement binario existente.
 - **Catálogo curado por categorías** — sync ampliado a top-N por categoría (con piso de volumen), reemplaza el top-25 global; categorías derivadas de tags de la Gamma API.
 - **Browse creíble** — búsqueda por texto, filtros por categoría, filtros de estado + ordenación (volumen, cierre, novedad). Sin paginación pesada.
@@ -44,17 +44,19 @@ El operador puede ofrecer un catálogo creíble de mercados de predicción (mezc
 - ✓ Pulido jugador + operador: header-nav, microinteracciones, estados de carga/éxito/error no-silenciosos, loading skeletons admin, tablas responsive — v1.1
 - ✓ Guion de venta + QA happy-path para una demo en vivo infalible — v1.1
 
+**v1.2 Credible Catalog** (shipped 2026-06-06, Phases 13-18):
+- ✓ Multi-outcome markets como eventos de binarios (mirror Polymarket + house), reusando el settlement binario — v1.2
+- ✓ Catálogo curado por categorías (top-N por categoría con piso de volumen, reemplaza el top-25 global) — v1.2
+- ✓ Browse creíble: búsqueda por texto + filtros por categoría + estado/ordenación, resultados acotados — v1.2
+- ✓ Admin: crear/editar/resolver/void/reverse eventos multi-outcome house (two-step confirm + justificación) — v1.2
+- ✓ Player: ver y apostar en eventos N-outcome con precio por outcome independiente (nunca suma 100%) — v1.2
+- ✓ Seed/demo con eventos multi-outcome por categoría y los 4 estados de evento — v1.2
+
 ### Active
 
-<!-- Current scope (v1.2 Credible Catalog). Detailed REQ-IDs in REQUIREMENTS.md. -->
+<!-- Next milestone (v1.3) not yet defined. Run /gsd-new-milestone to scope it (creates a fresh REQUIREMENTS.md). -->
 
-**v1.2 Credible Catalog** (scoped 2026-06-04):
-- [ ] Multi-outcome markets como eventos de binarios (mirror Polymarket + house)
-- [ ] Catálogo curado por categorías (top-N por categoría con piso de volumen, reemplaza top-25 global)
-- [ ] Browse: búsqueda por texto + filtros por categoría + estado/ordenación
-- [ ] Admin: crear/editar/resolver eventos multi-outcome house
-- [ ] Player: ver y apostar en eventos N-outcome (precio por outcome, detalle, charts)
-- [ ] Seed/demo actualizado con eventos multi-outcome + categorías
+**v1.3 — sin definir.** Candidatos diferidos con los seams ya puestos: pagos reales (stub `WalletService.recharge(payment_provider=...)`), multi-tenancy real (`tenant_id` ghost columns + feature-flags), white-label theming avanzado, scalar/range markets. Ejecutar `/gsd-new-milestone`.
 
 ### Out of Scope
 
@@ -73,7 +75,7 @@ El operador puede ofrecer un catálogo creíble de mercados de predicción (mezc
 
 ## Context
 
-**Estado actual (2026-06-04).** v1.0 MVP (Phases 1-12) y v1.1 Demo Polish (Fases A-E) **enviados y cerrados** — todo en `main`. Producto: prediction market white-label play-money, production-grade, con demo pulida y white-label real en la superficie de jugador. Sigue en **modo venta** (sin operador comprometido, sin multi-tenancy real, sin dinero real). Próximo milestone (v2.0) sin definir. Historial de fases archivado en `.planning/milestones/v1.0-phases/`; resúmenes en `.planning/MILESTONES.md`.
+**Estado actual (2026-06-06).** v1.0 MVP (Phases 1-12), v1.1 Demo Polish (Fases A-E) y **v1.2 Credible Catalog (Phases 13-18)** enviados y cerrados — todo en `main`, tag `v1.2`. Producto: prediction market white-label play-money, production-grade, con catálogo curado por categorías y eventos multi-outcome (mirror Polymarket + house) end-to-end, demo seedable por categoría. Sigue en **modo venta** (sin operador comprometido, sin multi-tenancy real, sin dinero real). Próximo milestone (v1.3) sin definir. Resúmenes en `.planning/MILESTONES.md`; detalle v1.2 en `milestones/v1.2-*`.
 
 **Origen.** Proyecto greenfield iniciado 2026-05-25 por Pol Bonet (PM/Tech Lead) y Cuco (Dev). Workflow colaborativo GSD con Linear + Slack + GitHub configurado en `.claude/`.
 
@@ -132,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-04 after scoping milestone v1.2 Credible Catalog (multi-outcome events + curated category catalog). v1.0 MVP (Phases 1-12) and v1.1 Demo Polish (Fases A-E) shipped and archived — see MILESTONES.md; phase history in milestones/v1.0-phases/. v1.2 continues phase numbering from Phase 13 (play-money, single-tenant — no architectural change). Carried-forward items in STATE.md › Deferred Items (incl. non-deferrable Spanish legal review of ToS/token policy before any live operator demo).*
+*Last updated: 2026-06-06 after completing milestone v1.2 Credible Catalog (Phases 13-18: multi-outcome events + curated per-category catalog) — shipped, archived to milestones/v1.2-*, tagged v1.2. v1.0/v1.1/v1.2 shipped — see MILESTONES.md. Next: /gsd-new-milestone to scope v1.3 (play-money, single-tenant unless changed). Carried-forward items in STATE.md › Deferred Items (incl. the non-deferrable Spanish legal review of ToS/token policy before any live operator demo).*
