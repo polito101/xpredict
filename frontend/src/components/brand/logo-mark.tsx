@@ -1,23 +1,20 @@
 /**
  * LogoMark — the official XPrediction logo, used everywhere the product mark
- * appears (navbar default, hero, auth, admin).
+ * appears (navbar, hero, auth, admin).
  *
- * It shows the REAL raster asset committed at `public/brand/xprediction-logo.png`
- * (no reinterpretation, no recreation). Until that file exists it shows the
- * faithful vector mark (`XMark`) — and it does so WITHOUT ever flashing a broken
- * image: the SVG renders by default and the PNG is only swapped in once it
- * actually loads (`onLoad`). A 404 simply leaves the SVG in place. The moment the
- * official file is dropped at that path, every surface shows it automatically,
- * with no other change.
+ * It renders the official raster asset committed at
+ * `public/brand/xprediction-logo.png`. A defensive fallback to the vector mark
+ * (`XMark`) covers the unlikely case the file is ever missing — detected both via
+ * `onError` and a mount-time `naturalWidth` check (an `onError` that fires before
+ * hydration would otherwise be lost). With the asset present it shows immediately,
+ * no flash.
  *
  * (The white-label OPERATOR logo, when configured, still overrides this in the
  * navbar via `<img src=/branding/logo>` in `BrandLogo`.)
- *
- * Drop the official file at: frontend/public/brand/xprediction-logo.png
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { XMark } from "@/components/brand/x-mark";
 import { cn } from "@/lib/utils";
@@ -27,32 +24,37 @@ export const OFFICIAL_LOGO_SRC = "/brand/xprediction-logo.png";
 
 export interface LogoMarkProps {
   className?: string;
-  /** Animate the spark on the SVG mark (no-op for the raster asset). */
+  /** Animate the spark on the vector fallback (the raster has its own spark). */
   animated?: boolean;
 }
 
 export function LogoMark({ className, animated }: LogoMarkProps) {
-  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const ref = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    const img = ref.current;
+    // A 404 that resolved before hydration leaves the img "complete" with no size.
+    if (img && img.complete && img.naturalWidth === 0) setFailed(true);
+  }, []);
 
   return (
     <span className={cn("relative inline-flex shrink-0", className)}>
-      {/* Default: the faithful vector mark (no network, never broken). */}
-      {!loaded && <XMark animated={animated} className="h-full w-full" />}
-
-      {/* The official asset, probed silently — only shown once it truly loads. */}
-      {/* eslint-disable-next-line @next/next/no-img-element -- local brand asset
-          with a graceful SVG fallback; next/image can't express "show the SVG
-          until the official file is present". */}
-      <img
-        src={OFFICIAL_LOGO_SRC}
-        alt=""
-        aria-hidden="true"
-        onLoad={() => setLoaded(true)}
-        className={cn(
-          "h-full w-full object-contain",
-          !loaded && "pointer-events-none absolute inset-0 opacity-0",
-        )}
-      />
+      {failed ? (
+        <XMark animated={animated} className="h-full w-full" />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- a static local
+        // brand asset with a defensive SVG fallback; next/image can't express the
+        // "fall back to the vector mark if the file is missing" behavior.
+        <img
+          ref={ref}
+          src={OFFICIAL_LOGO_SRC}
+          alt=""
+          aria-hidden="true"
+          onError={() => setFailed(true)}
+          className="h-full w-full object-contain"
+        />
+      )}
     </span>
   );
 }
