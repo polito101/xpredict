@@ -65,10 +65,12 @@ async function loadBalance(session: string): Promise<BalanceResult> {
     });
     if (!res.ok) return { ok: false };
     const data = (await res.json()) as { balance?: unknown };
-    return {
-      ok: true,
-      balance: typeof data.balance === "string" ? data.balance : "0",
-    };
+    // WR-02: a non-string balance (malformed/garbage body) is a FAILURE, not a
+    // real "0". Route it to the page's existing RetryError path — never fabricate
+    // a zero balance, which the page's own no-misleading-zero contract forbids.
+    // Matches the sibling `getLiveBalance` `{ok:false}` on the identical case.
+    if (typeof data.balance !== "string") return { ok: false };
+    return { ok: true, balance: data.balance };
   } catch {
     return { ok: false };
   }
