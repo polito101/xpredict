@@ -93,12 +93,18 @@ export interface ActivityItem {
 /**
  * The minted live-bets session (`POST /api/live/session`). Matches LB-A
  * `SessionResponse` (`backend/app/integrations/livebets/schemas.py`): a
- * short-lived per-player JWT (`session_token`) the widget is rendered with, and
- * its `expires_at` (both STRINGS on the wire — design §7).
+ * short-lived per-player JWT (`session_token`) the widget is rendered with, its
+ * `expires_at`, and the `table_id` the session was minted for (all STRINGS on the
+ * wire — design §7).
+ *
+ * `table_id` is the demo's source of the widget's `table-id` attribute: the
+ * live-bets `GET /tables` route is JWT-gated, so the operator-key
+ * `/api/live/tables` can't list tables — LB-A echoes the resolved id here instead.
  */
 export interface LiveSession {
   session_token: string;
   expires_at: string;
+  table_id: string;
 }
 
 /**
@@ -147,6 +153,10 @@ export class LiveTableUnconfigured extends Error {
  * supplied; otherwise LB-A defaults from `LIVEBETS_DEFAULT_TABLE_ID`. A 400
  * (no table configured) throws `LiveTableUnconfigured`; any other non-ok throws
  * `Error` with the status. Uses `apiBase()` + `no-store` (mirrors `fetchMarket`).
+ *
+ * The 200 body carries `table_id` (the table the session was minted for) — the
+ * `/live` page feeds it straight into the widget's `table-id` attribute, so there
+ * is no need to call the (JWT-gated, operator-key-incompatible) `/api/live/tables`.
  */
 export async function fetchLiveSession(
   session: string,
@@ -177,10 +187,14 @@ export async function fetchLiveSession(
 /**
  * Lists the live-bets catalog tables via LB-A `GET /api/live/tables`. Runs
  * SERVER-SIDE; forwards the player's session cookie exactly like
- * `fetchLiveSession`. Reads the `.tables` array off LB-A `TablesResponse`. The
- * demo runs a single table (design §9), so the `/live` page uses the first
- * entry's `table_id` for the widget's `table-id` attribute. Uses `apiBase()` +
- * `no-store`.
+ * `fetchLiveSession`. Reads the `.tables` array off LB-A `TablesResponse`. Uses
+ * `apiBase()` + `no-store`.
+ *
+ * NOTE: this is NOT on the demo path. The underlying live-bets `GET /tables` is
+ * JWT-gated (player session), but XPredict's `/api/live/tables` calls it with the
+ * operator key, which 401s — so this cannot resolve the demo table id. The widget
+ * now gets its `table-id` from the session's `table_id` (see `fetchLiveSession` /
+ * LB-A `SessionResponse`). Left in place for a future JWT-forwarding path.
  */
 export async function fetchLiveTables(session: string): Promise<LiveTable[]> {
   const res = await fetch(`${apiBase()}/api/live/tables`, {

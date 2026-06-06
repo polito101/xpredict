@@ -75,7 +75,7 @@ beforeEach(() => {
   actions.mintLiveSession.mockResolvedValue({
     ok: true,
     session_token: "t2",
-    expires_at: "2026-06-06T11:00:00Z",
+    table_id: "tbl",
   });
   actions.getLiveBalance.mockResolvedValue({ ok: true, balance: "150.0000" });
   vi.stubEnv("NEXT_PUBLIC_LIVEBETS_WIDGET_SRC", "http://widget.test/widget.js");

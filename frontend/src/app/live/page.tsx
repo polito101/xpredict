@@ -2,10 +2,14 @@
  * LB-B-02 — `/live` player surface (v1.3 Live-Bets demo, SC1).
  *
  * An async Server Component (mirrors `markets/[slug]/page.tsx` + `wallet/page.tsx`)
- * that gates on the player session, mints the live-bets session, resolves the
- * demo table, and shows the player's XPredict wallet balance inside XPredict
- * chrome — then hands off to the `"use client"` `<LiveTable>` host which loads the
- * widget and wires its DOM events (design §6).
+ * that gates on the player session, mints the live-bets session (which resolves
+ * and echoes back the demo `table_id`), and shows the player's XPredict wallet
+ * balance inside XPredict chrome — then hands off to the `"use client"`
+ * `<LiveTable>` host which loads the widget and wires its DOM events (design §6).
+ *
+ * The widget's `table-id` comes from the session response's `table_id`, NOT from
+ * `/api/live/tables`: the live-bets `GET /tables` route is JWT-gated, so the
+ * operator-key `/api/live/tables` 401s and can't supply it.
  *
  * States (none degrade to a misleading empty/zero — v1.1 Fase C error contract):
  *   - no session cookie        → `SignedOutNotice` (reachable only when authed).
@@ -26,11 +30,7 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 
-import {
-  fetchLiveSession,
-  fetchLiveTables,
-  LiveTableUnconfigured,
-} from "@/lib/api";
+import { fetchLiveSession, LiveTableUnconfigured } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RetryError } from "@/components/retry-error";
@@ -206,42 +206,14 @@ async function LiveBody() {
     );
   }
 
-  // Resolve the demo table id for the widget's `table-id` attribute. The demo
-  // runs a single table (design §9); SessionResponse carries no table_id, so we
-  // read it from /api/live/tables and use the first entry. If the list is empty
-  // (a table id was configured but the catalog is unreachable/empty), fall back
-  // to the same friendly empty state rather than rendering a tableless widget.
-  let tableId: string | null = null;
-  try {
-    const tables = await fetchLiveTables(session);
-    tableId = tables[0]?.table_id ?? null;
-  } catch {
-    tableId = null;
-  }
-
-  if (tableId === null) {
-    return (
-      <LiveShell>
-        <BalanceHeader balance={balance} />
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">
-              No live table configured yet
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-              The live-bets table isn&apos;t available in this environment yet.
-              Once a table is running, it will appear here and your XPredict
-              balance will react to every bet.
-            </p>
-          </CardContent>
-        </Card>
-      </LiveShell>
-    );
-  }
-
-  const { session_token } = sessionResult.value;
+  // The widget's `table-id` comes straight from the session: LB-A mints the
+  // session for a resolved table (`body.table_id` or `LIVEBETS_DEFAULT_TABLE_ID`)
+  // and echoes that id back as `SessionResponse.table_id`. We deliberately do NOT
+  // call `/api/live/tables` for it — the underlying live-bets `GET /tables` is
+  // JWT-gated, but our route uses the operator key, which 401s. A session with no
+  // configured table already 400'd above into the friendly empty state, so a
+  // successful session always carries a usable `table_id` here.
+  const { session_token, table_id } = sessionResult.value;
 
   return (
     <LiveShell>
@@ -250,7 +222,7 @@ async function LiveBody() {
           styling; the chrome above/around it is on-brand XPredict. */}
       <LiveTable
         sessionToken={session_token}
-        tableId={tableId}
+        tableId={table_id}
         initialBalance={balance}
       />
     </LiveShell>

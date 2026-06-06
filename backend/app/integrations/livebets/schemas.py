@@ -66,10 +66,19 @@ def _safe_uuid(value: object) -> UUID | None:
 # Router request/response models.
 # --------------------------------------------------------------------------- #
 class SessionResponse(BaseModel):
-    """Response for ``POST /api/live/session`` — the minted live-bets session."""
+    """Response for ``POST /api/live/session`` — the minted live-bets session.
+
+    ``table_id`` echoes the table the session was minted for (the request's
+    ``body.table_id`` or ``settings.LIVEBETS_DEFAULT_TABLE_ID``). The frontend uses
+    it for the widget's ``table-id`` attribute: the live-bets ``GET /tables`` route
+    is JWT-gated (player session), so XPredict's operator-key ``/api/live/tables``
+    cannot list tables — returning the resolved id here is the demo's source of the
+    table id.
+    """
 
     session_token: str
     expires_at: str
+    table_id: str
 
 
 class TableItem(BaseModel):

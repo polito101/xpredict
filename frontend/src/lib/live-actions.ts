@@ -49,8 +49,13 @@ export type LiveActionResult =
   | { ok: false; reason: "unauthenticated" | "not_found" | "conflict" | "error" };
 
 /**
- * Result of `mintLiveSession` — carries the renewed live-bets session token on
- * success so the widget host can re-set the `session-token` attribute.
+ * Result of `mintLiveSession` — carries the renewed live-bets session token (and
+ * the `table_id` the session was minted for) on success so the widget host can
+ * re-set the `session-token` (and, if needed, `table-id`) attribute.
+ *
+ * `table_id` is surfaced because the live-bets `GET /tables` route is JWT-gated:
+ * the operator-key `/api/live/tables` can't list tables, so the session response
+ * is the demo's source of the table id (LB-A `SessionResponse.table_id`).
  *
  * NIT-1: `expires_at` is intentionally NOT surfaced. The only caller
  * (`onSessionExpired`) re-sets the `session-token` attribute and the widget owns
@@ -60,7 +65,7 @@ export type LiveActionResult =
  * it to the result if a consumer (e.g. session-renewal timing) needs it.
  */
 export type LiveSessionResult =
-  | { ok: true; session_token: string }
+  | { ok: true; session_token: string; table_id: string }
   | { ok: false; reason: "unauthenticated" | "not_found" | "conflict" | "error" };
 
 /**
@@ -215,15 +220,17 @@ export async function mintLiveSession(
   if (res.status === 200) {
     const data = (await res.json().catch(() => null)) as Partial<LiveSession> | null;
     // NIT-1: still validate `expires_at` (a well-formed session must carry it),
-    // but do not surface it — the caller only needs the renewed token.
+    // but do not surface it — the caller only needs the renewed token + table_id.
     if (
       data &&
       typeof data.session_token === "string" &&
-      typeof data.expires_at === "string"
+      typeof data.expires_at === "string" &&
+      typeof data.table_id === "string"
     ) {
       return {
         ok: true,
         session_token: data.session_token,
+        table_id: data.table_id,
       };
     }
     return { ok: false, reason: "error" };

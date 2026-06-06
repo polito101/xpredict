@@ -77,9 +77,13 @@ async def mint_session(
             detail="No table_id supplied and LIVEBETS_DEFAULT_TABLE_ID is not configured.",
         )
     result = await client.mint_session(player_ref=str(player.id), table_id=table_id)
+    # Echo the resolved table_id back: the live-bets GET /tables route is JWT-gated
+    # (player session), so XPredict's operator-key /api/live/tables can't list
+    # tables — the frontend reads the widget's table-id from this field instead.
     return SessionResponse(
         session_token=str(result["session_token"]),
         expires_at=str(result["expires_at"]),
+        table_id=table_id,
     )
 
 

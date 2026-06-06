@@ -26,17 +26,18 @@ vi.mock("next/headers", () => ({
 // RetryError (error state) is a client component using useRouter.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
-// --- Mock @/lib/api: controllable session/table helpers, REAL error class ---
+// --- Mock @/lib/api: controllable session helper, REAL error class -----------
 // `importActual` re-exports the genuine `LiveTableUnconfigured` so the page's
-// `reason instanceof LiveTableUnconfigured` check resolves correctly.
+// `reason instanceof LiveTableUnconfigured` check resolves correctly. The page
+// now reads the widget's table-id off the session response's `table_id` (the
+// live-bets GET /tables is JWT-gated, so operator-key /api/live/tables 401s), so
+// `fetchLiveTables` is no longer on this path and is not mocked here.
 const fetchLiveSession = vi.hoisted(() => vi.fn());
-const fetchLiveTables = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
   return {
     ...actual,
     fetchLiveSession,
-    fetchLiveTables,
   };
 });
 
@@ -111,7 +112,6 @@ function stubMalformedBalance(body: unknown) {
 beforeEach(() => {
   cookieGet.mockReset();
   fetchLiveSession.mockReset();
-  fetchLiveTables.mockReset();
   vi.unstubAllGlobals();
 });
 
@@ -151,11 +151,13 @@ describe("LivePage (/live Server Component)", () => {
 
   it("shows chrome + wallet balance + the LiveTable island on the happy path", async () => {
     cookieGet.mockReturnValue({ value: "test-session" });
+    // The session carries the resolved table_id; the page feeds it to the widget
+    // (no /api/live/tables call — that route 401s with the operator key).
     fetchLiveSession.mockResolvedValue({
       session_token: "live-token-1",
       expires_at: "2026-06-06T10:00:00Z",
+      table_id: "tbl-1",
     });
-    fetchLiveTables.mockResolvedValue([{ table_id: "tbl-1", name: "Demo" }]);
     stubBalance("100.0000");
 
     await renderLive();
@@ -197,6 +199,7 @@ describe("LivePage (/live Server Component)", () => {
     fetchLiveSession.mockResolvedValue({
       session_token: "live-token-1",
       expires_at: "2026-06-06T10:00:00Z",
+      table_id: "tbl-1",
     });
     stubMalformedBalance({ balance: 100 }); // number, not a string
 

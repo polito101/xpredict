@@ -186,7 +186,11 @@ describe("recordLiveSettled", () => {
 describe("mintLiveSession", () => {
   it("POSTs to /api/live/session with JSON content-type + the session cookie", async () => {
     fetchSpy.mockResolvedValueOnce(
-      jsonResponse(200, { session_token: "t2", expires_at: "2026-06-06T11:00:00Z" }),
+      jsonResponse(200, {
+        session_token: "t2",
+        expires_at: "2026-06-06T11:00:00Z",
+        table_id: "tbl-1",
+      }),
     );
     await mintLiveSession("tbl-1");
 
@@ -201,7 +205,7 @@ describe("mintLiveSession", () => {
 
   it("sends { table_id } only when a tableId is supplied", async () => {
     fetchSpy.mockResolvedValueOnce(
-      jsonResponse(200, { session_token: "t2", expires_at: "x" }),
+      jsonResponse(200, { session_token: "t2", expires_at: "x", table_id: "tbl-1" }),
     );
     await mintLiveSession("tbl-1");
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit | undefined];
@@ -210,29 +214,46 @@ describe("mintLiveSession", () => {
 
   it("sends an empty body {} when no tableId is supplied (LB-A defaults)", async () => {
     fetchSpy.mockResolvedValueOnce(
-      jsonResponse(200, { session_token: "t2", expires_at: "x" }),
+      jsonResponse(200, { session_token: "t2", expires_at: "x", table_id: "tbl-d" }),
     );
     await mintLiveSession();
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit | undefined];
     expect(JSON.parse(init?.body as string)).toEqual({});
   });
 
-  it("200 with token+expiry -> {ok:true, session_token} (expires_at validated but NOT surfaced, NIT-1)", async () => {
+  it("200 with token+expiry+table_id -> {ok:true, session_token, table_id} (expires_at validated but NOT surfaced, NIT-1)", async () => {
     fetchSpy.mockResolvedValueOnce(
-      jsonResponse(200, { session_token: "t2", expires_at: "2026-06-06T11:00:00Z" }),
+      jsonResponse(200, {
+        session_token: "t2",
+        expires_at: "2026-06-06T11:00:00Z",
+        table_id: "tbl-1",
+      }),
     );
-    // NIT-1: the result carries only the renewed token; `expires_at` is still
-    // required in the body (a well-formed session) but no longer returned.
+    // NIT-1: the result carries the renewed token + the resolved table_id;
+    // `expires_at` is still required in the body (a well-formed session) but no
+    // longer returned. The table_id is the demo's source of the widget table-id.
     expect(await mintLiveSession("tbl")).toEqual({
       ok: true,
       session_token: "t2",
+      table_id: "tbl-1",
     });
   });
 
   it("still requires expires_at in the body -> {ok:false,error} when it is missing (NIT-1)", async () => {
     // Even though `expires_at` is no longer surfaced, a 200 lacking it is a
     // malformed session and must fail (the validation is retained).
-    fetchSpy.mockResolvedValueOnce(jsonResponse(200, { session_token: "t2" }));
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(200, { session_token: "t2", table_id: "tbl-1" }),
+    );
+    expect(await mintLiveSession("tbl")).toEqual({ ok: false, reason: "error" });
+  });
+
+  it("requires table_id in the body -> {ok:false,error} when it is missing", async () => {
+    // A 200 lacking table_id can't furnish the widget's table-id, so it is a
+    // malformed session response and must fail (the validation is retained).
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(200, { session_token: "t2", expires_at: "2026-06-06T11:00:00Z" }),
+    );
     expect(await mintLiveSession("tbl")).toEqual({ ok: false, reason: "error" });
   });
 

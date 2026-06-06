@@ -146,3 +146,6 @@ async def test_post_session_happy_path_returns_faked_token(api: httpx.AsyncClien
     body = r.json()
     assert body["session_token"] == "fake-token"
     assert body["expires_at"] == "2026-01-01T00:00:00Z"
+    # The route echoes back the resolved table_id (from body.table_id here) so the
+    # frontend can feed the widget's table-id without the JWT-gated GET /tables.
+    assert body["table_id"] == "tbl-1"
