@@ -307,7 +307,11 @@ async def test_chain_down_revision_and_single_head(engine: AsyncEngine) -> None:
 
     heads = s.get_heads()
     assert len(heads) == 1, f"expected exactly one head, got {heads}"
-    assert heads[0] == REVISION, f"head should be {REVISION!r}, got {heads[0]!r}"
+    # v1.3 merge (off-grid): 0011_livebets_bridge chains AFTER phase13, so the lone
+    # head is now livebets_bridge (phase13 stays in the chain as its parent). The
+    # single-head guard above is the real "no branch introduced" check.
+    latest_head = "0011_livebets_bridge"
+    assert heads[0] == latest_head, f"head should be {latest_head!r}, got {heads[0]!r}"
 
 
 # ---------------------------------------------------------------------------
