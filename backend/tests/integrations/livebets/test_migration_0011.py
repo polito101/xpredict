@@ -104,16 +104,18 @@ def isolated_pg() -> Generator[str, None, None]:
 
 
 # --------------------------------------------------------------------------- #
-# Chain link — 0011 declares down_revision 0010 (the script directory agrees).
+# Chain link — 0011_livebets_bridge declares down_revision 0011_phase13_market_groups
+# (chained AFTER v1.2's 0011_phase13 at merge time — both used to descend from 0010,
+# which created two alembic heads; this linearizes the history).
 # --------------------------------------------------------------------------- #
-def test_0011_chains_from_0010() -> None:
+def test_0011_chains_from_phase13() -> None:
     from alembic.script import ScriptDirectory
 
     cfg = _alembic_config("postgresql+psycopg2://unused/unused")  # no DB touch for script read
     script = ScriptDirectory.from_config(cfg)
     rev = script.get_revision("0011_livebets_bridge")
     assert rev is not None, "0011_livebets_bridge missing from the script directory"
-    assert rev.down_revision == "0010_phase12_resolution_stakes"
+    assert rev.down_revision == "0011_phase13_market_groups"
 
 
 # --------------------------------------------------------------------------- #
