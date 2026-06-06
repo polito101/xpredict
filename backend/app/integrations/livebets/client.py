@@ -8,9 +8,9 @@ jitter=2)`` backoff.
 
 Retry is applied ONLY to the idempotent ``GET`` endpoints (``get_bet``,
 ``list_tables``). It is deliberately NOT applied to ``mint_session`` (``POST
-/v2/sessions``): that endpoint is non-idempotent and live-bets does not document a
-session Idempotency-Key, so a post-success timeout retried would mint duplicate
-sessions (WR-04). A transient failure on ``mint_session`` surfaces to the caller.
+/v2/sessions``): that route REQUIRES an ``Idempotency-Key`` (it uses
+``idempotent_post()``); we send a fresh key per call and do not retry, so there is no
+duplicate-mint risk. A transient failure on ``mint_session`` surfaces to the caller.
 
 Difference from the public Gamma client: live-bets is AUTHENTICATED. Every request
 carries ``X-API-Key`` from ``settings.LIVEBETS_API_KEY`` (set as a default header on
@@ -37,6 +37,8 @@ pass it into a log event).
 """
 
 from __future__ import annotations
+
+import uuid
 
 import httpx
 import structlog
@@ -96,10 +98,10 @@ class LiveBetsClient:
             )
         return self._client
 
-    # NO @retry here (WR-04): POST /v2/sessions is non-idempotent and live-bets does
-    # not document a session Idempotency-Key (unlike POST /v2/bets). A post-success
-    # timeout retried would mint DUPLICATE sessions. Retry stays only on the idempotent
-    # GETs (get_bet / list_tables). A transient failure here surfaces to the caller.
+    # NO @retry here: POST /v2/sessions REQUIRES an Idempotency-Key (its route uses
+    # idempotent_post()). We send a fresh key per call and do NOT retry, so there is no
+    # duplicate-mint risk. Retry stays only on the idempotent GETs (get_bet /
+    # list_tables). A transient failure here surfaces to the caller.
     async def mint_session(
         self, player_ref: str, table_id: str, ttl_seconds: int | None = None
     ) -> dict[str, object]:
@@ -114,7 +116,11 @@ class LiveBetsClient:
         body: dict[str, object] = {"player_ref": player_ref, "table_id": table_id}
         if ttl_seconds is not None:
             body["ttl_seconds"] = ttl_seconds
-        resp = await client.post("/v2/sessions", json=body)
+        # live-bets /v2/sessions REQUIRES an Idempotency-Key header (its route uses
+        # idempotent_post(); a missing header is a 400). Fresh uuid per call.
+        resp = await client.post(
+            "/v2/sessions", json=body, headers={"Idempotency-Key": uuid.uuid4().hex}
+        )
         try:
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
