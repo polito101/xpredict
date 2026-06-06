@@ -1,5 +1,44 @@
 # Project Milestones: XPredict
 
+## v1.4 Premium Experience (Shipped: 2026-06-06)
+
+**Phases completed:** 1 phase (Phase 19) · landed via PR [#33](https://github.com/polito101/xpredict/pull/33) (`2b2fca8`).
+
+**Delivered:** A frontend-only premium redesign that repositions XPrediction as a white-label, API-first prediction-market **platform** — dark-first "Obsidian & Spark" design system, a platform-first public landing, the live app moved behind authentication, and a premium-restyled backoffice. **Zero backend domain changes** (one exception: a pure `ruff format` of the already-merged v1.3 livebets files to unblock CI).
+
+**Key accomplishments:**
+
+- Dark-first semantic token system via Tailwind v4 `@theme inline` (surface/card/popover/muted/border/ring/radius + gradient/glow/aurora utilities); identity primitives `XMark` / `Spark` / `Aurora`; Space Grotesk (display) + Inter (body); all 17 shadcn primitives retoned.
+- Platform-first public landing at `/` (Hero node-graph → Pillars run/integrate/launch → Capabilities → API section → Demo with real `/catalog` stats + featured → How it works → CTA), resilient to a down backend (best-effort reads).
+- App moved behind auth — edge middleware (`proxy.ts`) gates `/markets,/events,/portfolio,/wallet,/live` → `/login` and `/admin/*` → `/admin/login`; nav splits logged-out vs in; login → `/markets`, logout → `/`.
+- Premium player surfaces (market/event detail, oversized live odds, dark gradient charts, portfolio performance hero, wallet big-number balance) + a dark-first brand-aware admin shell (no more double header) with tokenized backoffice + dark charts.
+- Visible brand = **"XPrediction"** everywhere (runtime-driven via `/branding/current`, with the legacy `"XPredict"` default mapped for display); technical names stay `XPredict/xpredict` (cookie, env vars, repo) — no contract churn. White-label runtime branding preserved (real operator names still override).
+- Invariants preserved under a 5-lens adversarial review (no HIGH/regression): white-label branding pipeline, money/odds as display strings, per-outcome framing-LOCK (independent YES bars, never sum-to-100), single live-socket cap, escaped justification, A-LOSS-NEUTRAL.
+
+**Stats:** 238/238 frontend vitest (37 frontend + 3 v1.3 live files), `pnpm typecheck`/`lint` clean, `next build --webpack` green (16 routes); CI `frontend` + security checks green. Backend integration is handed to Pol (env wiring + `brand_name` + official logo PNG drop) — see [`v1.4-MILESTONE-CONTEXT.md`](milestones/v1.4-MILESTONE-CONTEXT.md) and the per-phase HANDOFF.
+
+**What's next:** undefined — run `/gsd-new-milestone`. Candidates: multi-tenancy runtime, real money (Stripe/KYC), full Polymarket catalog, live-bets productionization.
+
+---
+
+## v1.3 Live-Bets demo (Shipped: 2026-06-06, off-grid)
+
+**Phases completed:** Fases LB-A/B/C (off the formal phase grid, like v1.1) · landed via direct merge `171aee5` (`Merge gsd/livebets-demo into main`).
+
+**Delivered:** Embed **live-bets** (B2B multi-player vehicle-traffic betting, HLS-synced) inside XPrediction, which acts as the live-bets **operator** — a player bets from a new `/live` route and their single XPrediction wallet is debited on placement and credited on win (one balance, play-money). Demo-only, **additive** (does not touch v1.2 files).
+
+**Key accomplishments:**
+
+- **LB-A Backend bridge** — `app/integrations/livebets/` (httpx client + `LiveBetsBridge` + router) + an additive migration (`livebets_escrow` system account + `livebets_bets` mirror table) + config. Event-driven idempotent ledger mirror (debit on `bet-placed`, credit on settle), server-verified via `GET /v2/bets/{id}`, idempotent by `bet_id`; per-player ownership (IDOR-safe); non-finite-amount rejection + stake hardening. 23505 session-per-call discipline preserved.
+- **LB-B Frontend surface** — `/live` Server Component embedding `<live-bets-table>` in XPrediction chrome + wallet; the four widget DOM events wired to placed/settled Server Actions with in-island wallet refresh; "Live" nav entry; HttpOnly cookie; backend-keyed settle toasts. Component + money-path tests.
+- **LB-C Demo harness** — isolated live-bets instance (CORS, full-scope operator key), ingest clips + a round orchestrator, env wiring + a demo runbook. E2E proven: a bet from `/live` moves the XPrediction wallet. Real contract drift vs the v3 guide fixed (`GET /tables`, `BetView.id/selection`, `/v2/sessions` Idempotency-Key).
+
+**Decisions:** unified wallet (XPrediction ledger is the single balance) · embed the widget (not rebuild) · mirror by events (Approach A, DOM-driven, server-verified, idempotent).
+
+**Out of scope (demo):** real money/PSP · OAuth client_credentials · OTEL passthrough · production webhook hardening (HTTPS/DLQ) · bulletproof cross-DB reconciliation · live-bets catalog/lobby. Design contract: [`docs/superpowers/specs/2026-06-05-live-bets-integration-design.md`](../docs/superpowers/specs/2026-06-05-live-bets-integration-design.md). Plan-of-record: [`v1.3-MILESTONE-CONTEXT.md`](milestones/v1.3-MILESTONE-CONTEXT.md); audit: [`v1.3-MILESTONE-AUDIT.md`](milestones/v1.3-MILESTONE-AUDIT.md).
+
+---
+
 ## v1.2 Credible Catalog (Shipped: 2026-06-06)
 
 **Phases completed:** 6 phases, 20 plans, 24 tasks

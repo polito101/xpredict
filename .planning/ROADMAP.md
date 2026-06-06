@@ -10,6 +10,7 @@
 - ✅ **v1.1 Demo Polish** — Fases A-E (shipped 2026-06-04) — brand-aware design system, seed/demo harness, player & operator polish, demo QA.
 - ✅ **v1.2 Credible Catalog** — Phases 13-18 (shipped 2026-06-06) — multi-outcome events (event-of-binaries) + curated per-category catalog + browse + admin event ops + demo seed.
 - ✅ **v1.3 Live-Bets demo** — Fases LB-A/B/C (shipped 2026-06-06, off-grid) — embed live-bets multi-player betting inside XPredict as operator: unified XPredict wallet, embedded `<live-bets-table>` widget, event-driven idempotent ledger mirror. Demo-only, additive.
+- ✅ **v1.4 Premium Experience** — Phase 19 (shipped 2026-06-06, PR #33) — frontend-only "Obsidian & Spark" dark-first redesign: platform-first public landing, the app moved behind auth, premium-restyled admin; visible brand **"XPrediction"**. White-label runtime branding + framing-LOCK + money-as-strings invariants preserved.
 
 ## Phases
 
@@ -70,6 +71,15 @@
 
 </details>
 
+<details>
+<summary>✅ v1.4 Premium Experience (Phase 19) — SHIPPED 2026-06-06</summary>
+
+> Frontend-only "Obsidian & Spark" premium redesign on top of v1.2/v1.3 (zero backend domain changes). Landed via PR [#33](https://github.com/polito101/xpredict/pull/33) (`2b2fca8`). Context: [`milestones/v1.4-MILESTONE-CONTEXT.md`](milestones/v1.4-MILESTONE-CONTEXT.md); audit: [`milestones/v1.4-MILESTONE-AUDIT.md`](milestones/v1.4-MILESTONE-AUDIT.md); per-phase artifacts: [`milestones/v1.4-phases/phase-19-premium-experience/`](milestones/v1.4-phases/phase-19-premium-experience/).
+
+- [x] **Phase 19: Premium Experience** — dark-first semantic token system (Tailwind v4 `@theme inline`), identity primitives (`XMark`/`Spark`/`Aurora`), Space Grotesk + Inter, all 17 shadcn primitives retoned; platform-first public landing at `/` (hero node-graph → pillars → capabilities → API → demo → CTA); app moved behind edge-middleware auth (`/markets,/events,/portfolio,/wallet,/live` → `/login`); premium player surfaces + dark-first brand-aware admin shell. Visible brand "XPrediction" (technical names unchanged). 238/238 frontend tests. — 2026-06-06
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -83,5 +93,6 @@
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 5/5 | ✅ Complete | 2026-06-06 |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 1/1 | ✅ Complete | 2026-06-06 |
 | LB-A/B/C. Live-Bets demo (off-grid) | v1.3 | done | ✅ Complete | 2026-06-06 |
+| 19. Premium Experience (Obsidian & Spark) | v1.4 | done | ✅ Complete | 2026-06-06 |
 
 **Known deferred at v1.2 close:** 2 Phase-14 live human-UAT checks (redbeat schedule reload + Gamma `tag_id` drift re-verify). Carried from v1.0/v1.1: 3 human-UAT + 3 verification gaps (Phase 12), and the **non-deferrable Spanish legal review** of ToS/token policy before any live operator demo (see [`STATE.md`](STATE.md) › Deferred Items).
