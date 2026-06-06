@@ -35,17 +35,32 @@ import type { LiveSession } from "./api";
 /**
  * Result of `recordLivePlaced` / `recordLiveSettled`. `applied` echoes LB-A
  * `MirrorResult.applied` — `false` is a benign idempotent no-op (design §8).
+ *
+ * `status` echoes LB-A `MirrorResult.status` — the backend's AUTHORITATIVE
+ * settle outcome (WON/LOST/REFUNDED/VOIDED, `schemas.py` `MirrorResult.status`).
+ * WR-01: the widget host keys the WON/LOST toast off THIS value, never the
+ * untrusted `CustomEvent.detail.status` (a tampered event must not be able to
+ * show a celebratory "You won!" for a bet the backend settled as LOST). It is
+ * optional because `recordLivePlaced` does not carry a settle status and a
+ * malformed 200 body may omit it (then the host falls back to neutral copy).
  */
 export type LiveActionResult =
-  | { ok: true; applied: boolean }
+  | { ok: true; applied: boolean; status?: string }
   | { ok: false; reason: "unauthenticated" | "not_found" | "conflict" | "error" };
 
 /**
  * Result of `mintLiveSession` — carries the renewed live-bets session token on
  * success so the widget host can re-set the `session-token` attribute.
+ *
+ * NIT-1: `expires_at` is intentionally NOT surfaced. The only caller
+ * (`onSessionExpired`) re-sets the `session-token` attribute and the widget owns
+ * its own expiry tracking, so threading the new expiry through here would be a
+ * dead field. The backend's `expires_at` is still validated in the 200 branch
+ * (it must be a well-formed session) — it just isn't returned. LB-C can re-add
+ * it to the result if a consumer (e.g. session-renewal timing) needs it.
  */
 export type LiveSessionResult =
-  | { ok: true; session_token: string; expires_at: string }
+  | { ok: true; session_token: string }
   | { ok: false; reason: "unauthenticated" | "not_found" | "conflict" | "error" };
 
 /**
@@ -152,10 +167,19 @@ export async function recordLiveSettled(
   }
 
   if (res.status === 200) {
+    // WR-01: surface the backend's AUTHORITATIVE settle status so the host keys
+    // the WON/LOST toast off it (not the untrusted event detail). `status` is a
+    // string on the wire (LB-A `MirrorResult.status`); a malformed body leaves
+    // it `undefined` and the host falls back to neutral "settled" copy.
     const data = (await res.json().catch(() => null)) as {
       applied?: unknown;
+      status?: unknown;
     } | null;
-    return { ok: true, applied: data?.applied === true };
+    return {
+      ok: true,
+      applied: data?.applied === true,
+      status: typeof data?.status === "string" ? data.status : undefined,
+    };
   }
   return { ok: false, reason: reasonForStatus(res.status) };
 }
@@ -190,6 +214,8 @@ export async function mintLiveSession(
 
   if (res.status === 200) {
     const data = (await res.json().catch(() => null)) as Partial<LiveSession> | null;
+    // NIT-1: still validate `expires_at` (a well-formed session must carry it),
+    // but do not surface it — the caller only needs the renewed token.
     if (
       data &&
       typeof data.session_token === "string" &&
@@ -198,7 +224,6 @@ export async function mintLiveSession(
       return {
         ok: true,
         session_token: data.session_token,
-        expires_at: data.expires_at,
       };
     }
     return { ok: false, reason: "error" };

@@ -144,23 +144,31 @@ export function LiveTable({
     };
 
     const onResult = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      const betId = readBetId(detail);
+      // WR-01: only `bet_id` is taken from the UNTRUSTED event detail; the
+      // win/loss toast is keyed off the BACKEND's authoritative settle status
+      // (returned by recordLiveSettled), NOT `detail.status`. A tampered widget
+      // emitting `{bet_id, status:"WON"}` for a bet the backend settles as LOST
+      // must show the "lost" copy, not a celebratory "You won!".
+      const betId = readBetId((e as CustomEvent).detail);
       if (!betId) return;
-      const status = readString(detail, "status");
       void (async () => {
         const result = await recordLiveSettled(betId);
-        if (result.ok) {
-          await refreshBalance();
-          if (status && status.toUpperCase() === "WON") {
-            toast.success("You won! Your balance has been updated.");
-          } else if (status && status.toUpperCase() === "LOST") {
-            toast("Bet settled — better luck next round.");
-          } else {
-            toast("Bet settled. Your balance has been updated.");
-          }
-        } else {
+        if (!result.ok) {
           toast.error("Couldn't settle your bet. Please try again.");
+          return;
+        }
+        await refreshBalance();
+        // Idempotent no-op (already settled): nothing moved, so no win/loss
+        // toast — a benign duplicate event must not re-announce an outcome.
+        if (!result.applied) return;
+        const status = result.status?.toUpperCase();
+        if (status === "WON") {
+          toast.success("You won! Your balance has been updated.");
+        } else if (status === "LOST") {
+          toast("Bet settled — better luck next round.");
+        } else {
+          // REFUNDED/VOIDED or a missing status → neutral, non-misleading copy.
+          toast("Bet settled. Your balance has been updated.");
         }
       })();
     };
