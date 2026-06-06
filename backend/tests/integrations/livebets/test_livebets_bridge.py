@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import select, text
 
 from app.db.session import _get_session_maker
 from app.integrations.livebets.constants import (

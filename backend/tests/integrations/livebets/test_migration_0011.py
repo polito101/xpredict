@@ -59,7 +59,8 @@ def _alembic_config(sync_url: str):
     """Build an Alembic ``Config`` bound to ``sync_url`` (the isolated container)."""
     from alembic.config import Config
 
-    backend_root = Path(__file__).parent.parent.parent.parent  # tests/integrations/livebets/ -> backend/
+    # tests/integrations/livebets/ -> backend/
+    backend_root = Path(__file__).parent.parent.parent.parent
     cfg = Config(str(backend_root / "alembic.ini"))
     cfg.set_main_option("script_location", str(backend_root / "alembic"))
     cfg.set_main_option("sqlalchemy.url", sync_url)
