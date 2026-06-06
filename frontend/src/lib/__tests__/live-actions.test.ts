@@ -137,6 +137,38 @@ describe("recordLiveSettled", () => {
     expect(await recordLiveSettled("bet-2")).toEqual({ ok: false, reason: "not_found" });
   });
 
+  it("surfaces the BACKEND status from the 200 body so the host keys the toast off it (WR-01)", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(200, { applied: true, status: "WON" }),
+    );
+    expect(await recordLiveSettled("bet-2")).toEqual({
+      ok: true,
+      applied: true,
+      status: "WON",
+    });
+
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(200, { applied: true, status: "LOST" }),
+    );
+    expect(await recordLiveSettled("bet-2")).toEqual({
+      ok: true,
+      applied: true,
+      status: "LOST",
+    });
+  });
+
+  it("a non-string backend status is dropped (status: undefined) — never trusted as copy (WR-01)", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(200, { applied: true, status: 123 }),
+    );
+    // `toStrictEqual` proves `status` is absent/undefined (not coerced).
+    expect(await recordLiveSettled("bet-2")).toStrictEqual({
+      ok: true,
+      applied: true,
+      status: undefined,
+    });
+  });
+
   it("no session cookie -> {ok:false, reason:'unauthenticated'} WITHOUT calling fetch", async () => {
     mocks.cookieStore.get.mockReturnValue(undefined);
     expect(await recordLiveSettled("bet-2")).toEqual({
@@ -185,15 +217,23 @@ describe("mintLiveSession", () => {
     expect(JSON.parse(init?.body as string)).toEqual({});
   });
 
-  it("200 with token+expiry -> {ok:true, session_token, expires_at}", async () => {
+  it("200 with token+expiry -> {ok:true, session_token} (expires_at validated but NOT surfaced, NIT-1)", async () => {
     fetchSpy.mockResolvedValueOnce(
       jsonResponse(200, { session_token: "t2", expires_at: "2026-06-06T11:00:00Z" }),
     );
+    // NIT-1: the result carries only the renewed token; `expires_at` is still
+    // required in the body (a well-formed session) but no longer returned.
     expect(await mintLiveSession("tbl")).toEqual({
       ok: true,
       session_token: "t2",
-      expires_at: "2026-06-06T11:00:00Z",
     });
+  });
+
+  it("still requires expires_at in the body -> {ok:false,error} when it is missing (NIT-1)", async () => {
+    // Even though `expires_at` is no longer surfaced, a 200 lacking it is a
+    // malformed session and must fail (the validation is retained).
+    fetchSpy.mockResolvedValueOnce(jsonResponse(200, { session_token: "t2" }));
+    expect(await mintLiveSession("tbl")).toEqual({ ok: false, reason: "error" });
   });
 
   it("200 with a malformed body (missing fields) -> {ok:false, reason:'error'}", async () => {

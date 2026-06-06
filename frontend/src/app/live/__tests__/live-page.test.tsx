@@ -96,6 +96,18 @@ function stubBalance(balance: string | null) {
   return fetchMock;
 }
 
+/**
+ * Stub `/wallet/me/balance` to reply 200 with a MALFORMED (non-string) balance
+ * body — the WR-02 case (`loadBalance` must treat this as a failure, not a "0").
+ */
+function stubMalformedBalance(body: unknown) {
+  const fetchMock = vi.fn(
+    async () => ({ ok: true, json: async () => body } as unknown as Response),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
 beforeEach(() => {
   cookieGet.mockReset();
   fetchLiveSession.mockReset();
@@ -173,6 +185,29 @@ describe("LivePage (/live Server Component)", () => {
     expect(alert).toHaveTextContent(/couldn't load the live table/i);
     // Not the empty state, not the island.
     expect(screen.queryByText(/no live table configured yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("live-table-island")).not.toBeInTheDocument();
+  });
+
+  it("WR-02: a malformed (non-string) balance body routes to RetryError, never a fake '0'", async () => {
+    // Session succeeds, but the balance endpoint replies 200 with a garbage
+    // (numeric) balance. The page must NOT fabricate a "0" — it must surface the
+    // balance RetryError, matching the file's no-misleading-zero contract and
+    // the sibling getLiveBalance `{ok:false}` on the identical case.
+    cookieGet.mockReturnValue({ value: "test-session" });
+    fetchLiveSession.mockResolvedValue({
+      session_token: "live-token-1",
+      expires_at: "2026-06-06T10:00:00Z",
+    });
+    stubMalformedBalance({ balance: 100 }); // number, not a string
+
+    await renderLive();
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent(/couldn't load your balance/i);
+    // The fabricated "0" must NOT appear anywhere.
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/wallet balance/i)).not.toBeInTheDocument();
+    // And we did not fall through to the widget island.
     expect(screen.queryByTestId("live-table-island")).not.toBeInTheDocument();
   });
 });

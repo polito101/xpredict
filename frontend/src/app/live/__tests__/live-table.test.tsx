@@ -65,7 +65,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Default happy resolutions; per-case tests override.
   actions.recordLivePlaced.mockResolvedValue({ ok: true, applied: true });
-  actions.recordLiveSettled.mockResolvedValue({ ok: true, applied: true });
+  // Default settle resolution carries a backend status (WR-01: the host keys
+  // the toast off THIS, not the event detail). Per-case tests override it.
+  actions.recordLiveSettled.mockResolvedValue({
+    ok: true,
+    applied: true,
+    status: "WON",
+  });
   actions.mintLiveSession.mockResolvedValue({
     ok: true,
     session_token: "t2",
@@ -106,7 +112,14 @@ describe("<LiveTable /> DOM-event wiring", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("result(WON) -> recordLiveSettled(betId) + refresh + a WON toast", async () => {
+  it("result(WON) -> recordLiveSettled(betId) + refresh + a WON toast keyed off the BACKEND status (WR-01)", async () => {
+    // The BACKEND (recordLiveSettled) is the authority on the outcome; the WON
+    // toast must come from its returned status, not the event detail.
+    actions.recordLiveSettled.mockResolvedValue({
+      ok: true,
+      applied: true,
+      status: "WON",
+    });
     const { container } = render(
       <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
     );
@@ -122,6 +135,90 @@ describe("<LiveTable /> DOM-event wiring", () => {
     expect(actions.getLiveBalance).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledWith(expect.stringMatching(/won/i));
+  });
+
+  it("WR-01: event detail says WON but the BACKEND settles LOST -> a 'lost' toast, NOT a celebratory win", async () => {
+    // The untrusted widget event claims a win; the backend's authoritative
+    // result says LOST. The toast must follow the BACKEND, never the detail.
+    actions.recordLiveSettled.mockResolvedValue({
+      ok: true,
+      applied: true,
+      status: "LOST",
+    });
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+
+    await fire(host, "live-bets-result", {
+      bet_id: "B2",
+      status: "WON", // tampered/optimistic event detail
+      payout: "9999",
+    });
+
+    expect(actions.recordLiveSettled).toHaveBeenCalledWith("B2");
+    // No "You won!" toast — the backend said LOST.
+    expect(toast.success).not.toHaveBeenCalled();
+    // The neutral "better luck" copy fired instead.
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(expect.stringMatching(/better luck/i));
+  });
+
+  it("WR-01: event detail says LOST but the BACKEND settles WON -> a celebratory win toast (follows the backend)", async () => {
+    // The mirror image: a pessimistic/tampered detail must not suppress a real win.
+    actions.recordLiveSettled.mockResolvedValue({
+      ok: true,
+      applied: true,
+      status: "WON",
+    });
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+
+    await fire(host, "live-bets-result", { bet_id: "B2", status: "LOST" });
+
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith(expect.stringMatching(/won/i));
+  });
+
+  it("WR-01: a REFUNDED/unknown backend status falls back to neutral 'settled' copy (no win/loss claim)", async () => {
+    actions.recordLiveSettled.mockResolvedValue({
+      ok: true,
+      applied: true,
+      status: "REFUNDED",
+    });
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+
+    await fire(host, "live-bets-result", { bet_id: "B2", status: "WON" });
+
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(expect.stringMatching(/settled/i));
+  });
+
+  it("WR-01: an idempotent settle no-op (applied:false) shows NO win/loss toast", async () => {
+    // A duplicate settle event: nothing moved, so the host must not re-announce
+    // an outcome — even if the (untrusted) detail claims a win.
+    actions.recordLiveSettled.mockResolvedValue({
+      ok: true,
+      applied: false,
+      status: "WON",
+    });
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+
+    await fire(host, "live-bets-result", { bet_id: "B2", status: "WON" });
+
+    expect(actions.recordLiveSettled).toHaveBeenCalledWith("B2");
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast).not.toHaveBeenCalled();
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it("session-expired -> mintLiveSession + re-sets session-token to the new token", async () => {
