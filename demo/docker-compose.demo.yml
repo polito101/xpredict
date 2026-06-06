@@ -1,0 +1,85 @@
+# XPredict demo — CLEAN, ISOLATED live-bets instance (LB-C Stage 2).
+#
+# WHY a separate self-contained file (not `extends:` / `-f live-bets/docker-compose.yml`):
+#   live-bets/docker-compose.yml hard-codes the dev ports (8001/15432/6381) in its
+#   `ports:` lists. Compose MERGES (appends) port lists across overlaid files, so an
+#   override file cannot REMOVE the :8001 entry — both would bind and collide with
+#   Agus's running `live-bets` project. A standalone definition is the only way to
+#   guarantee a clean port remap with zero coupling to the upstream compose.
+#
+# ISOLATION CONTRACT (never touch Agus's `live-bets` project):
+#   - Project name: livebets-demo  (always pass `-p livebets-demo`)
+#   - Ports: app 8002, postgres 15433, redis 6382 (all free; live-bets uses 8001/15432/6381)
+#   - Volume: demo_pgdata (a FRESH, separate volume — NOT the shared live-bets_pgdata).
+#     A fresh DB is the whole point: it rebuilds `rounds` from current migrations, so it
+#     does NOT inherit the `live_started_at_pdt` schema drift on Agus's stale volume.
+#   - Reuses the already-built `live-bets:dev` image (no rebuild).
+#
+# Bring up:
+#   docker compose -p livebets-demo -f demo/docker-compose.demo.yml up -d
+# Tear down (safe — scoped to this project only; -v drops ONLY demo_pgdata):
+#   docker compose -p livebets-demo -f demo/docker-compose.demo.yml down -v
+#
+# The live-bets:dev image's default CMD is:
+#   sh -c "python -m live_bets.cli migrate && python -m live_bets.cli serve-all \
+#          --host 0.0.0.0 --port 8000 --bus in-memory --no-hls"
+# i.e. it AUTO-MIGRATES then serves API + per-table orchestrator. We deliberately do
+# NOT override `command:` so a fresh DB is migrated on first boot.
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: live_bets
+      POSTGRES_PASSWORD: live_bets
+      POSTGRES_DB: live_bets
+    ports:
+      - "15433:5432"
+    volumes:
+      - demo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U live_bets"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6382:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  live-bets:
+    image: live-bets:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Mirrors the live-bets dev service env (live-bets/docker-compose.yml), remapped
+      # to the demo network aliases (postgres/redis resolve inside the compose network).
+      DATABASE_URL: postgresql://live_bets:live_bets@postgres:5432/live_bets
+      REDIS_URL: redis://redis:6379/0
+      SERVER_KEY: dev-key-not-secret-replace-in-prod-with-32-byte-secret
+      SERVER_KEY_ID: dev-v1
+      CLIP_LIBRARY_DIR: /var/lib/live-bets/clips
+      # Argon2id hash of the dev admin password — '$' doubled to '$$' so Compose does
+      # not treat it as variable interpolation (identical to live-bets dev service).
+      ADMIN_PASSWORD: "$$argon2id$$v=19$$m=19456,t=2,p=1$$JUS6ZkwK+28VC+vwKjUTcQ$$v2wz8YCDUzAsNomd+SU84NsW/VTpUP4EwHOchHEyjck"
+      # Embed CORS for the XPredict frontend (origin-scoped, credentials off). The
+      # live-bets create_app reads this from os.environ (feat/dev-cors-for-embed).
+      LIVE_BETS_CORS_ORIGINS: "http://localhost:3000"
+    ports:
+      - "8002:8000"
+    # No named volumes for HLS/clips: serve-all runs with --no-hls and the seed script
+    # uses synthetic clips with path=/dev/null, so the demo needs no clip/HLS mounts
+    # (and mounting the shared live-bets_* volumes would violate isolation).
+    restart: unless-stopped
+
+volumes:
+  demo_pgdata:

@@ -7,17 +7,172 @@ copy-pasteable. PowerShell on Windows; adapt quoting for bash.
 > **Status of this runbook (2026-06-06).** The durable harness artifacts are
 > done and verified: live-bets dev CORS (Task 1, in the live-bets repo on branch
 > `feat/dev-cors-for-embed`), corrected `.env.example` files (Task 2), and a
-> seeded ACTIVE demo table + key. The **live bring-up of the demo is BLOCKED** by
-> a pre-existing schema-drift bug in the currently-running live-bets container
-> (the orchestrator never opens rounds — see **Troubleshooting → B1**) and by an
-> API-path mismatch in the XPredict bridge client (**B2**). The browser demo
-> walk (§D) is therefore Pol's manual step on a *clean* live-bets stack, after
-> B1/B2 are resolved. Everything that could be verified without open rounds was
-> verified and is called out inline.
+> seeded ACTIVE demo table + key.
+>
+> **UPDATE — Stage 2 (2026-06-06): a CLEAN, ISOLATED demo instance was stood up
+> and the full money path was PROVEN.** Everything that was blocked in Stage 1 on
+> Agus's *stale* shared volume (B1 schema drift, B3 pre-existing admin key) is
+> GONE on a fresh volume. See **§0 (Isolated demo instance)** for the exact
+> commands + verified results, including:
+>   - rounds OPEN on the clean instance (`table actor spawned` + a `BETTING_OPEN`
+>     round that cycles to `SETTLED`),
+>   - a full-scope `bootstrap-admin-key` minted (no refusal — fresh DB),
+>   - the XPredict ledger DEBITED end-to-end (wallet 500.00 → 490.00, escrow
+>     0.00 → 10.00) via the real `LiveBetsBridge.record_placed` path.
+>
+> The one corrected finding: **`GET /tables` is JWT-gated, not operator-key
+> scoped** — an operator key returns 401; the working credential is a session
+> JWT (see §0.6 + the revised **B2**). The original §A–§E below (against Agus's
+> :8001 stack) are retained as the shared-stack reference; for the demo, use §0.
 
 Ports (verified): live-bets host **:8001** (container :8000), Postgres **:15432**,
 Redis **:6381**. XPredict backend **:8000**, frontend **:3000**, Postgres :5432,
 Redis :6379. No clashes.
+
+---
+
+## 0. Isolated demo instance (RECOMMENDED — clean, never touches Agus's stack)
+
+This is the path used for the Stage-2 verification. It stands up a SEPARATE
+live-bets instance under compose project **`livebets-demo`** on FREE ports
+(app **:8002**, pg **:15433**, redis **:6382**) with a FRESH volume, so it cannot
+inherit the schema drift on Agus's shared `live-bets_pgdata` and cannot collide
+with his running `live-bets` project (:8001/:15432/:6381). It reuses the already
+built `live-bets:dev` image (no rebuild).
+
+> **Safety:** every command below is scoped with `-p livebets-demo`. NEVER run a
+> bare `docker compose down` here, and never stop/rm a `live-bets-*` container or
+> remove the shared `live-bets_*` volumes.
+
+### 0.1 Bring it up (compose file: `demo/docker-compose.demo.yml`)
+
+```powershell
+cd C:\Users\pobom\ProyectosClaude\xpredict-livebets
+docker compose -p livebets-demo -f demo/docker-compose.demo.yml up -d
+# postgres + redis go healthy, then live-bets starts (depends_on: service_healthy).
+```
+
+The `live-bets:dev` image's default CMD runs `migrate && serve-all ... --no-hls`,
+so a fresh DB is migrated automatically on first boot. Verify:
+
+```powershell
+curl http://localhost:8002/health    # {"status":"ok"}
+curl http://localhost:8002/ready     # {"ready":true,"checks":{"postgres":"ok","redis":"ok","hls":"ok","tables":"ok"}}
+```
+
+**Verified — the schema drift (B1) is ABSENT on the fresh volume:**
+
+```powershell
+docker exec livebets-demo-postgres-1 psql -U live_bets -d live_bets -t -c "SELECT count(*) FROM information_schema.columns WHERE table_name='rounds' AND column_name='live_started_at_pdt';"
+#  -> 1   (Agus's stale volume returns 0 — that was the B1 blocker)
+```
+Boot log shows `Migrations applied.` then the Supervisor reaching
+`supervisor boot: spawning initial actors` (on the stale DB it died at
+`starting recovery` with `UndefinedColumnError: live_started_at_pdt`).
+
+### 0.2 Seed the demo wiring (operator + ACTIVE table + buckets + 9 clips)
+
+`scripts/seed_demo_operator.py` isn't bundled in the image — copy it in and run it
+against the in-network DB (`postgres:5432`). `BCRYPT_COST=4` keeps it fast.
+
+```powershell
+docker cp C:\Users\pobom\ProyectosClaude\live-bets\scripts\seed_demo_operator.py livebets-demo-live-bets-1:/tmp/seed_demo_operator.py
+docker exec -e DATABASE_URL="postgresql://live_bets:live_bets@postgres:5432/live_bets" -e BCRYPT_COST=4 livebets-demo-live-bets-1 python /tmp/seed_demo_operator.py
+# -> ACTIVE demo table created: 71bf84f9-391f-49bc-90d6-e98506913e9b  (capture this table_id)
+```
+
+> The key this script prints is `lbk_sandbox_…` with `bets:place` ONLY — do NOT
+> use it for reads. Use the full-scope `bootstrap-admin-key` token (0.3) in
+> `.env.local`.
+
+### 0.3 Mint a FULL-SCOPE operator key (no refusal on a fresh DB — B3 gone)
+
+```powershell
+docker exec livebets-demo-live-bets-1 live-bets bootstrap-admin-key --operator-slug xpredict-demo --display-name "XPredict Demo (LB-C)"
+# -> Operator: 24fc640c-...  API key:  lbk_live_<48hex>   (ALL scopes, unlimited rate; shown ONCE)
+```
+On the fresh instance there is no pre-existing `webhooks:manage` key, so this
+SUCCEEDS (on Agus's shared stack it refused — B3).
+
+### 0.4 Verify rounds OPEN (the make-or-break check)
+
+```powershell
+docker exec livebets-demo-live-bets-1 live-bets list-tables
+# -> 71bf84f9-...  ACTIVE  demo  'Demo Table (Phase 11 WIDGET-08)'  betting=30s live=20s settling=10s
+curl http://localhost:8002/status
+# -> {"clip_library_size":9,"active_tables":1,...}
+docker exec livebets-demo-postgres-1 psql -U live_bets -d live_bets -c "SELECT id, state FROM rounds WHERE table_id='71bf84f9-391f-49bc-90d6-e98506913e9b' ORDER BY betting_opens_at DESC LIMIT 3;"
+# -> a BETTING_OPEN round (and SETTLED ones as cycles complete)
+docker logs livebets-demo-live-bets-1 2>&1 | Select-String "table actor spawned"
+# -> {"event": "table actor spawned", ... "table_id": "71bf84f9-...", ...}
+```
+**VERIFIED:** the Supervisor's 5s poll spawned a TableActor for the new ACTIVE
+table and rounds open + cycle (`BETTING_OPEN` → … → `SETTLED`).
+
+### 0.5 Verify the operator key on the operator-scoped routes (bets:read)
+
+```powershell
+$KEY = "lbk_live_<48hex>"; $TID = "71bf84f9-391f-49bc-90d6-e98506913e9b"
+curl "http://localhost:8002/v2/tables/$TID" -H "X-API-Key: $KEY"   # 200 + table JSON (proves bets:read; the sandbox key 403'd here)
+```
+A placed bet's id can then be fetched: `GET /v2/bets/{id}` with the same key → 200
+(bets:read), NOT 403.
+
+### 0.6 IMPORTANT — `GET /tables` (list) is JWT-gated, NOT operator-key scoped
+
+The bridge router's `list_tables` calls live-bets **`GET /tables`** (the plural
+list). That route depends on `get_current_user_id` → `verify_token` (an **HS256
+JWT**), not `require_scopes`. So an **operator key returns 401**, regardless of
+header:
+
+```powershell
+curl "http://localhost:8002/tables" -H "Authorization: Bearer $KEY"  # 401 invalid token (key is not a JWT)
+curl "http://localhost:8002/tables" -H "X-API-Key: $KEY"             # 401 missing bearer token (route ignores X-API-Key)
+```
+
+The **working credential for `GET /tables` is a session JWT** (its `sub` must be a
+UUID so `verify_token` accepts it). Mint one and it returns the envelope:
+
+```powershell
+# POST /v2/sessions with the operator key (player_ref = a UUID) -> session_token (eyJ...)
+# GET /tables  -H "Authorization: Bearer <session_token>"  -> 200 {"tables":[{"id":"71bf84f9-...","status":"ACTIVE",...}]}
+```
+VERIFIED 200 with the `{tables:[…]}` envelope. **Consequence for the bridge:**
+the XPredict client (`backend/app/integrations/livebets/client.py`) sends the
+operator key as `X-API-Key`, so `GET /api/live/tables` → `GET /tables` would 401
+even with a full-scope key. The widget/demo doesn't depend on `/api/live/tables`
+(it mints a session and reads `rounds/current` with that JWT); but if the bridge
+needs a server-side table list, it must use a session JWT or live-bets must add an
+operator-key-scoped list route. See revised **B2**.
+
+### 0.7 The money path, PROVEN end-to-end (XPredict ledger debited)
+
+With the XPredict backend up + migrated (§C runs `alembic upgrade head`, applying
+`0011_livebets_bridge`), the real `POST /api/live/bets/{bet_id}/placed` path
+(`LiveBetsBridge.record_placed`) was exercised against this clean instance:
+
+1. Seed a verified XPredict player + fund the wallet to **500.00**.
+2. Mint a live-bets session (`player_ref = the XPredict user id`), place a bucket
+   bet (stake 10.00) on the OPEN round → live-bets bet `PENDING`.
+3. `record_placed` verifies the bet via live-bets `GET /v2/bets/{id}` (bets:read),
+   then debits `user_wallet → livebets_escrow` via the double-entry writer.
+
+**Before/after (verified in the XPredict ledger):**
+
+| account | before | after |
+|---|---|---|
+| player `user_wallet` | **500.0000** | **490.0000** (− stake 10.00) |
+| `livebets_escrow` (`…00b1`) | **0.0000** | **10.0000** (+ stake 10.00) |
+
+Transfer `livebets_placed` (key `livebets:<bet_id>:placed`) has the balanced legs
+(debit wallet 10.0000 / credit escrow 10.0000); the `livebets_bets` mirror row is
+`status=PENDING, stake=10.0000`. `MirrorResult.applied=True`.
+
+### 0.8 Tear down (safe — scoped to this project only)
+
+```powershell
+docker compose -p livebets-demo -f demo/docker-compose.demo.yml down -v   # -v drops ONLY demo_pgdata
+```
 
 ---
 
@@ -268,7 +423,13 @@ Flow:
 
 ## Troubleshooting (blockers actually hit during LB-C, with exact errors)
 
-### B1 — Orchestrator never opens rounds: `live_started_at_pdt` missing (BLOCKER)
+### B1 — Orchestrator never opens rounds: `live_started_at_pdt` missing (RESOLVED on a clean instance)
+
+> **RESOLVED for the demo (Stage 2).** This was drift on Agus's *stale* shared
+> volume only. On the clean `livebets-demo` instance (§0, FRESH `demo_pgdata`
+> volume) the column is present (`SELECT count(*) ... = 1`), the Supervisor reaches
+> `spawning initial actors`, and rounds open + cycle. The notes below remain for
+> anyone who hits this on the shared :8001 stack.
 
 **Symptom.** The demo table is ACTIVE (`live-bets list-tables` shows it, `/status`
 shows `active_tables:1`, `clip_library_size:9`) but `rounds` stays empty (0 rows)
@@ -319,32 +480,47 @@ docker logs live-bets-live-bets-1 2>&1 | Select-String "starting recovery","spaw
   Then re-check A.7. (Only do this if the rest of the schema matches the code —
   if the drift is broader, a clean rebuild is safer.)
 
-### B2 — XPredict `GET /api/live/tables` → 404 (live-bets path mismatch) (BLOCKER)
+### B2 — `GET /api/live/tables` → `GET /tables` is JWT-gated (operator key returns 401)
 
-**Symptom.** `GET /api/live/tables` (XPredict) fails; the `/live` page can't list
-tables.
+> **Path mismatch already fixed in the client; the live issue is the AUTH SCHEME.**
+> The XPredict client now calls the REAL path **`GET /tables`** (not the old
+> `/v2/catalog/tables`, which 404'd) — see
+> `backend/app/integrations/livebets/client.py::list_tables` line ~166. The
+> remaining mismatch is credential type, verified on the clean instance in §0.6.
 
-**Root cause (verified).** The XPredict client
-(`backend/app/integrations/livebets/client.py::list_tables`) calls live-bets
-**`GET /v2/catalog/tables`**. That endpoint does **not exist** on the current
-live-bets API — it returns `404 {"detail":"Not Found"}`. live-bets exposes
-catalog only as `/catalog/sources` and `/catalog/clips`; tables are listed at
-`GET /tables` (JWT) and `GET /v2/tables/{table_id}` (operator key, `bets:read`).
+**Root cause (verified, Stage 2).** `GET /tables` depends on
+`get_current_user_id` → `verify_token`, i.e. it requires an **HS256 JWT** whose
+`sub` is a UUID. It is NOT an operator-scope route. The client sends the operator
+key as `X-API-Key`, so:
 
 ```
-GET http://localhost:8001/v2/catalog/tables  -> 404 Not Found   (client's path)
-GET http://localhost:8001/catalog/tables     -> 404 Not Found
-GET http://localhost:8001/v2/tables/<id>      -> 200 (full-scope) / 403 SCOPE_MISMATCH (bets:place-only key)
+GET http://localhost:8002/tables  -H "X-API-Key: <opkey>"        -> 401 missing bearer token (route ignores X-API-Key)
+GET http://localhost:8002/tables  -H "Authorization: Bearer <opkey>" -> 401 invalid token   (operator key is not a JWT)
+GET http://localhost:8002/tables  -H "Authorization: Bearer <session-JWT>" -> 200 {tables:[...]}   (WORKS)
+GET http://localhost:8002/v2/tables/<id> -H "X-API-Key: <opkey>"  -> 200 (operator-scoped single-table sibling; bets:read)
 ```
 
-**Fix (team decision — out of scope for LB-C's CORS-only live-bets change).** Pick
-the canonical contract and align both sides:
-- Either add `GET /v2/catalog/tables` to live-bets (catalog router), or
-- Repoint the XPredict client to `GET /v2/tables/{id}` (single) / a real list
-  endpoint and adjust `list_tables` shape.
-Whoever owns the bridge contract should reconcile this; it is not a CORS/env fix.
+**Impact.** `GET /api/live/tables` would 401 even with a full-scope operator key.
+But the demo does NOT require it: the widget mints a session and uses
+`GET /tables/{id}/rounds/current` with that **session JWT**, and the server-side
+money-path uses `GET /v2/tables/{id}` / `GET /v2/bets/{id}` (operator key). So this
+does not block the demo (the money path was proven, §0.7).
 
-### B3 — `bootstrap-admin-key` refuses (active admin key exists)
+**Fix (team decision — out of scope for LB-C's CORS-only live-bets change).** If a
+server-side table *list* is needed via `/api/live/tables`, either:
+- repoint `LiveBetsClient.list_tables` to mint a session JWT and call `GET /tables`
+  with it (the working credential), or
+- add an operator-key-scoped list route to live-bets (`GET /v2/tables`), or
+- have the bridge enumerate via `GET /v2/tables/{id}` for the known
+  `LIVEBETS_DEFAULT_TABLE_ID`.
+Whoever owns the bridge contract should pick one; it is not a CORS/env fix.
+
+### B3 — `bootstrap-admin-key` refuses (active admin key exists) (RESOLVED on a clean instance)
+
+> **RESOLVED for the demo (Stage 2).** A FRESH `livebets-demo` DB has no
+> pre-existing `webhooks:manage` key, so `bootstrap-admin-key` SUCCEEDS and mints
+> a full-scope `lbk_live_…` token (§0.3). This only bites on a shared stack that
+> already has an admin key.
 
 **Symptom.**
 ```
@@ -399,17 +575,25 @@ destructive 11.x that wipes `node_modules` and rewrites the lockfile).
 
 ---
 
-## What is verified vs. documented-for-Pol-to-run (LB-C honest status)
+## What is verified (LB-C honest status — updated after Stage 2)
+
+Stage 2 stood up the clean `livebets-demo` instance (§0) and proved the path that
+Stage 1 could only document. The shared-stack blockers (B1, B3) do not occur on a
+fresh volume; B2 was reduced to a documented auth-scheme note (does not block the
+demo).
 
 | Item | Status |
 |---|---|
-| live-bets dev CORS (env-gated middleware) | **VERIFIED** — `tests/unit/test_dev_cors.py` 4/4 pass (header present when set, absent when unset, preflight OK, foreign origin refused). |
-| `.env.example` :8001 fixes (both files) | **VERIFIED** — committed on `gsd/livebets-demo`. |
-| `.env.local` created (gitignored) | **VERIFIED** — real `table_id` + real sandbox key (bets:place-only), with caveats; never committed. |
-| Demo table + 9 clips + buckets seeded | **VERIFIED** — `live-bets list-tables` shows 1 ACTIVE table; `/status` `active_tables:1`, `clip_library_size:9`. |
-| Key authenticates + table id resolves | **VERIFIED** — `GET /v2/tables/<id>` → 403 SCOPE_MISMATCH (proves auth + table exists; scope gap is the bets:place-only key). |
-| Full-scope key via `bootstrap-admin-key` | **BLOCKED (B3)** — refuses; active admin key on the shared stack. |
-| Orchestrator opens rounds | **BLOCKED (B1)** — `recover_rounds` crashes on missing `rounds.live_started_at_pdt`; 0 rounds. |
-| `GET /v2/catalog/tables` (used by XPredict) | **BLOCKED (B2)** — 404 on live-bets; path mismatch. |
-| Browser demo walk (§D) | **NOT RUN** — needs B1 + B2 + full-scope key; Pol's manual step on a clean stack. |
-| Server-side money path (§E) | **NOT RUN** — needs an open round (B1) + working tables list (B2). |
+| live-bets dev CORS (env-gated middleware) | **VERIFIED** — `tests/unit/test_dev_cors.py` 4/4 pass. |
+| `demo/docker-compose.demo.yml` (isolated `livebets-demo`) | **VERIFIED** — committed on `gsd/livebets-demo`; brings up pg :15433 / redis :6382 / app :8002 on a fresh `demo_pgdata` volume; never touches Agus's `live-bets` project. |
+| Clean instance up + migrations on fresh DB | **VERIFIED** — `/health` ok, `/ready` all-ok, `Migrations applied.`, `schema_migrations`=25, `rounds.live_started_at_pdt` present (count=1 — no drift). |
+| `.env.local` updated (gitignored) | **VERIFIED** — `:8002`, real **full-scope** `lbk_live_…` key, demo `table_id` `71bf84f9-…`, widget src `:8002`; never committed (only `key_id` 29dda0936a8bc797 referenced here). |
+| Demo table + 9 clips + buckets seeded | **VERIFIED** — `list-tables` shows 1 ACTIVE table; `/status` `active_tables:1`, `clip_library_size:9`. |
+| Full-scope key via `bootstrap-admin-key` | **VERIFIED (B3 gone)** — fresh DB, no refusal; minted `lbk_live_…` with ALL scopes, unlimited rate. |
+| Orchestrator opens rounds | **VERIFIED (B1 gone)** — `table actor spawned` for the demo table + a `BETTING_OPEN` round that cycles to `SETTLED`. |
+| Operator key on operator routes (bets:read) | **VERIFIED** — `GET /v2/tables/<id>` → 200; `GET /v2/bets/<id>` → 200 (sandbox key 403'd; full-scope key 200). |
+| `GET /tables` (list) | **VERIFIED + corrected (B2)** — JWT-gated: operator key → 401; session JWT → 200 `{tables:[…]}`. Does not block the demo. |
+| Bet placed on an open round | **VERIFIED** — session JWT → `POST /v2/bets` (bucket, `low`, stake 10) → 201, `balance_after` 990.00 (live-bets paper wallet). |
+| XPredict stack up + `0011_livebets_bridge` | **VERIFIED** — `docker compose --env-file .env.local up -d --wait` (8/8 healthy); `alembic upgrade head` applies through `0011_livebets_bridge`. |
+| Server-side money path (XPredict ledger debit) | **VERIFIED** — real `LiveBetsBridge.record_placed`: wallet **500.00 → 490.00**, `livebets_escrow` **0.00 → 10.00**, balanced `livebets_placed` transfer, mirror row PENDING, `applied=True`. |
+| Browser demo walk (§D) | **NOT RUN** — Pol's manual UI step; all server-side prerequisites are now green on the clean instance. |

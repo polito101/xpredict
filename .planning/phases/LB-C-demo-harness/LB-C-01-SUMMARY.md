@@ -50,6 +50,72 @@ runbook — while honestly reporting that the live bring-up of the *demo itself*
 blocked by a pre-existing schema-drift bug in the running live-bets container
 (orchestrator never opens rounds) plus an XPredict↔live-bets API-path mismatch.
 
+---
+
+## STAGE 2 OUTCOME (2026-06-06) — clean isolated instance: rounds open + money path PROVEN
+
+Stage 1's two live blockers were artifacts of Agus's **stale shared volume** and a
+**shared stack with a pre-existing admin key** — NOT defects in the demo wiring.
+Stage 2 proved this by standing up a CLEAN, ISOLATED instance and running the full
+path end-to-end. Agus's `live-bets` project was never touched (verified up 17h
+throughout).
+
+**New durable deliverable:** `demo/docker-compose.demo.yml` — a self-contained
+compose (project **`livebets-demo`**) that reuses `live-bets:dev` on FREE ports
+(app **:8002**, pg **:15433**, redis **:6382**) with a FRESH `demo_pgdata` volume.
+Standalone (not `extends:` the live-bets compose) specifically to avoid the
+port-list MERGE that would re-bind Agus's :8001/:15432/:6381.
+
+**Verified on the clean instance (all green):**
+- Bring-up: `docker compose -p livebets-demo -f demo/docker-compose.demo.yml up -d`
+  → pg+redis healthy, live-bets healthy; image default CMD auto-migrated the fresh
+  DB. `/ready` all-ok, `schema_migrations`=25.
+- **B1 GONE:** `rounds.live_started_at_pdt` is present (count=1, vs 0 on the stale
+  volume); boot log reaches `supervisor boot: spawning initial actors` (no
+  `UndefinedColumnError`).
+- Seeded demo operator + ACTIVE table `71bf84f9-391f-49bc-90d6-e98506913e9b` +
+  buckets + 9 clips (`seed_demo_operator.py`, run inside the container vs
+  `postgres:5432`, `BCRYPT_COST=4`).
+- **B3 GONE:** `bootstrap-admin-key --operator-slug xpredict-demo` SUCCEEDED (fresh
+  DB, no refusal) → full-scope `lbk_live_…` key (key_id `29dda0936a8bc797`, ALL
+  scopes, unlimited rate).
+- **Rounds OPEN:** `table actor spawned` for the demo table; a `BETTING_OPEN` round
+  that cycles to `SETTLED`. `/status` `active_tables:1`, `clip_library_size:9`.
+- **bets:read:** `GET /v2/tables/<id>` → 200, `GET /v2/bets/<id>` → 200 with the
+  full-scope key (the sandbox key 403'd `/v2/tables/<id>` in Stage 1).
+- **Bet placed:** session JWT → `POST /v2/bets` (bucket, `low`, stake 10) → 201.
+- **XPredict stack up + migrated:** `docker compose --env-file .env.local up -d
+  --wait` (8/8 healthy, project `xpredict-livebets`); `alembic upgrade head`
+  applied through `0011_livebets_bridge` (escrow singleton + `livebets_bets`).
+- **MONEY PATH PROVEN (XPredict ledger debited):** drove the real
+  `LiveBetsBridge.record_placed` (the code `POST /api/live/bets/{id}/placed` runs)
+  for a seeded verified player funded to 500.00. It verified the bet via live-bets
+  `GET /v2/bets/{id}` then posted the double-entry debit:
+  **player `user_wallet` 500.00 → 490.00**, **`livebets_escrow` 0.00 → 10.00**,
+  balanced `livebets_placed` transfer, mirror row `PENDING`, `applied=True`.
+
+**Corrected finding (B2 reframed):** the old `/v2/catalog/tables` 404 is already
+fixed in the XPredict client (it now calls `GET /tables`). The remaining mismatch
+is the AUTH SCHEME: **`GET /tables` is JWT-gated** (`get_current_user_id` →
+`verify_token`), not operator-scoped — so the operator key the client sends as
+`X-API-Key` returns **401** (verified both header styles). The working credential
+is a **session JWT** (UUID `sub`) → `GET /tables` returns the `{tables:[…]}`
+envelope (verified 200). This does NOT block the demo (the widget reads
+`rounds/current` with a session JWT; the money path uses `/v2/tables/{id}` +
+`/v2/bets/{id}` with the operator key). If a server-side `/api/live/tables` list
+is wanted later, the bridge must use a session JWT or live-bets must add an
+operator-scoped list route. Logged in the runbook (§0.6 + revised B2).
+
+**`.env.local` (gitignored, NEVER committed):** repointed to the clean instance —
+`LIVEBETS_API_BASE=http://localhost:8002`, `LIVEBETS_API_KEY=<full-scope lbk_live_…>`
+(only key_id `29dda0936a8bc797` appears in any committed text),
+`LIVEBETS_DEFAULT_TABLE_ID=71bf84f9-…`,
+`NEXT_PUBLIC_LIVEBETS_WIDGET_SRC=http://localhost:8002/static/widget.js`.
+Re-verified gitignored + the full key string absent from all tracked files.
+
+**What was NOT run:** the browser UI walk (§D) — Pol's manual step; every
+server-side prerequisite is now green.
+
 ## What shipped (durable, verified)
 
 ### Task 1 — live-bets dev CORS (separate repo, `feat/dev-cors-for-embed`)
