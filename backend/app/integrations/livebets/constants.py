@@ -78,6 +78,7 @@ LIVEBETS_SETTLED_STATUSES = frozenset(
 )
 """The terminal statuses ``record_settled`` accepts (anything not PENDING)."""
 
+
 # --------------------------------------------------------------------------- #
 # Idempotency-key helpers (mirror ``settle_idempotency_key`` in
 # ``app/settlement/constants.py``). Centralized here so the service and the

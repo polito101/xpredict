@@ -158,9 +158,7 @@ class LiveBetsBridge:
 
         try:
             async with session.begin():
-                wallet_id = await WalletService._resolve_user_wallet_id(
-                    session, user_id=user.id
-                )
+                wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
 
                 # 2. Upsert the mirror row — PRIMARY idempotency guard. A conflict on
                 #    the bet_id PK means this bet was already mirrored: a replay, so we
@@ -194,15 +192,11 @@ class LiveBetsBridge:
                 )
                 if insert_result.scalar_one_or_none() is None:
                     # Row already existed — replay, no post.
-                    return MirrorResult(
-                        bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=False
-                    )
+                    return MirrorResult(bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=False)
 
                 # 3. Canonical UUID lock order (Spike 004 / Pitfall 3) on the two
                 #    touched accounts BEFORE posting — copy the place_bet idiom.
-                first_id, second_id = sorted(
-                    (wallet_id, LIVEBETS_ESCROW_ACCOUNT_ID), key=str
-                )
+                first_id, second_id = sorted((wallet_id, LIVEBETS_ESCROW_ACCOUNT_ID), key=str)
                 await session.execute(
                     select(Account.id).where(Account.id == first_id).with_for_update()
                 )
@@ -229,9 +223,7 @@ class LiveBetsBridge:
             # concurrent double-placed (the mirror-row upsert raced). _post_transfer
             # does not catch 23505, so the bridge does. Any other IntegrityError re-raises.
             if getattr(exc.orig, "sqlstate", None) == SQLSTATE_UNIQUE_VIOLATION:
-                return MirrorResult(
-                    bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=False
-                )
+                return MirrorResult(bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=False)
             raise
 
         return MirrorResult(bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=True)
@@ -277,9 +269,7 @@ class LiveBetsBridge:
                 #    (begin first, then read/resolve). The primary guard early-returns
                 #    from inside the block, committing an empty tx (a clean no-op).
                 mirror = (
-                    await session.execute(
-                        select(LiveBetsBet).where(LiveBetsBet.bet_id == bet_id)
-                    )
+                    await session.execute(select(LiveBetsBet).where(LiveBetsBet.bet_id == bet_id))
                 ).scalar_one_or_none()
                 if mirror is None:
                     # The settle arrived before placed — the demo's placed event always
@@ -301,9 +291,7 @@ class LiveBetsBridge:
                     )
 
                 if mirror.status != LIVEBETS_PENDING:
-                    return MirrorResult(
-                        bet_id=str(bet_id), status=mirror.status, applied=False
-                    )
+                    return MirrorResult(bet_id=str(bet_id), status=mirror.status, applied=False)
 
                 # WR-03: reconcile the live-bets settle stake against the stake captured
                 # at placement. They must match — a drift (partial cancel/rebate, or a
@@ -318,9 +306,7 @@ class LiveBetsBridge:
                     )
 
                 stake = mirror.stake  # authoritative captured stake, never a client amount
-                wallet_id = await WalletService._resolve_user_wallet_id(
-                    session, user_id=user.id
-                )
+                wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
 
                 # 3. Derive the leg specs by outcome (mirrors resolve_market's
                 #    winner/loser legs).
@@ -405,9 +391,7 @@ class LiveBetsBridge:
         except IntegrityError as exc:
             # SECONDARY guard: per-leg keys collide on a concurrent double-settle.
             if getattr(exc.orig, "sqlstate", None) == SQLSTATE_UNIQUE_VIOLATION:
-                return MirrorResult(
-                    bet_id=str(bet_id), status=verified.status, applied=False
-                )
+                return MirrorResult(bet_id=str(bet_id), status=verified.status, applied=False)
             raise
 
         return MirrorResult(bet_id=str(bet_id), status=verified.status, applied=True)

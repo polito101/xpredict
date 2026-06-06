@@ -61,9 +61,7 @@ class LiveBetsBet(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-    settled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # tenant_id ghost (PLT-01 / CONVENTIONS §2) — copied from app/bets/models.py.
     tenant_id: Mapped[PyUUID | None] = mapped_column(
         UUID(as_uuid=True),

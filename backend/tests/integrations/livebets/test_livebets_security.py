@@ -206,9 +206,7 @@ async def test_record_settled_by_non_owner_is_rejected_no_ledger_effect() -> Non
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(owner_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(owner_id), bet_id=bet_id, client=client)
 
     owner_wallet_after_placed = await _balance(owner_wallet)
     escrow_after_placed = await _livebets_escrow_balance()
@@ -260,9 +258,7 @@ async def test_record_placed_rejects_out_of_band_stake_no_debit(kind: str) -> No
     sm = _get_session_maker()
     with pytest.raises(LiveBetsVerificationError):
         async with sm() as s:
-            await LiveBetsBridge.record_placed(
-                s, user=_user(user_id), bet_id=bet_id, client=client
-            )
+            await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
 
     # No debit, no mirror row, no transfer, escrow untouched.
     assert await _balance(wallet_id) == Decimal("100.0000")
@@ -315,9 +311,7 @@ async def test_record_placed_rejects_non_finite_stake_no_debit(bad: object) -> N
     sm = _get_session_maker()
     with pytest.raises(ValueError):
         async with sm() as s:
-            await LiveBetsBridge.record_placed(
-                s, user=_user(user_id), bet_id=bet_id, client=client
-            )
+            await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
 
     assert await _balance(wallet_id) == Decimal("100.0000")
     assert await _mirror_row(bet_id) is None
@@ -336,9 +330,7 @@ async def test_record_settled_won_rejects_non_finite_payout_no_posting(bad_payou
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
     wallet_after_placed = await _balance(wallet_id)
     escrow_after_placed = await _livebets_escrow_balance()
     promo_after_placed = await _balance(HOUSE_PROMO_ACCOUNT_ID)
@@ -380,9 +372,7 @@ async def test_record_settled_rejects_stake_drift_no_posting() -> None:
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=placed_stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(user_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
     wallet_after_placed = await _balance(wallet_id)
     escrow_after_placed = await _livebets_escrow_balance()
     promo_after_placed = await _balance(HOUSE_PROMO_ACCOUNT_ID)
@@ -460,9 +450,7 @@ async def test_settled_route_non_owner_returns_404_no_ledger_effect(
     client.set_bet(bet_id, status=LIVEBETS_PENDING, stake=stake)
     sm = _get_session_maker()
     async with sm() as s:
-        await LiveBetsBridge.record_placed(
-            s, user=_user(owner_id), bet_id=bet_id, client=client
-        )
+        await LiveBetsBridge.record_placed(s, user=_user(owner_id), bet_id=bet_id, client=client)
     owner_wallet_after_placed = await _balance(owner_wallet)
     escrow_after_placed = await _livebets_escrow_balance()
     legs_after_placed = len(await _transfers_for_bet(bet_id))
