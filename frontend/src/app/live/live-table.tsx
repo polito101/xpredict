@@ -1,0 +1,109 @@
+/**
+ * LB-B-02 — `<live-bets-table>` widget host (client island).
+ *
+ * Loads the live-bets widget script via `next/script` (design §4 — served from
+ * the live-bets origin locally; no SRI in dev) and renders the custom element
+ * `<live-bets-table>` (design §5 — the element contract). The page (server)
+ * mints the session + resolves the table and passes them in; this island owns
+ * the widget lifecycle + (Task 3) the DOM-event wiring + the in-island wallet
+ * balance.
+ *
+ * React 19 renders custom elements and passes props through, but HYPHENATED
+ * attributes (`session-token`, `table-id`) are set via `ref` + `setAttribute` —
+ * the robust path for hyphenated names, and it lets the session-expired handler
+ * (Task 3) re-set the token imperatively.
+ *
+ * TypeScript: `<live-bets-table>` is declared on `React.JSX.IntrinsicElements`
+ * via a `declare module "react"` augmentation (verified against the installed
+ * `@types/react@19`, where `JSX` lives under the `react` module export, NOT a
+ * global `JSX` namespace — the `react-jsx` runtime resolves intrinsic elements
+ * through `React.JSX.IntrinsicElements`). No `any`.
+ */
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
+
+// React 19 custom-element typing: augment `React.JSX.IntrinsicElements` (this
+// @types/react ships `JSX` under the module, not a global namespace) so
+// `<live-bets-table>` typechecks WITHOUT `any`. The hyphenated attributes are
+// set imperatively via setAttribute, so the element only needs the base HTML
+// attribute surface here.
+declare module "react" {
+  // Module augmentation for a JSX intrinsic element REQUIRES a `namespace`
+  // declaration (declaration merging into `React.JSX`); the `no-namespace` rule
+  // has no ES-module equivalent for this, so it is disabled for this one line.
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace JSX {
+    interface IntrinsicElements {
+      "live-bets-table": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      >;
+    }
+  }
+}
+
+const CURRENCY = "PLAY_USD";
+
+export interface LiveTableProps {
+  sessionToken: string;
+  tableId: string;
+  initialBalance: string;
+}
+
+/**
+ * Client host for the live-bets widget. Renders the wallet balance (a labelled
+ * element matching `wallet/page.tsx`) so Task 3's refresh can update it in place,
+ * loads `widget.js`, and renders `<live-bets-table>` with `session-token` +
+ * `table-id` set via `setAttribute`.
+ */
+export function LiveTable({
+  sessionToken,
+  tableId,
+  initialBalance,
+}: LiveTableProps) {
+  const elementRef = useRef<HTMLElement>(null);
+  // Balance is held locally so Task 3's wallet refresh can move it in place
+  // (the unified XPredict balance reacting to bets is the whole point — §8).
+  const [balance] = useState(initialBalance);
+
+  const widgetSrc = process.env.NEXT_PUBLIC_LIVEBETS_WIDGET_SRC;
+
+  // Set the hyphenated attributes imperatively (robust for custom elements; also
+  // lets Task 3 re-set `session-token` on session-expired). Keyed on the inputs.
+  useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
+    el.setAttribute("session-token", sessionToken);
+    el.setAttribute("table-id", tableId);
+  }, [sessionToken, tableId]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div
+        className="flex items-baseline gap-2"
+        aria-label="wallet balance"
+        data-testid="live-balance"
+      >
+        <span className="text-2xl font-semibold tracking-tight">{balance}</span>
+        <span className="text-sm font-normal text-zinc-500">{CURRENCY}</span>
+      </div>
+
+      {/* If the widget src isn't configured, render a non-blocking notice rather
+          than an empty `<script src="undefined">` (T-LBB-07). */}
+      {widgetSrc ? (
+        <Script src={widgetSrc} strategy="afterInteractive" />
+      ) : (
+        <p
+          role="status"
+          className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400"
+        >
+          Live widget not configured.
+        </p>
+      )}
+
+      <live-bets-table ref={elementRef} />
+    </div>
+  );
+}
