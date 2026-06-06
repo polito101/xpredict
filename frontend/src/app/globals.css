@@ -1,39 +1,276 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/*
+ * XPredict — "Obsidian & Spark" design system (Phase 19).
+ *
+ * Dark-first by default (no light mode, no toggle — matches the existing
+ * no-`next-themes` decision). A deep obsidian canvas with a blue undertone, a
+ * cool "liquid silver" neutral ramp, and electric royal-blue energy from the
+ * logo. The white-label runtime brand pipeline is PRESERVED verbatim:
+ * `--brand-primary` / `--brand-primary-foreground` / `--brand-secondary` are
+ * injected per-navigation by the root layout from GET /branding/current and
+ * mapped into Tailwind via `@theme inline` below. The XPredict electric-blue /
+ * spark-cyan values here are only the DEFAULT (tenant-zero) palette.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  /* Runtime brand tokens (ADD-06 / D-10). Indigo/sky fallback so the player UI
-     is never unstyled if /branding/current is unreachable (UI-SPEC A-FALLBACK,
-     both ≥4.5:1 on white). The root layout overrides these per navigation by
-     injecting a <style>:root{...}</style> block from the server-validated
-     hexes. */
-  --brand-primary: #4f46e5;
+  color-scheme: dark;
+
+  /* Brand — white-label, runtime-injected (the root layout overrides these per
+     navigation from GET /branding/current). These fallbacks MIRROR the backend +
+     DEFAULT_BRANDING defaults verbatim (indigo→sky) so there is zero divergence;
+     the indigo→sky gradient reads as electric blue on the obsidian canvas. An
+     operator palette still re-skins everything. */
+  --brand-primary: #4f46e5; /* indigo-600 (white FG via pickReadableForeground) */
   --brand-primary-foreground: #fafafa;
-  --brand-secondary: #0ea5e9;
+  --brand-secondary: #0ea5e9; /* sky-500 — the gradient/glow endpoint (spark) */
+
+  /* Obsidian canvas + liquid-silver neutral ramp (cool, blue-tinted). */
+  --background: #060912; /* deep obsidian */
+  --surface: #0a0f1c; /* page sections / subtle fills */
+  --surface-2: #0e1424;
+  --card: #0e1424; /* card base */
+  --card-foreground: #e8ecf6;
+  --popover: #131a2c; /* dialogs, dropdowns, elevated */
+  --popover-foreground: #e8ecf6;
+  --muted: #161d30; /* inputs, muted fills */
+  --muted-foreground: #9aa6be; /* secondary text */
+  --subtle-foreground: #69748c; /* tertiary / meta text */
+  --foreground: #e8ecf6; /* primary ink (cool near-white) */
+  --border: #20293f; /* hairline */
+  --border-strong: #33405c;
+  --input: #232e47; /* input border */
+  --ring: #2563eb; /* = brand-primary */
+
+  /* Semantic — re-toned for dark (emerald / amber / red families kept). The
+     destructive BUTTON keeps Tailwind's stock red-500 (asserted in tests). */
+  --success: #34d399;
+  --success-foreground: #052e22;
+  --warning: #fbbf24;
+  --warning-foreground: #3a2a05;
+  --danger: #f87171;
+
+  --radius: 0.875rem; /* 14px base; cards round to 1rem via rounded-2xl */
+
+  /* Identity gradients. */
+  --gradient-brand: linear-gradient(
+    135deg,
+    var(--brand-primary),
+    var(--brand-secondary)
+  );
+  --gradient-metal: linear-gradient(
+    140deg,
+    #f4f7ff 0%,
+    #c2cce3 45%,
+    #7c88a6 100%
+  );
 }
 
 @theme inline {
+  /* Colors (kept as var() indirection so the runtime brand injection flows). */
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
   --color-foreground: var(--foreground);
-  /* Maps the brand tokens into Tailwind v4 so they are usable as
-     bg-brand-primary / text-brand-primary / border-brand-primary etc. */
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
   --color-brand-primary: var(--brand-primary);
   --color-brand-primary-foreground: var(--brand-primary-foreground);
   --color-brand-secondary: var(--brand-secondary);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.5rem);
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.45), 0 12px 32px -16px rgb(0 0 0 / 0.7);
+  --shadow-pop: 0 16px 48px -12px rgb(0 0 0 / 0.75);
+
+  --animate-spark: spark-pulse 3.2s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  --animate-glow: glow-breathe 4s ease-in-out infinite;
+  --animate-rise-in: rise-in 0.4s ease-out both;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@keyframes spark-pulse {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -180% 0;
+  }
+  to {
+    background-position: 180% 0;
+  }
+}
+
+@keyframes glow-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@layer utilities {
+  /* Electric-blue → spark-cyan gradient text (hero headlines, key numbers). */
+  .text-gradient-brand {
+    background-image: var(--gradient-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Liquid-silver metallic text (wordmark / chrome accents). */
+  .text-metal {
+    background-image: var(--gradient-metal);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-gradient-brand {
+    background-image: var(--gradient-brand);
+  }
+
+  /* Translucent, blurred chrome surface (header, hero cards). */
+  .surface-glass {
+    background-color: color-mix(in oklab, var(--card) 72%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  }
+
+  /* Brand glow (CTAs, the spark, focus moments). */
+  .glow-brand {
+    box-shadow: 0 0 0 1px
+        color-mix(in oklab, var(--brand-primary) 35%, transparent),
+      0 8px 30px -6px color-mix(in oklab, var(--brand-primary) 55%, transparent);
+  }
+  .glow-brand-sm {
+    box-shadow: 0 4px 18px -6px
+      color-mix(in oklab, var(--brand-primary) 50%, transparent);
+  }
+
+  /* Obsidian aurora backdrop — radial brand glows echoing the X crossing. */
+  .aurora {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(
+        60rem 40rem at 50% -10%,
+        color-mix(in oklab, var(--brand-primary) 22%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        40rem 30rem at 100% 0%,
+        color-mix(in oklab, var(--brand-secondary) 14%, transparent),
+        transparent 55%
+      ),
+      radial-gradient(
+        50rem 40rem at 0% 30%,
+        color-mix(in oklab, var(--brand-primary) 10%, transparent),
+        transparent 60%
+      );
+  }
+
+  /* Shimmering skeleton fill. */
+  .shimmer {
+    background-image: linear-gradient(
+      100deg,
+      transparent 20%,
+      color-mix(in oklab, var(--foreground) 8%, transparent) 40%,
+      color-mix(in oklab, var(--foreground) 12%, transparent) 50%,
+      color-mix(in oklab, var(--foreground) 8%, transparent) 60%,
+      transparent 80%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2.2s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer,
+    .animate-spark {
+      animation: none;
+    }
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    sans-serif;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-space-grotesk), var(--font-inter), ui-sans-serif,
+    system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--brand-primary) 35%, transparent);
+  color: var(--foreground);
+}
+
+/* Cool, slim scrollbars on the obsidian canvas. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }

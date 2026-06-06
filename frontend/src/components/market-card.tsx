@@ -1,5 +1,5 @@
 /**
- * MarketCard -- displays a single market in the grid.
+ * MarketCard -- displays a single binary market in the catalog grid.
  *
  * Shows question, YES/NO odds bar, volume, deadline, and source badge.
  * Uses a stretched-link pattern: the question title contains a Link with
@@ -44,34 +44,45 @@ export function MarketCard({ market }: MarketCardProps) {
   const isEnded = deadline === "Ended";
 
   return (
-    <Card className="group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-brand-primary focus-within:ring-offset-2">
-      <CardHeader className="p-6 pb-2">
-        <h3 className="text-base font-semibold leading-snug line-clamp-3">
+    <Card className="group relative flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-brand-primary/40 hover:shadow-pop focus-within:ring-2 focus-within:ring-brand-primary/60">
+      {/* Hover glow wash from the top edge. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-brand opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+      />
+      <CardHeader className="flex-row items-start justify-between gap-2 p-5 pb-3">
+        {market.category ? (
+          <span className="truncate rounded-full bg-muted px-2.5 py-0.5 text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">
+            {market.category}
+          </span>
+        ) : (
+          <span />
+        )}
+        <div className="relative z-10 shrink-0">
+          <SourceBadge source={market.source} sourceUrl={market.source_url} />
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 p-5 py-0">
+        <h3 className="text-[0.95rem] font-semibold leading-snug line-clamp-3 text-foreground">
           <Link
             href={`/markets/${market.slug}`}
-            className="after:absolute after:inset-0"
+            className="outline-none after:absolute after:inset-0"
             aria-label={market.question}
           >
             {market.question}
           </Link>
         </h3>
-      </CardHeader>
-      <CardContent className="p-6 pt-0">
-        <OddsDisplay yes={primaryPercent} no={secondaryPercent} />
       </CardContent>
-      <CardFooter className="p-6 pt-0 flex justify-between items-end gap-2">
-        <div className="min-w-0 truncate text-sm text-zinc-500">
-          <span>Vol: {formatVolume(market.volume)}</span>
-          <span className="mx-2">|</span>
-          <span className={isEnded ? "text-zinc-400" : undefined}>
+      <CardFooter className="mt-4 flex-col items-stretch gap-3 p-5 pt-0">
+        <OddsDisplay yes={primaryPercent} no={secondaryPercent} />
+        <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/80">
+            {formatVolume(market.volume)}{" "}
+            <span className="font-normal text-subtle-foreground">vol</span>
+          </span>
+          <span className={isEnded ? "text-subtle-foreground" : undefined}>
             {deadline}
           </span>
-        </div>
-        <div className="relative z-10 shrink-0">
-          <SourceBadge
-            source={market.source}
-            sourceUrl={market.source_url}
-          />
         </div>
       </CardFooter>
     </Card>

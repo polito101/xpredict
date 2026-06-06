@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { SourceBadge } from "@/components/source-badge";
+import { Spark } from "@/components/brand/spark";
 import { formatDate } from "@/lib/admin-format";
 import { cn } from "@/lib/utils";
 
@@ -90,7 +91,7 @@ function PnL({ value }: { value: string }) {
     <span
       className={
         negative
-          ? "text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          ? "text-sm font-medium text-muted-foreground"
           : "text-sm font-medium text-emerald-600"
       }
     >
@@ -137,13 +138,13 @@ export function MarketResolutionPanel({
       <CardContent className="flex flex-col gap-4">
         {/* Winning outcome — emerald chip if the player won, else neutral. */}
         <div className="flex flex-wrap items-center gap-2 text-base font-medium">
-          <span className="text-zinc-600 dark:text-zinc-400">Resolved:</span>
+          <span className="text-muted-foreground">Resolved:</span>
           <span
             className={cn(
-              "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
               won
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+                ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400"
+                : "border-border bg-muted text-muted-foreground",
             )}
           >
             {winningOutcomeLabel ?? "—"}
@@ -151,7 +152,7 @@ export function MarketResolutionPanel({
         </div>
 
         {/* Resolution source attribution — token-derived (+ link for Polymarket). */}
-        <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span>{sourceLine(resolutionSource, operatorName)}</span>
           {resolutionSource === "POLYMARKET_UMA" && (
             <SourceBadge source={source} sourceUrl={sourceUrl} />
@@ -159,14 +160,14 @@ export function MarketResolutionPanel({
         </div>
 
         {/* Settlement timestamp. */}
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-muted-foreground">
           Settled {formatDate(resolvedAt)}
         </p>
 
         {/* Public justification — ESCAPED React text (NEVER dangerouslySetInnerHTML). */}
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-medium">Why this resolved</h3>
-          <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+          <p className="text-sm leading-relaxed text-foreground/80">
             {justification}
           </p>
         </div>
@@ -176,19 +177,29 @@ export function MarketResolutionPanel({
           <>
             <Separator />
             {myResult ? (
-              <div className="flex flex-col gap-2">
-                <p className="text-base font-medium">
-                  {won ? "Won" : "Lost"} — payout {myResult.payout} {CURRENCY}
-                </p>
+              <div
+                className={cn(
+                  "flex flex-col gap-2 rounded-xl border p-4",
+                  won
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-border bg-surface/50",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {won && <Spark className="h-5 w-5 shrink-0" />}
+                  <p className="text-base font-semibold">
+                    {won ? "Won" : "Lost"} — payout {myResult.payout} {CURRENCY}
+                  </p>
+                </div>
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                  <span className="min-w-0 text-sm text-zinc-500">
+                  <span className="min-w-0 text-sm text-muted-foreground">
                     Realized P&amp;L
                   </span>
                   <PnL value={myResult.realized_pnl} />
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-muted-foreground">
                 You didn&apos;t bet on this market.
               </p>
             )}

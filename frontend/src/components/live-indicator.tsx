@@ -27,19 +27,19 @@ const STATE_CONFIG: Record<
   { dot: string; label: string; text: string }
 > = {
   live: {
-    dot: "bg-emerald-500 animate-pulse",
+    dot: "bg-emerald-400 animate-pulse shadow-[0_0_8px] shadow-emerald-400/70",
     label: "Live",
-    text: "text-emerald-700 dark:text-emerald-400",
+    text: "text-emerald-400",
   },
   stale: {
-    dot: "bg-amber-500",
+    dot: "bg-amber-400",
     label: "Stale",
-    text: "text-amber-700 dark:text-amber-400",
+    text: "text-amber-400",
   },
   reconnecting: {
-    dot: "bg-amber-500 animate-pulse",
+    dot: "bg-amber-400 animate-pulse",
     label: "Reconnecting…",
-    text: "text-amber-700 dark:text-amber-400",
+    text: "text-amber-400",
   },
 };
 

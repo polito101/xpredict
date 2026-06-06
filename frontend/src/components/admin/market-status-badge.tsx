@@ -13,23 +13,27 @@
  */
 import { cn } from "@/lib/utils";
 
-/** UI-SPEC §Status badge palette — the locked 5-state color map (incl. dark). */
+/**
+ * Status badge palette — dark-tuned "tint" chips (Phase 19). Each is a soft
+ * translucent fill + a vivid ink, legible on the obsidian card surface. The
+ * asserted three (OPEN / RESOLVED / CANCELLED) are kept in lockstep with
+ * market-status-badge.test.tsx.
+ */
 const STATUS_COLORS: Record<string, string> = {
-  // active/healthy — matches the "Active" user chip
-  OPEN: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  // active/healthy
+  OPEN: "bg-emerald-500/15 text-emerald-400",
   // awaiting resolution, not terminal
-  CLOSED: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  // terminal/done — matches the "House" source chip emphasis
-  RESOLVED: "bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900",
-  // terminal-negative — matches the "Banned" user chip
-  CANCELLED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  // neutral/inactive — matches the secondary Polymarket chip
-  DRAFT: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+  CLOSED: "bg-amber-500/15 text-amber-400",
+  // terminal/done — a neutral, solid "settled" chip
+  RESOLVED: "bg-foreground/10 text-foreground",
+  // terminal-negative
+  CANCELLED: "bg-red-500/15 text-red-400",
+  // neutral/inactive
+  DRAFT: "bg-muted text-subtle-foreground",
 };
 
 // Fallback for an unexpected status token — neutral, never a crash.
-const FALLBACK_COLOR =
-  "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300";
+const FALLBACK_COLOR = "bg-muted text-muted-foreground";
 
 export function MarketStatusBadge({
   status,

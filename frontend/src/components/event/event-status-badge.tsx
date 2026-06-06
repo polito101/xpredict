@@ -9,21 +9,19 @@ import { cn } from "@/lib/utils";
 const EVENT_STATUS: Record<string, { label: string; classes: string }> = {
   open: {
     label: "Open",
-    classes:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    classes: "bg-emerald-500/15 text-emerald-400",
   },
   partially_resolved: {
     label: "Partially resolved",
-    classes:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    classes: "bg-amber-500/15 text-amber-400",
   },
   resolved: {
     label: "Resolved",
-    classes: "bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900",
+    classes: "bg-foreground/10 text-foreground",
   },
   void: {
     label: "Void",
-    classes: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+    classes: "bg-muted text-subtle-foreground",
   },
 };
 
@@ -36,7 +34,7 @@ export function EventStatusBadge({
 }) {
   const s = EVENT_STATUS[status] ?? {
     label: status,
-    classes: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+    classes: "bg-muted text-muted-foreground",
   };
   return (
     <span

@@ -1,24 +1,24 @@
 /**
- * Plan 10-05 — player-header brand logo / wordmark (ADD-06, UI-SPEC Component
- * Inventory + Accessibility guardrail).
+ * BrandLogo — player-header brand logo / wordmark (ADD-06).
  *
- * Renders the operator's logo when one is configured, else the brand name as a
+ * Renders the operator's uploaded logo when one is configured; otherwise the
+ * DEFAULT XPredict mark (the angular "X" + spark, `XMark`) beside the brand-name
  * wordmark, falling back to "XPredict" when the name is unset. Consumed from the
- * same `/branding/current` payload the root layout already awaits — no extra
- * fetch.
+ * same `/branding/current` payload the root layout already awaits — no extra fetch.
  *
- * Security (T-10-02): the logo is rendered ONLY via `<img src="/branding/logo">`
- * (SVG-in-`<img>` does not execute script; the backend serves it with
- * `X-Content-Type-Options: nosniff`). The logo bytes are NEVER inlined into the
- * DOM as markup.
+ * Security (T-10-02): an operator logo is rendered ONLY via
+ * `<img src="/branding/logo">` (SVG-in-`<img>` does not execute script; the
+ * backend serves it with `X-Content-Type-Options: nosniff`). Logo bytes are NEVER
+ * inlined into the DOM as markup.
  *
- * Accessibility (UI-SPEC A-PALETTE guardrail #4): the wordmark text keeps the
- * zinc/foreground ink layer — brand color is used ONLY as a subtle accent dot,
- * never as the background of legibility-critical text. A bad operator palette
- * therefore can never make the header name unreadable.
+ * Accessibility (A-PALETTE #4): the wordmark text keeps a legible cool-ink layer;
+ * brand color is used only as the mark/accent, never as the background of
+ * legibility-critical text — a bad operator palette can never make the header
+ * name unreadable.
  */
 import Link from "next/link";
 
+import { XMark } from "@/components/brand/x-mark";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,7 +47,7 @@ export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
       href="/"
       aria-label={name}
       className={cn(
-        "inline-flex items-center gap-2 font-semibold tracking-tight text-zinc-900",
+        "group inline-flex items-center gap-2.5 font-display text-base font-semibold tracking-tight",
         className,
       )}
     >
@@ -59,17 +59,21 @@ export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
         <img
           src={`${publicApiBase()}${logoUrl}`}
           alt={name}
-          className="h-7 w-auto"
+          className="h-8 w-auto"
         />
       ) : (
         <>
-          {/* Brand-color accent dot — the ONLY place --brand-primary touches the
-              header; the wordmark text below stays zinc ink (A-PALETTE #4). */}
-          <span
-            aria-hidden="true"
-            className="h-2.5 w-2.5 rounded-full bg-brand-primary"
-          />
-          <span className="text-base">{name}</span>
+          <XMark className="h-8 w-8 transition-transform duration-300 group-hover:scale-105" />
+          <span className="text-foreground">
+            {name === "XPredict" ? (
+              <>
+                <span className="text-metal">X</span>
+                <span>Predict</span>
+              </>
+            ) : (
+              name
+            )}
+          </span>
         </>
       )}
     </Link>

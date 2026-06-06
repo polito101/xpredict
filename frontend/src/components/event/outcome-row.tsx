@@ -34,10 +34,10 @@ export function OutcomeRow({
       aria-pressed={selected}
       aria-label={`${label}, ${yesPct}% YES`}
       className={cn(
-        "flex w-full flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
+        "flex w-full flex-col gap-2 rounded-xl border p-3.5 text-left transition-all",
         selected
-          ? "border-brand-primary ring-2 ring-brand-primary"
-          : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600",
+          ? "border-brand-primary/60 bg-brand-primary/5 ring-1 ring-brand-primary/40"
+          : "border-border bg-card hover:border-border-strong hover:bg-surface",
       )}
     >
       <div className="flex items-center justify-between gap-3">
@@ -49,12 +49,12 @@ export function OutcomeRow({
       </div>
       {/* This outcome's OWN YES bar — independent, never a cross-outcome sum. */}
       <div
-        className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+        className="h-2 w-full overflow-hidden rounded-full bg-muted"
         role="img"
         aria-label={`${label}: ${yesPct}% YES`}
       >
         <div
-          className="h-full bg-brand-primary"
+          className="h-full rounded-full bg-gradient-brand transition-[width] duration-500"
           style={{ width: `${yesPct}%` }}
         />
       </div>
