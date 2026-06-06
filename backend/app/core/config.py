@@ -139,6 +139,19 @@ class Settings(BaseSettings):
         CategoryEntry(name="World", slug="world", tag_id="101970"),
     ]
 
+    # -------------------------------------------------------------------------
+    # Live-bets demo (v1.3, LB-A)
+    # -------------------------------------------------------------------------
+    # Operator-plane integration with the live-bets API. The API key is optional
+    # in dev/test so ``Settings()`` validates with no value; the client raises a
+    # clear error if a call is attempted while it is unset. Never log the key
+    # (CONVENTIONS §8 scrubber covers ``api_key``).
+    LIVEBETS_API_BASE: str = "http://localhost:8080"
+    LIVEBETS_API_KEY: str | None = None
+    LIVEBETS_DEFAULT_TABLE_ID: str | None = None
+    LIVEBETS_ENABLE_WEBHOOK: bool = False
+    LIVEBETS_WEBHOOK_SECRET: str | None = None
+
     @property
     def is_dev(self) -> bool:
         """Drives structlog renderer, Sentry init skip, cookie Secure flag (Phase 2)."""

@@ -88,6 +88,128 @@ export interface ActivityItem {
   created_at: string;
 }
 
+// -- Live-bets types (LB-B) --------------------------------------------------
+
+/**
+ * The minted live-bets session (`POST /api/live/session`). Matches LB-A
+ * `SessionResponse` (`backend/app/integrations/livebets/schemas.py`): a
+ * short-lived per-player JWT (`session_token`) the widget is rendered with, its
+ * `expires_at`, and the `table_id` the session was minted for (all STRINGS on the
+ * wire — design §7).
+ *
+ * `table_id` is the demo's source of the widget's `table-id` attribute: the
+ * live-bets `GET /tables` route is JWT-gated, so the operator-key
+ * `/api/live/tables` can't list tables — LB-A echoes the resolved id here instead.
+ */
+export interface LiveSession {
+  session_token: string;
+  expires_at: string;
+  table_id: string;
+}
+
+/**
+ * One live-bets catalog table (`GET /api/live/tables`). Matches LB-A
+ * `TableItem`; `name` is optional server-side, so it is `string | null` here.
+ * The `table_id` feeds the widget's `table-id` attribute (design §5).
+ */
+export interface LiveTable {
+  table_id: string;
+  name: string | null;
+}
+
+/**
+ * The placed/settled mirror outcome. Matches LB-A `MirrorResult`. `applied`
+ * is `false` for an idempotent no-op (the bet was already mirrored / already
+ * settled) — a benign success, NOT an error (design §8 idempotency). `status`
+ * stays a string (the live-bets bet status echoed back by LB-A).
+ */
+export interface LiveMirrorResult {
+  bet_id: string;
+  status: string;
+  applied: boolean;
+}
+
+/**
+ * Thrown by `fetchLiveSession` when LB-A returns 400 ("No table_id supplied and
+ * LIVEBETS_DEFAULT_TABLE_ID is not configured."). Lets the `/live` page branch
+ * to the friendly "No live table configured yet" empty state — the default
+ * LB-B demo state before LB-C ships a table — instead of a generic error
+ * (CONTEXT Scope-IN bullet 1). Mirrors `MarketNotFound`.
+ */
+export class LiveTableUnconfigured extends Error {
+  constructor() {
+    super("No live table configured (LIVEBETS_DEFAULT_TABLE_ID is unset).");
+    this.name = "LiveTableUnconfigured";
+  }
+}
+
+/**
+ * Mints (or renews) the player's live-bets session via LB-A
+ * `POST /api/live/session`. Runs SERVER-SIDE from the `/live` Server Component,
+ * so it takes the player's HttpOnly `xpredict_session` cookie value and forwards
+ * it as a `Cookie:` header — the cookie is HttpOnly and the backend is a
+ * different origin, so `credentials:"include"` would not carry it (mirrors
+ * `bet-actions.ts` / `wallet/page.tsx`). The body sends `{ table_id }` only when
+ * supplied; otherwise LB-A defaults from `LIVEBETS_DEFAULT_TABLE_ID`. A 400
+ * (no table configured) throws `LiveTableUnconfigured`; any other non-ok throws
+ * `Error` with the status. Uses `apiBase()` + `no-store` (mirrors `fetchMarket`).
+ *
+ * The 200 body carries `table_id` (the table the session was minted for) — the
+ * `/live` page feeds it straight into the widget's `table-id` attribute, so there
+ * is no need to call the (JWT-gated, operator-key-incompatible) `/api/live/tables`.
+ */
+export async function fetchLiveSession(
+  session: string,
+  tableId?: string,
+): Promise<LiveSession> {
+  const res = await fetch(`${apiBase()}/api/live/session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Cookie: `xpredict_session=${session}`,
+    },
+    // SessionRequest accepts an optional table_id; omit the key when undefined
+    // so LB-A falls back to LIVEBETS_DEFAULT_TABLE_ID.
+    body: JSON.stringify(tableId === undefined ? {} : { table_id: tableId }),
+    cache: "no-store",
+  });
+
+  if (res.status === 400) {
+    throw new LiveTableUnconfigured();
+  }
+  if (!res.ok) {
+    throw new Error(`Failed to mint live session: ${res.status}`);
+  }
+
+  return res.json() as Promise<LiveSession>;
+}
+
+/**
+ * Lists the live-bets catalog tables via LB-A `GET /api/live/tables`. Runs
+ * SERVER-SIDE; forwards the player's session cookie exactly like
+ * `fetchLiveSession`. Reads the `.tables` array off LB-A `TablesResponse`. Uses
+ * `apiBase()` + `no-store`.
+ *
+ * NOTE: this is NOT on the demo path. The underlying live-bets `GET /tables` is
+ * JWT-gated (player session), but XPredict's `/api/live/tables` calls it with the
+ * operator key, which 401s — so this cannot resolve the demo table id. The widget
+ * now gets its `table-id` from the session's `table_id` (see `fetchLiveSession` /
+ * LB-A `SessionResponse`). Left in place for a future JWT-forwarding path.
+ */
+export async function fetchLiveTables(session: string): Promise<LiveTable[]> {
+  const res = await fetch(`${apiBase()}/api/live/tables`, {
+    headers: { Cookie: `xpredict_session=${session}` },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch live tables: ${res.status}`);
+  }
+
+  const data = (await res.json()) as { tables?: LiveTable[] };
+  return data.tables ?? [];
+}
+
 // -- Fetch helpers -----------------------------------------------------------
 
 /**

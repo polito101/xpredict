@@ -9,7 +9,7 @@
 - ✅ **v1.0 MVP** — Phases 1-12 (shipped 2026-06-04) — production-grade play-money prediction market, end-to-end.
 - ✅ **v1.1 Demo Polish** — Fases A-E (shipped 2026-06-04) — brand-aware design system, seed/demo harness, player & operator polish, demo QA.
 - ✅ **v1.2 Credible Catalog** — Phases 13-18 (shipped 2026-06-06) — multi-outcome events (event-of-binaries) + curated per-category catalog + browse + admin event ops + demo seed.
-- ▶ **v1.3** — not yet defined. Run `/gsd-new-milestone` to scope it.
+- ✅ **v1.3 Live-Bets demo** — Fases LB-A/B/C (shipped 2026-06-06, off-grid) — embed live-bets multi-player betting inside XPredict as operator: unified XPredict wallet, embedded `<live-bets-table>` widget, event-driven idempotent ledger mirror. Demo-only, additive.
 
 ## Phases
 
@@ -59,6 +59,17 @@
 
 </details>
 
+<details>
+<summary>✅ v1.3 Live-Bets demo (Fases LB-A/B/C) — SHIPPED 2026-06-06 (off-grid)</summary>
+
+> Off the formal phase grid (like v1.1): isolated worktree (`xpredict-livebets`, branch `gsd/livebets-demo`), landed via direct merge; `.planning/` reconciled here. Plan-of-record: [`milestones/v1.3-MILESTONE-CONTEXT.md`](milestones/v1.3-MILESTONE-CONTEXT.md). Design contract: [`live-bets-integration-design`](../docs/superpowers/specs/2026-06-05-live-bets-integration-design.md). Runbook: [`../docs/superpowers/DEMO-RUNBOOK-live-bets.md`](../docs/superpowers/DEMO-RUNBOOK-live-bets.md).
+
+- [x] **Fase LB-A: Backend bridge** — `app/integrations/livebets/` (httpx client + `LiveBetsBridge` + router) + additive migration (`livebets_escrow` system account + `livebets_bets` mirror table) + config + tests. Event-driven idempotent ledger mirror (debit on `bet-placed`, credit on settle), server-verified via `GET /v2/bets/{id}`; per-player ownership (IDOR-safe).
+- [x] **Fase LB-B: Frontend surface** — `/live` route embedding `<live-bets-table>` in XPredict chrome + wallet; DOM-event wiring to backend; "Live" nav entry; HttpOnly cookie via Server Actions; component tests.
+- [x] **Fase LB-C: Demo harness** — isolated live-bets instance (`:8002`, CORS), full-scope operator key, clips + orchestrator (live rounds), env wiring + runbook. E2E proven: bet from `/live` → XPredict wallet moves. Real contract drift vs the v3 guide fixed (`GET /tables`, `BetView.id/selection`, `/v2/sessions` Idempotency-Key).
+
+</details>
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -71,5 +82,6 @@
 | 16. Catalog & Event API + House Event CRUD | v1.2 | 5/5 | ✅ Complete | 2026-06-05 |
 | 17. Catalog Browse UI, Event Detail & Admin Event Ops | v1.2 | 5/5 | ✅ Complete | 2026-06-06 |
 | 18. Seed/Demo Harness for Multi-outcome + Categories | v1.2 | 1/1 | ✅ Complete | 2026-06-06 |
+| LB-A/B/C. Live-Bets demo (off-grid) | v1.3 | done | ✅ Complete | 2026-06-06 |
 
 **Known deferred at v1.2 close:** 2 Phase-14 live human-UAT checks (redbeat schedule reload + Gamma `tag_id` drift re-verify). Carried from v1.0/v1.1: 3 human-UAT + 3 verification gaps (Phase 12), and the **non-deferrable Spanish legal review** of ToS/token policy before any live operator demo (see [`STATE.md`](STATE.md) › Deferred Items).
