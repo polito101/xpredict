@@ -1,0 +1,33 @@
+# XPredict demo — Caddy reverse-proxy + automatic HTTPS (Let's Encrypt).
+#
+# Two subdomains (both must have DNS A records pointing at the VM's public IP):
+#   {$APP_DOMAIN}  → the Next.js frontend  (app.your-domain.com)
+#   {$API_DOMAIN}  → the FastAPI backend + WebSocket  (api.your-domain.com)
+#
+# Why two subdomains instead of path-based routing on one host: the frontend
+# serves its own Next.js routes under /api/* (e.g. /api/healthz), which would
+# collide with the backend's /api/v1/*. Separate origins avoid the collision and
+# keep the browser's Origin header clean — which matters because the backend's
+# CORS allow-list AND its WebSocket Origin check both compare against the single
+# FRONTEND_BASE_URL (= https://{$APP_DOMAIN}). Set them consistently in .env.prod.
+#
+# Caddy auto-provisions + renews TLS certs once the DNS resolves to this box and
+# ports 80/443 are reachable. `reverse_proxy` upgrades WebSocket connections
+# transparently, so wss://{$API_DOMAIN}/ws/markets/{id} just works.
+
+{
+	# ACME account email for Let's Encrypt expiry notices.
+	email {$ACME_EMAIL}
+}
+
+# ---- Frontend ----------------------------------------------------------------
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy frontend:3000
+}
+
+# ---- Backend API + WebSocket -------------------------------------------------
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy backend:8000
+}
