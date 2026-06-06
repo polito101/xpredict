@@ -7,9 +7,12 @@
  * `playerName` (best-effort from `/auth/users/me`) drives the account affordance.
  * The cookie value never reaches client JS.
  *
- * Desktop shows a pill nav inline; mobile collapses the links behind a menu
- * button (the menu content renders only when open, so the desktop links remain
- * the single source of each label in the DOM).
+ * Phase 19 — landing/app split: the public landing (`/`) is brand-only, and the
+ * app (markets, wallet, portfolio) lives behind authentication. So the app
+ * destinations show ONLY when authenticated; a logged-out visitor sees just
+ * Log in / Sign up. Desktop shows the nav inline; logged-in mobile collapses the
+ * destinations behind a menu button (rendered only when open, so the desktop
+ * links remain the single source of each label in the DOM).
  */
 "use client";
 
@@ -23,13 +26,16 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const DESTINATIONS = [
-  { href: "/", label: "Markets" },
+  { href: "/markets", label: "Markets" },
   { href: "/wallet", label: "Wallet" },
   { href: "/portfolio", label: "Portfolio" },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  if (href === "/markets") {
+    return pathname.startsWith("/markets") || pathname.startsWith("/events");
+  }
+  return pathname.startsWith(href);
 }
 
 function navLinkClass(active: boolean): string {
@@ -51,9 +57,23 @@ export function PlayerNav({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  // Logged-out: the landing chrome — just Log in / Sign up (no app destinations).
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <Link href="/login" className={navLinkClass(false)}>
+          Log in
+        </Link>
+        <Button asChild size="sm" className="rounded-full">
+          <Link href="/register">Sign up</Link>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Desktop nav */}
+      {/* Desktop nav (authenticated) */}
       <nav
         className="hidden items-center gap-1 sm:flex"
         aria-label="Main navigation"
@@ -72,46 +92,32 @@ export function PlayerNav({
           );
         })}
 
-        <span
-          className="mx-1.5 h-5 w-px bg-border"
-          aria-hidden="true"
-        />
+        <span className="mx-1.5 h-5 w-px bg-border" aria-hidden="true" />
 
-        {isAuthenticated ? (
-          <div className="flex items-center gap-2">
-            {playerName && (
-              <Link
-                href="/portfolio"
-                className="flex items-center gap-2 rounded-full border border-border bg-muted/60 py-1 pl-1 pr-3 text-sm text-foreground transition-colors hover:border-border-strong"
-              >
-                <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-brand text-[0.65rem] font-semibold text-brand-primary-foreground">
-                  {playerName.charAt(0).toUpperCase()}
-                </span>
-                <span className="max-w-[10ch] truncate">{playerName}</span>
-              </Link>
-            )}
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              >
-                Log out
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <Link href="/login" className={navLinkClass(false)}>
-              Log in
+        <div className="flex items-center gap-2">
+          {playerName && (
+            <Link
+              href="/portfolio"
+              className="flex items-center gap-2 rounded-full border border-border bg-muted/60 py-1 pl-1 pr-3 text-sm text-foreground transition-colors hover:border-border-strong"
+            >
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-gradient-brand text-[0.65rem] font-semibold text-brand-primary-foreground">
+                {playerName.charAt(0).toUpperCase()}
+              </span>
+              <span className="max-w-[10ch] truncate">{playerName}</span>
             </Link>
-            <Button asChild size="sm" className="rounded-full">
-              <Link href="/register">Sign up</Link>
-            </Button>
-          </div>
-        )}
+          )}
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              Log out
+            </button>
+          </form>
+        </div>
       </nav>
 
-      {/* Mobile menu button */}
+      {/* Mobile menu button (authenticated) */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -122,7 +128,7 @@ export function PlayerNav({
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
 
-      {/* Mobile menu sheet — rendered only when open (avoids duplicate labels). */}
+      {/* Mobile sheet — rendered only when open (avoids duplicate labels). */}
       {open && (
         <div className="absolute inset-x-0 top-16 z-40 border-b border-border surface-glass sm:hidden">
           <nav
@@ -149,29 +155,14 @@ export function PlayerNav({
               );
             })}
             <div className="my-1 h-px bg-border" />
-            {isAuthenticated ? (
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className="w-full rounded-xl px-4 py-3 text-left text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  Log out
-                </button>
-              </form>
-            ) : (
-              <div className="flex flex-col gap-2 pt-1">
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/login" onClick={() => setOpen(false)}>
-                    Log in
-                  </Link>
-                </Button>
-                <Button asChild className="w-full">
-                  <Link href="/register" onClick={() => setOpen(false)}>
-                    Sign up
-                  </Link>
-                </Button>
-              </div>
-            )}
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="w-full rounded-xl px-4 py-3 text-left text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Log out
+              </button>
+            </form>
           </nav>
         </div>
       )}

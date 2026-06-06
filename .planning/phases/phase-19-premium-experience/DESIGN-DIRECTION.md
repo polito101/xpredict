@@ -108,3 +108,31 @@ The obsidian + silver neutral system is brand-independent, so any tenant color l
 - Any new identity component ships with its own tests (text/role/aria style).
 
 All other tests are text/role/aria/testid and survive the reskin unchanged.
+
+---
+
+## 7. Positioning addendum (mid-phase product direction)
+
+XPredict is positioned **platform-first** — a white-label, API-first **engine** for
+prediction markets (Stripe / Vercel / Shopify-Platform altitude), not primarily a
+Polymarket-style trading destination. The public homepage is a **brand landing**, and the
+live app is presented as the platform's **live demo**.
+
+**Three capabilities, equal weight** (the landing's core narrative):
+1. **Run** native XPredict markets (trade, live odds, settlement) — the demo app.
+2. **Integrate** external markets (Polymarket mirror) into one curated catalog.
+3. **Launch** your own markets via the API + white-label branding.
+
+**Routing (landing ⇄ app split):**
+- `/` = public **Landing** (`HeroBand` → `Pillars` → `CapabilityGrid` → `DemoShowcase` →
+  `HowItWorks` → `LandingCta`). Resilient: all backend reads are best-effort; stats + featured
+  cards derive from the PUBLIC `/catalog` (real data, no new API); the hero uses the runtime
+  brand name.
+- The **app is behind authentication**: the catalog moved to `/markets`; the edge middleware
+  (`proxy.ts`) redirects `/markets`, `/events`, `/portfolio`, `/wallet` → `/login` without a
+  session (admin `/admin/*` gate unchanged). `loginAction` now lands in `/markets`; logout
+  returns to `/`. Nav: logged-out = Log in / Sign up only; logged-in = the app destinations.
+- **Backoffice unchanged** — separate, only via `/admin/*`.
+- CTAs: primary **Log in** ("Acceder"), secondary **Explore the live demo** (`#demo`), with
+  **Create account** prominent in the closing band. Lockstep test updates: `player-nav.test`,
+  `middleware.test`, `auth.test` (login redirect → `/markets`).

@@ -37,15 +37,15 @@ function EventNotFoundState() {
         className="flex flex-col items-center justify-center py-24 text-center"
         role="status"
       >
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">
           Event not found
         </h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-muted-foreground">
           This event doesn&apos;t exist or is no longer available.
         </p>
         <Link
           href="/"
-          className="mt-4 text-sm text-zinc-900 underline dark:text-zinc-100"
+          className="mt-4 text-sm text-foreground underline underline-offset-4 hover:text-brand-primary"
         >
           Back to markets
         </Link>
@@ -62,10 +62,10 @@ function EventErrorState() {
         className="flex flex-col items-center justify-center py-24 text-center"
         role="status"
       >
-        <h1 className="text-3xl font-semibold tracking-tight text-rose-700">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-red-400">
           Unable to load this event
         </h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong. Try refreshing the page.
         </p>
       </div>
@@ -110,17 +110,20 @@ async function EventDetailBody({ slug }: { slug: string }) {
 
   return (
     <main className={PAGE_SHELL}>
-      <header className="mb-8 flex flex-wrap items-center gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">{event.title}</h1>
-        <SourceBadge source={event.source} sourceUrl={null} />
-        <EventStatusBadge status={event.status} />
+      <header className="mb-8 flex flex-col gap-3">
+        {event.category && (
+          <span className="text-xs font-medium uppercase tracking-wide text-subtle-foreground">
+            {event.category}
+          </span>
+        )}
+        <h1 className="font-display text-3xl font-semibold leading-tight tracking-tight">
+          {event.title}
+        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <SourceBadge source={event.source} sourceUrl={null} />
+          <EventStatusBadge status={event.status} />
+        </div>
       </header>
-
-      {event.category && (
-        <p className="mb-6 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          {event.category}
-        </p>
-      )}
 
       <EventDetailView
         event={event}

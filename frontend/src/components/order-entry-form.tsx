@@ -184,7 +184,7 @@ export function OrderEntryForm({
   if (!isAuthenticated) {
     return (
       <div className="flex flex-col gap-3" data-testid="order-entry-login">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           You need an account to place a bet on this market.
         </p>
         <Button asChild size="lg">
@@ -253,9 +253,9 @@ export function OrderEntryForm({
             )}
           />
 
-          <p className="flex items-center justify-between text-sm text-zinc-500">
+          <p className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5 text-sm text-muted-foreground">
             <span>Expected payout</span>
-            <span className="font-normal text-zinc-950 dark:text-zinc-50">
+            <span className="font-display font-semibold tabular-nums text-foreground">
               {payout} {CURRENCY}
             </span>
           </p>
@@ -263,7 +263,7 @@ export function OrderEntryForm({
           {isClosed && (
             <p
               role="alert"
-              className="text-sm font-semibold text-rose-700 dark:text-rose-400"
+              className="text-sm font-semibold text-red-400"
               data-testid="market-closed"
             >
               This market is closed and no longer accepting bets.

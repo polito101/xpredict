@@ -1,13 +1,14 @@
 /**
  * Plan 02-04 — Shared layout for the `(auth)` route group.
  *
- * The parens in `(auth)` make Next.js skip the segment in the URL — pages
- * keep their flat paths (`/login`, `/register`, ...) while sharing this
- * centered Card wrapper.
- *
- * Server Component (no `"use client"`) — purely structural.
+ * The parens in `(auth)` make Next.js skip the segment in the URL — pages keep
+ * their flat paths (`/login`, `/register`, ...) while sharing this centered
+ * brand-framed wrapper. Phase 19: the obsidian canvas + the XPredict mark above
+ * a glass card give the funnel real brand presence (it renders inside the root
+ * layout, so the global header/footer still frame it). Server Component.
  */
 import { Card, CardContent } from "@/components/ui/card";
+import { XMark } from "@/components/brand/x-mark";
 
 export default function AuthLayout({
   children,
@@ -15,8 +16,14 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-6">
-      <Card className="w-full max-w-md">
+    <main className="flex min-h-[78vh] flex-col items-center justify-center px-4 py-12">
+      <div className="mb-7 flex flex-col items-center gap-3 text-center">
+        <XMark className="h-12 w-12" />
+        <p className="max-w-[15rem] text-sm text-muted-foreground">
+          Predict the moment opinions cross.
+        </p>
+      </div>
+      <Card className="w-full max-w-md surface-glass">
         <CardContent className="p-8">{children}</CardContent>
       </Card>
     </main>

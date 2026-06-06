@@ -60,7 +60,7 @@ export function MarketDetailLiveOdds({
   return (
     <div className="flex flex-col gap-2 transition-colors">
       <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wide text-zinc-500">
+        <span className="text-xs font-medium uppercase tracking-wide text-subtle-foreground">
           Live odds
         </span>
         <LiveIndicator state={state} />

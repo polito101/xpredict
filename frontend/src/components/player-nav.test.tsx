@@ -24,18 +24,22 @@ vi.mock("@/lib/auth", () => ({ logoutAction: vi.fn() }));
 import { PlayerNav } from "./player-nav";
 
 describe("<PlayerNav />", () => {
-  test("renders the primary destinations", () => {
-    render(<PlayerNav isAuthenticated={false} />);
+  // Phase 19: the app destinations live behind auth — they render only when the
+  // visitor is authenticated. A logged-out visitor sees the landing chrome.
+  test("renders the primary destinations when authenticated", () => {
+    render(<PlayerNav isAuthenticated={true} />);
     expect(screen.getByText("Markets")).toBeInTheDocument();
     expect(screen.getByText("Wallet")).toBeInTheDocument();
     expect(screen.getByText("Portfolio")).toBeInTheDocument();
   });
 
-  test("shows Log in / Sign up when logged out, never Log out", () => {
+  test("shows only Log in / Sign up when logged out (no app destinations, no Log out)", () => {
     render(<PlayerNav isAuthenticated={false} />);
     expect(screen.getByText("Log in")).toBeInTheDocument();
     expect(screen.getByText("Sign up")).toBeInTheDocument();
     expect(screen.queryByText("Log out")).not.toBeInTheDocument();
+    expect(screen.queryByText("Markets")).not.toBeInTheDocument();
+    expect(screen.queryByText("Wallet")).not.toBeInTheDocument();
   });
 
   test("shows Log out when logged in, never Log in", () => {
@@ -46,7 +50,7 @@ describe("<PlayerNav />", () => {
 
   test("marks the current destination with aria-current=page", () => {
     // usePathname is mocked to "/wallet"
-    render(<PlayerNav isAuthenticated={false} />);
+    render(<PlayerNav isAuthenticated={true} />);
     expect(screen.getByText("Wallet")).toHaveAttribute("aria-current", "page");
     expect(screen.getByText("Markets")).not.toHaveAttribute("aria-current", "page");
   });

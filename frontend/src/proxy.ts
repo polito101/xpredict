@@ -1,50 +1,63 @@
 /**
- * Plan 02-05 Task 1 — Edge middleware for /admin/* (AUTH-07, D-13).
+ * Edge middleware — optimistic auth gates (AUTH-07, D-13 + Phase 19 app gate).
  *
- * Optimistically gates the `/admin/*` route tree by verifying the
- * `admin_jwt` cookie with HS256 against `ADMIN_JWT_PUBLIC_SECRET`
- * (RESEARCH Assumption A8: HS256 shared secret in v1; Phase 11 will move
- * to RS256 with asymmetric keys). Verbatim from RESEARCH §"Pattern 5
- * admin middleware" lines 883-911.
+ * TWO route trees are gated here:
+ *
+ *  1. ADMIN (`/admin/*`) — redirected to `/admin/login` unless the `admin_jwt`
+ *     cookie is present.
+ *  2. PLAYER APP (`/markets`, `/events`, `/portfolio`, `/wallet`) — Phase 19
+ *     moved the real app behind authentication (the public `/` is a brand
+ *     landing). These routes redirect to `/login` unless the `xpredict_session`
+ *     cookie is present. The PUBLIC surfaces — `/`, `/login`, `/register`, the
+ *     other `(auth)` pages, `/api/*` — are NOT in the matcher and stay open.
  *
  * Trust boundary (PLAN <threat_model>):
- *   - This middleware is OPTIMISTIC — it stops anonymous browsers from
- *     reaching the admin shell. The AUTHORITATIVE gate is FastAPI's
- *     `current_active_admin` dependency on every `/admin/*` API call
- *     (RESEARCH §"Anti-Patterns" lines 913-914 + Plan 02-03 backend).
- *   - The middleware runs on the Edge runtime, which has NO database
- *     access. We MUST NOT add any DB lookup here (Anti-pattern
- *     RESEARCH line 923).
- *   - `process.env.ADMIN_JWT_PUBLIC_SECRET` MUST equal the backend's
- *     `SECRET_KEY` — otherwise every admin session will fail-closed
- *     here, but legitimate Bearer tokens minted by the backend will
- *     still be valid against `current_active_admin` (T-02-53).
- *
- * Verification is signature + expiry only — algorithm pinned to HS256
- * to defeat algorithm-confusion attacks (T-02-47, RESEARCH Pitfall
- * "Algorithm confusion": NEVER pass undefined algorithms to jwtVerify).
+ *   - This middleware is OPTIMISTIC — it only checks cookie PRESENCE (no DB, no
+ *     verification; the Edge runtime has no DB access). The AUTHORITATIVE gates
+ *     are the backend dependencies: `current_active_admin` on every `/admin/*`
+ *     API call, and the self-scoped session cookie that every authenticated
+ *     player read forwards server-side. A forged cookie passes this gate but
+ *     fails at the backend, so no data leaks.
  */
 import { NextRequest, NextResponse } from "next/server";
 
 const ADMIN_PROTECTED = /^\/admin(\/|$)/;
+const PLAYER_PROTECTED = /^\/(markets|events|portfolio|wallet)(\/|$)/;
 const ADMIN_LOGIN = "/admin/login";
+const PLAYER_LOGIN = "/login";
 
-/**
- * Optimistic gate: redirects anonymous browsers away from the admin shell.
- * The backend uses DatabaseStrategy (opaque tokens), not JWT — so we only
- * check cookie presence here. The authoritative gate is FastAPI's
- * current_active_admin dependency on every /admin/* API call.
- */
 export function proxy(req: NextRequest) {
-  if (!ADMIN_PROTECTED.test(req.nextUrl.pathname)) return NextResponse.next();
-  if (req.nextUrl.pathname === ADMIN_LOGIN) return NextResponse.next();
+  const { pathname } = req.nextUrl;
 
-  const token = req.cookies.get("admin_jwt")?.value;
-  if (!token) return NextResponse.redirect(new URL(ADMIN_LOGIN, req.url));
+  // Admin tree — gated by the admin_jwt cookie (path-scoped to /admin).
+  if (ADMIN_PROTECTED.test(pathname)) {
+    if (pathname === ADMIN_LOGIN) return NextResponse.next();
+    const token = req.cookies.get("admin_jwt")?.value;
+    if (!token) return NextResponse.redirect(new URL(ADMIN_LOGIN, req.url));
+    return NextResponse.next();
+  }
+
+  // Player app tree — gated by the xpredict_session cookie (the public landing
+  // and the (auth) pages are not in the matcher, so they never reach here).
+  if (PLAYER_PROTECTED.test(pathname)) {
+    const session = req.cookies.get("xpredict_session")?.value;
+    if (!session) {
+      const url = new URL(PLAYER_LOGIN, req.url);
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/markets/:path*",
+    "/events/:path*",
+    "/portfolio/:path*",
+    "/wallet/:path*",
+  ],
 };

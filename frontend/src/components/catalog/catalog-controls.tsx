@@ -101,7 +101,7 @@ export function CatalogControls({
       <div className="flex flex-wrap items-end gap-4">
         <div className="relative w-full sm:w-72">
           <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle-foreground"
             aria-hidden="true"
           />
           <Input
@@ -184,10 +184,10 @@ function CategoryChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "shrink-0 rounded-full px-3 py-1 text-sm font-medium transition-colors",
+        "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-all",
         active
-          ? "bg-brand-primary text-brand-primary-foreground"
-          : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
+          ? "border-transparent bg-brand-primary text-brand-primary-foreground glow-brand-sm"
+          : "border-border bg-muted/60 text-muted-foreground hover:border-border-strong hover:text-foreground",
       )}
     >
       {label}

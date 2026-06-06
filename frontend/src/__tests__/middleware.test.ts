@@ -48,7 +48,7 @@ describe("proxy()", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 
-  it("passes_through_non_admin_routes — /, /login, /api/healthz", () => {
+  it("passes_through_public_routes — /, /login, /api/healthz, /register stay open", () => {
     for (const path of ["/", "/login", "/api/healthz", "/register"]) {
       const req = buildRequest(path);
       const res = proxy(req);
@@ -59,6 +59,28 @@ describe("proxy()", () => {
 
   it("passes_through_admin_route_with_cookie — any admin_jwt cookie value is accepted", () => {
     const req = buildRequest("/admin/users", { cookies: { admin_jwt: "any-token-value" } });
+    const res = proxy(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  // Phase 19: the player app lives behind authentication.
+  it.each(["/markets", "/markets/some-slug", "/events/x", "/portfolio", "/wallet"])(
+    "redirects_unauthenticated_player_route — %s → /login when no session",
+    (path) => {
+      const req = buildRequest(path);
+      const res = proxy(req);
+      expect(res.status).toBe(307);
+      const location = res.headers.get("location") ?? "";
+      expect(location).toContain("/login");
+      expect(location).toContain(`next=${encodeURIComponent(path)}`);
+    },
+  );
+
+  it("passes_through_player_route_with_session — xpredict_session present is accepted", () => {
+    const req = buildRequest("/portfolio", {
+      cookies: { xpredict_session: "any-session-value" },
+    });
     const res = proxy(req);
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();

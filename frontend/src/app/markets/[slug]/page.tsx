@@ -57,11 +57,16 @@ function MarketNotFoundState() {
         className="flex flex-col items-center justify-center py-24 text-center"
         role="status"
       >
-        <h1 className="text-3xl font-semibold tracking-tight">Market not found</h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <h1 className="font-display text-3xl font-semibold tracking-tight">
+          Market not found
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           This market doesn&apos;t exist or is no longer available.
         </p>
-        <Link href="/" className="mt-4 text-sm text-zinc-900 underline dark:text-zinc-100">
+        <Link
+          href="/"
+          className="mt-4 text-sm text-foreground underline underline-offset-4 hover:text-brand-primary"
+        >
           Back to markets
         </Link>
       </div>
@@ -77,10 +82,10 @@ function MarketErrorState() {
         className="flex flex-col items-center justify-center py-24 text-center"
         role="status"
       >
-        <h1 className="text-3xl font-semibold tracking-tight text-rose-700">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-red-400">
           Unable to load this market
         </h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong. Try refreshing the page.
         </p>
       </div>
@@ -191,13 +196,20 @@ async function MarketDetailBody({ slug }: { slug: string }) {
 
   return (
     <main className={PAGE_SHELL}>
-      {/* Header: question + source chip (Live indicator lives in the odds block). */}
-      <header className="mb-8 flex flex-wrap items-center gap-3">
-        <h1 className="text-3xl font-semibold tracking-tight">
+      {/* Header: category eyebrow + question + source/status chips. */}
+      <header className="mb-8 flex flex-col gap-3">
+        {market.category && (
+          <span className="text-xs font-medium uppercase tracking-wide text-subtle-foreground">
+            {market.category}
+          </span>
+        )}
+        <h1 className="font-display text-3xl font-semibold leading-tight tracking-tight">
           {market.question}
         </h1>
-        <SourceBadge source={market.source} sourceUrl={market.source_url} />
-        <MarketStatusBadge status={market.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <SourceBadge source={market.source} sourceUrl={market.source_url} />
+          <MarketStatusBadge status={market.status} />
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -213,12 +225,6 @@ async function MarketDetailBody({ slug }: { slug: string }) {
             />
           )}
 
-          {market.category && (
-            <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-              {market.category}
-            </p>
-          )}
-
           {/* ALWAYS-VISIBLE resolution criteria — the transparency trust signal. */}
           <Card>
             <CardHeader>
@@ -227,7 +233,7 @@ async function MarketDetailBody({ slug }: { slug: string }) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+              <p className="text-sm leading-relaxed text-foreground/80">
                 {market.resolution_criteria}
               </p>
             </CardContent>

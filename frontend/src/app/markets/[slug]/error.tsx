@@ -40,10 +40,10 @@ export default function MarketDetailError({
         className="flex flex-col items-center justify-center py-24 text-center"
         role="alert"
       >
-        <h1 className="text-3xl font-semibold tracking-tight text-rose-700">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-red-400">
           Unable to load this market
         </h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong. Try refreshing the page.
         </p>
         <div className="mt-6 flex items-center gap-3">
@@ -52,7 +52,7 @@ export default function MarketDetailError({
           </Button>
           <Link
             href="/"
-            className="text-sm text-zinc-900 underline dark:text-zinc-100"
+            className="text-sm text-foreground underline underline-offset-4 hover:text-brand-primary"
           >
             Back to markets
           </Link>
