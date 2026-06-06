@@ -35,9 +35,17 @@ def _safe_decimal(value: object) -> Decimal | None:
     if value is None:
         return None
     try:
-        return Decimal(str(value))
+        d = Decimal(str(value))
     except InvalidOperation:
         return None
+    # Reject NaN / Infinity (WR-01): ``Decimal(str(float('nan')))`` yields
+    # ``Decimal('NaN')`` without raising, and a non-finite stake/payout would slip
+    # past the ``is None`` guards and corrupt the winnings math (``NaN > 0`` is False,
+    # so a winner would be silently shorted). Returning ``None`` makes a non-finite
+    # value the intended verification failure instead of a money bug.
+    if not d.is_finite():
+        return None
+    return d
 
 
 def _safe_uuid(value: object) -> UUID | None:

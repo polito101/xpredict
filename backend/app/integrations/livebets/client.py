@@ -1,9 +1,16 @@
 """LiveBetsClient — async HTTP client for the live-bets operator plane (v1.3, LB-A).
 
-Mirrors ``app/integrations/polymarket/client.py``: a lazy ``httpx.AsyncClient``
+Follows ``app/integrations/polymarket/client.py``: a lazy ``httpx.AsyncClient``
 singleton (``_get_client``), bounded ``httpx.Limits``, an ``httpx.Timeout``, and a
 ``tenacity`` retry on transient ``(httpx.NetworkError, httpx.TimeoutException)``
-with ``reraise=True``.
+with ``reraise=True`` and a deliberate ``wait_exponential_jitter(initial=1, max=10,
+jitter=2)`` backoff.
+
+Retry is applied ONLY to the idempotent ``GET`` endpoints (``get_bet``,
+``list_tables``). It is deliberately NOT applied to ``mint_session`` (``POST
+/v2/sessions``): that endpoint is non-idempotent and live-bets does not document a
+session Idempotency-Key, so a post-success timeout retried would mint duplicate
+sessions (WR-04). A transient failure on ``mint_session`` surfaces to the caller.
 
 Difference from the public Gamma client: live-bets is AUTHENTICATED. Every request
 carries ``X-API-Key`` from ``settings.LIVEBETS_API_KEY`` (set as a default header on
@@ -86,12 +93,10 @@ class LiveBetsClient:
             )
         return self._client
 
-    @retry(
-        retry=retry_if_exception_type((httpx.NetworkError, httpx.TimeoutException)),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential_jitter(initial=1, max=10, jitter=2),
-        reraise=True,
-    )
+    # NO @retry here (WR-04): POST /v2/sessions is non-idempotent and live-bets does
+    # not document a session Idempotency-Key (unlike POST /v2/bets). A post-success
+    # timeout retried would mint DUPLICATE sessions. Retry stays only on the idempotent
+    # GETs (get_bet / list_tables). A transient failure here surfaces to the caller.
     async def mint_session(
         self, player_ref: str, table_id: str, ttl_seconds: int | None = None
     ) -> dict[str, object]:
