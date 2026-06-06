@@ -13,7 +13,10 @@
 #   - Volume: demo_pgdata (a FRESH, separate volume — NOT the shared live-bets_pgdata).
 #     A fresh DB is the whole point: it rebuilds `rounds` from current migrations, so it
 #     does NOT inherit the `live_started_at_pdt` schema drift on Agus's stale volume.
-#   - Reuses the already-built `live-bets:dev` image (no rebuild).
+#   - Uses `live-bets:demo-cors` = `live-bets:dev` + the env-gated CORS middleware
+#     (built from the `feat/dev-cors-for-embed` branch) so the browser widget on
+#     :3000 can call this instance cross-origin. Rebuild: `docker build -t
+#     live-bets:demo-cors C:/Users/pobom/ProyectosClaude/live-bets` (branch checked out).
 #
 # Bring up:
 #   docker compose -p livebets-demo -f demo/docker-compose.demo.yml up -d
@@ -54,7 +57,7 @@ services:
       retries: 15
 
   live-bets:
-    image: live-bets:dev
+    image: live-bets:demo-cors
     depends_on:
       postgres:
         condition: service_healthy
