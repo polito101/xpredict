@@ -14,6 +14,7 @@ import { usePathname } from "next/navigation";
 
 import { BrandLogo } from "@/components/brand-logo";
 import { PlayerNav } from "@/components/player-nav";
+import { SocialLinks } from "@/components/social-links";
 
 export function SiteFrame({
   brandName,
@@ -42,14 +43,37 @@ export function SiteFrame({
       <header className="sticky top-0 z-40 border-b border-border/70 surface-glass">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <BrandLogo brandName={brandName} logoUrl={logoUrl} />
-          <PlayerNav isAuthenticated={isAuthenticated} playerName={playerName} />
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Social presence — hidden on mobile to keep the compact header
+                uncluttered; mobile visitors reach it via the footer. */}
+            <SocialLinks className="hidden sm:flex" />
+            <span
+              className="hidden h-5 w-px bg-border sm:block"
+              aria-hidden="true"
+            />
+            <PlayerNav isAuthenticated={isAuthenticated} playerName={playerName} />
+          </div>
         </div>
       </header>
 
       <div className="flex-1">{children}</div>
 
       <footer className="border-t border-border/70 bg-surface/60">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 text-xs text-muted-foreground sm:px-6">
+          {/* Brand presence: follow XPrediction across socials + the disclaimer. */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-subtle-foreground">Follow XPrediction</span>
+              <SocialLinks className="-ml-1" />
+            </div>
+            <p className="text-subtle-foreground">
+              Play-money tokens have no monetary value.
+            </p>
+          </div>
+
+          <div className="h-px bg-border/60" aria-hidden="true" />
+
+          {/* Copyright + legal. */}
           <div className="flex items-center gap-2">
             <span className="text-subtle-foreground">© XPrediction</span>
             <span aria-hidden="true" className="text-border-strong">
@@ -70,9 +94,6 @@ export function SiteFrame({
               </Link>
             </nav>
           </div>
-          <p className="text-subtle-foreground">
-            Play-money tokens have no monetary value.
-          </p>
         </div>
       </footer>
     </>
