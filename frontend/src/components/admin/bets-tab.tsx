@@ -43,14 +43,14 @@ function statusBadge(status: string) {
   const s = status.toLowerCase();
   if (s === "won") {
     return (
-      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+      <Badge className="bg-emerald-500/15 text-emerald-400">
         Won
       </Badge>
     );
   }
   if (s === "lost") {
     return (
-      <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+      <Badge className="bg-red-500/15 text-red-400">
         Lost
       </Badge>
     );
@@ -69,7 +69,7 @@ function statusBadge(status: string) {
 /** Render P&L from the money string — sign/colour off the leading "-". */
 function PnlCell({ pnl }: { pnl: string | null }) {
   if (pnl == null) {
-    return <span className="text-zinc-400">—</span>;
+    return <span className="text-subtle-foreground">—</span>;
   }
   const negative = pnl.trim().startsWith("-");
   return (
@@ -77,8 +77,8 @@ function PnlCell({ pnl }: { pnl: string | null }) {
       className={
         "tabular-nums font-medium " +
         (negative
-          ? "text-red-700 dark:text-red-400"
-          : "text-emerald-700 dark:text-emerald-400")
+          ? "text-red-400"
+          : "text-emerald-400")
       }
     >
       {formatMoney(pnl)}
@@ -117,9 +117,9 @@ export function BetsTab({ userId }: { userId: string }) {
   return (
     <TooltipProvider delayDuration={200}>
       <div className="flex flex-col gap-3">
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <Table>
-            <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+            <TableHeader className="bg-surface">
               <TableRow>
                 <TableHead>Market</TableHead>
                 <TableHead>Outcome</TableHead>
@@ -142,10 +142,10 @@ export function BetsTab({ userId }: { userId: string }) {
               ) : error ? (
                 <TableRow>
                   <TableCell colSpan={COL_COUNT} className="py-12 text-center">
-                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                    <p className="text-sm font-medium text-red-400">
                       Failed to load data
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Something went wrong while loading this page. Please try
                       again.
                     </p>
@@ -154,10 +154,10 @@ export function BetsTab({ userId }: { userId: string }) {
               ) : items.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={COL_COUNT} className="py-12 text-center">
-                    <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                    <p className="text-sm font-medium text-foreground">
                       No bets placed
                     </p>
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       This user has not placed any bets yet.
                     </p>
                   </TableCell>
@@ -181,7 +181,7 @@ export function BetsTab({ userId }: { userId: string }) {
                         </Tooltip>
                       )}
                     </TableCell>
-                    <TableCell className="text-zinc-600 dark:text-zinc-400">
+                    <TableCell className="text-muted-foreground">
                       {bet.outcome_label}
                     </TableCell>
                     <TableCell className="tabular-nums">

@@ -1,30 +1,32 @@
 /**
- * PriceHistoryChart -- Recharts YES-probability line chart for a market's
- * price history (Plan 09-03, MKT-03).
+ * PriceHistoryChart -- Recharts YES-probability chart for a market's price
+ * history (Plan 09-03, MKT-03), restyled dark-first (Phase 19).
  *
  * Contract (UI-SPEC §"Price-history chart" + RESEARCH Code Examples):
- *   - YES probability line ONLY (binary market; NO is the complement and is
- *     explicitly NOT plotted in v1). Stroke = emerald-600 (#059669).
+ *   - YES probability ONLY (binary market; NO is the complement, not plotted).
+ *     A glowing brand gradient line over a soft gradient area fill.
  *   - 24h / 7d / 30d window toggle, default 7d. Selecting a window calls
  *     `onWindowChange` — the parent owns the window state + re-fetch.
  *   - <2 points renders a friendly empty state at the same h-64 height (no
  *     layout collapse / jump).
  *
  * GOTCHAS baked in:
- *   - `react-is` must be pinned to the installed React version + a pnpm
- *     override, or Recharts renders blank on React 19 (RESEARCH Pitfall 1).
- *     The chart-not-blank smoke test is the sentinel for that.
- *   - <ResponsiveContainer> collapses to 0 height without a sized parent, so
- *     the wrapper is a fixed `h-64` (RESEARCH Pitfall 2).
- *   - Money/odds are strings on the wire; we only round for display
- *     (`Math.round(parseFloat(...) * 100)`), never store as floats (SP-1).
+ *   - `react-is` must be pinned to the installed React version + a pnpm override,
+ *     or Recharts renders blank on React 19 (RESEARCH Pitfall 1). The
+ *     chart-not-blank smoke test asserts `path.recharts-line-curve` — a `<Line>`
+ *     inside `<ComposedChart>` keeps emitting that class (the Area adds the fill).
+ *   - <ResponsiveContainer> collapses to 0 height without a sized parent, so the
+ *     wrapper is a fixed `h-64` (RESEARCH Pitfall 2).
+ *   - Money/odds are strings on the wire; only round for display (SP-1).
  */
 "use client";
 
+import { useId } from "react";
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -76,11 +78,11 @@ function WindowToggle({
 
 function ChartEmptyState() {
   return (
-    <div className="flex h-64 w-full flex-col items-center justify-center text-center">
-      <p className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+    <div className="flex h-64 w-full flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
+      <p className="text-base font-semibold text-foreground">
         Not enough price history yet
       </p>
-      <p className="mt-1 max-w-xs text-sm text-zinc-500">
+      <p className="mt-1 max-w-xs text-sm text-muted-foreground">
         Check back soon — the chart appears once this market has a couple of
         price snapshots.
       </p>
@@ -93,6 +95,10 @@ export function PriceHistoryChart({
   window,
   onWindowChange,
 }: PriceHistoryChartProps) {
+  const uid = useId().replace(/:/g, "");
+  const areaId = `pharea-${uid}`;
+  const lineId = `phline-${uid}`;
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-end">
@@ -104,32 +110,88 @@ export function PriceHistoryChart({
         <div className="h-64 w-full">
           {/* sized parent — ResponsiveContainer collapses to 0 otherwise */}
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
+            <ComposedChart
               data={points.map((p) => ({
                 ts: p.ts,
                 // string -> display percent only (SP-1); never stored as float
                 yes: Math.round(parseFloat(p.probability) * 100),
               }))}
+              margin={{ top: 8, right: 8, bottom: 0, left: -16 }}
             >
-              <CartesianGrid stroke="#e4e4e7" strokeDasharray="3 3" />
+              <defs>
+                <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                  <stop
+                    offset="0%"
+                    stopColor="var(--brand-primary)"
+                    stopOpacity={0.35}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor="var(--brand-primary)"
+                    stopOpacity={0}
+                  />
+                </linearGradient>
+                <linearGradient id={lineId} x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="var(--brand-primary)" />
+                  <stop offset="100%" stopColor="var(--brand-secondary)" />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                stroke="var(--border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
               <XAxis
                 dataKey="ts"
-                tick={{ fontSize: 12, fill: "#71717a" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                axisLine={{ stroke: "var(--border)" }}
+                tickLine={false}
+                minTickGap={40}
               />
               <YAxis
                 domain={[0, 100]}
                 unit="%"
-                tick={{ fontSize: 12, fill: "#71717a" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={44}
               />
-              <Tooltip />
+              <Tooltip
+                cursor={{ stroke: "var(--border-strong)", strokeWidth: 1 }}
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.75rem",
+                  color: "var(--popover-foreground)",
+                  fontSize: "0.8rem",
+                  boxShadow: "var(--shadow-pop)",
+                }}
+                labelStyle={{ color: "var(--muted-foreground)" }}
+                itemStyle={{ color: "var(--foreground)" }}
+                formatter={(value) => [`${value}%`, "YES"]}
+              />
+              <Area
+                type="monotone"
+                dataKey="yes"
+                stroke="none"
+                fill={`url(#${areaId})`}
+                isAnimationActive={false}
+              />
               <Line
                 type="monotone"
                 dataKey="yes"
-                stroke="var(--brand-primary, #059669)"
-                strokeWidth={2}
+                stroke={`url(#${lineId})`}
+                strokeWidth={2.5}
                 dot={false}
+                activeDot={{
+                  r: 4,
+                  fill: "var(--brand-primary)",
+                  stroke: "var(--background)",
+                  strokeWidth: 2,
+                }}
+                isAnimationActive={false}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       )}

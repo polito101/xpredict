@@ -129,8 +129,8 @@ describe("MarketResolutionPanel — personal result", () => {
     expect(screen.getByText(/Lost — payout 0/)).toBeInTheDocument();
     const pnl = screen.getByText(/-100\.0000 PLAY_USD/);
     expect(pnl).toBeInTheDocument();
-    // A-LOSS-NEUTRAL: loss is neutral zinc-700, NOT red.
-    expect(pnl).toHaveClass("text-zinc-700");
+    // A-LOSS-NEUTRAL: loss is neutral (muted-foreground), NOT red.
+    expect(pnl).toHaveClass("text-muted-foreground");
     expect(pnl.className).not.toMatch(/text-red/);
   });
 

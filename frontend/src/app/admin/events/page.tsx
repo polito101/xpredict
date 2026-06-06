@@ -33,13 +33,13 @@ export default async function AdminEventsPage() {
       </div>
 
       {events.length === 0 ? (
-        <p className="py-12 text-center text-sm text-zinc-500">
+        <p className="py-12 text-center text-sm text-muted-foreground">
           No house events yet.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900">
+            <thead className="bg-surface text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 font-medium">Title</th>
                 <th className="px-4 py-3 font-medium">Category</th>
@@ -54,20 +54,20 @@ export default async function AdminEventsPage() {
               {events.map((e) => (
                 <tr
                   key={e.id}
-                  className="border-t border-zinc-100 dark:border-zinc-800"
+                  className="border-t border-border transition-colors hover:bg-surface"
                 >
                   <td className="px-4 py-3 font-medium">{e.title}</td>
-                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {e.category ?? "—"}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{e.outcomes.length}</td>
-                  <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {e.status}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/admin/events/${e.slug}`}
-                      className="text-sm font-medium text-zinc-900 underline dark:text-zinc-50"
+                      className="text-sm font-medium text-foreground underline"
                     >
                       Manage
                     </Link>

@@ -213,8 +213,12 @@ export function LiveTable({
         aria-label="wallet balance"
         data-testid="live-balance"
       >
-        <span className="text-2xl font-semibold tracking-tight">{balance}</span>
-        <span className="text-sm font-normal text-zinc-500">{CURRENCY}</span>
+        <span className="font-display text-2xl font-semibold tracking-tight tabular-nums">
+          {balance}
+        </span>
+        <span className="text-sm font-normal text-muted-foreground">
+          {CURRENCY}
+        </span>
       </div>
 
       {/* If the widget src isn't configured, render a non-blocking notice rather
@@ -224,7 +228,7 @@ export function LiveTable({
       ) : (
         <p
           role="status"
-          className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400"
+          className="rounded-xl border border-border bg-surface p-4 text-sm text-muted-foreground"
         >
           Live widget not configured.
         </p>

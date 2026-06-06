@@ -137,11 +137,11 @@ export function VoidEventDialog({
           )}
           {preview && (
             <div
-              className="mt-2 rounded-md bg-zinc-50 p-3 text-sm dark:bg-zinc-800"
+              className="mt-2 rounded-md bg-surface p-3 text-sm"
               role="status"
             >
               <p className="font-medium">Projected impact</p>
-              <p className="text-zinc-600 dark:text-zinc-400">
+              <p className="text-muted-foreground">
                 All {preview.losers ?? preview.child_count} outcomes settle NO →{" "}
                 {preview.projected_status}
               </p>

@@ -1,120 +1,76 @@
 /**
- * Home page — the curated catalog browse (Phase 17).
+ * Landing — the public XPredict brand homepage (Phase 19 positioning).
  *
- * Upgraded from the plain market list (`GET /markets`) to the curated catalog
- * (`GET /catalog`): an async Server Component that reads the URL `searchParams`,
- * fetches the catalog + categories server-side (`cache:"no-store"`, fresh per
- * render), and renders the client filter controls + a grid mixing the binary
- * `MarketCard` (`type:"market"`, via the adapter) and the distinct `EventCard`
- * (`type:"event"`). Every zero-result filter combination shows an explicit empty
- * state, never an error (BRW-05). The route `loading.tsx` provides the skeleton.
+ * XPredict is presented platform-first: a white-label, API-first engine for
+ * prediction markets that teams use to RUN native markets, INTEGRATE external
+ * ones, and LAUNCH their own. The live app (markets/portfolio/wallet) lives
+ * behind authentication and is showcased here as the platform's live demo.
+ *
+ * Public + resilient: every backend read is best-effort (Promise.allSettled) and
+ * degrades gracefully, so the landing renders even if the backend is unreachable.
+ * Platform stats + featured cards are derived from the PUBLIC `/catalog` —
+ * real backend data, no new API. The hero uses the runtime brand name.
  */
-import { MarketCard } from "@/components/market-card";
-import { MarketGrid } from "@/components/market-grid";
-import { EventCard } from "@/components/catalog/event-card";
-import { CatalogControls } from "@/components/catalog/catalog-controls";
+import { HeroBand } from "@/components/home/hero-band";
+import { Pillars } from "@/components/home/pillars";
+import { CapabilityGrid } from "@/components/home/capability-grid";
+import { ApiSection } from "@/components/home/api-section";
 import {
-  fetchCatalog,
-  fetchCategories,
-  catalogMarketToMarketItem,
-  type CatalogItem,
-  type PublicCatalogStatus,
-  type CatalogSort,
-} from "@/lib/catalog";
+  DemoShowcase,
+  type DemoStat,
+} from "@/components/home/demo-showcase";
+import { HowItWorks } from "@/components/home/how-it-works";
+import { LandingCta } from "@/components/home/landing-cta";
+import { fetchBrandingPublic, DEFAULT_BRANDING } from "@/lib/branding-public";
+import { fetchCatalog, fetchCategories, type CatalogItem } from "@/lib/catalog";
+import { formatVolume } from "@/lib/api";
 
-const PAGE_SHELL = "w-full max-w-6xl mx-auto px-4 sm:px-6 py-12";
+export default async function Landing() {
+  const [brandingResult, catalogResult, categoriesResult] =
+    await Promise.allSettled([
+      fetchBrandingPublic(),
+      fetchCatalog({ sort: "volume" }),
+      fetchCategories(),
+    ]);
 
-interface HomeSearchParams {
-  q?: string;
-  category?: string;
-  status?: string;
-  sort?: string;
-}
+  const brandName =
+    brandingResult.status === "fulfilled"
+      ? brandingResult.value.brand_name
+      : DEFAULT_BRANDING.brand_name;
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<HomeSearchParams>;
-}) {
-  const sp = await searchParams;
-
-  // Categories degrade to [] (the chip row just hides); the catalog is the gate.
-  const [categoriesResult, catalogResult] = await Promise.allSettled([
-    fetchCategories(),
-    fetchCatalog({
-      q: sp.q,
-      category: sp.category,
-      status: sp.status as PublicCatalogStatus | undefined,
-      sort: sp.sort as CatalogSort | undefined,
-    }),
-  ]);
-
+  const catalog: CatalogItem[] =
+    catalogResult.status === "fulfilled" ? catalogResult.value : [];
   const categories =
     categoriesResult.status === "fulfilled" ? categoriesResult.value : [];
 
+  const featured = catalog.slice(0, 6);
+
+  const stats: DemoStat[] = [];
+  if (catalog.length > 0) {
+    const events = catalog.filter((i) => i.type === "event").length;
+    const totalVolume = catalog.reduce(
+      (sum, i) => sum + (Number.parseFloat(i.volume) || 0),
+      0,
+    );
+    stats.push(
+      { label: "Markets", value: String(catalog.length) },
+      { label: "Multi-outcome events", value: String(events) },
+      { label: "Total volume", value: formatVolume(String(totalVolume)) },
+    );
+  }
+  if (categories.length > 0) {
+    stats.push({ label: "Categories", value: String(categories.length) });
+  }
+
   return (
-    <main className={PAGE_SHELL}>
-      <h1 className="mb-8 text-xl font-semibold">Markets</h1>
-
-      <CatalogControls
-        categories={categories}
-        q={sp.q}
-        category={sp.category}
-        status={sp.status}
-        sort={sp.sort}
-      />
-
-      {catalogResult.status === "rejected" ? (
-        <CatalogError />
-      ) : catalogResult.value.length === 0 ? (
-        <CatalogEmpty />
-      ) : (
-        <MarketGrid>
-          {catalogResult.value.map((item: CatalogItem) =>
-            item.type === "event" ? (
-              <EventCard key={item.id} event={item} />
-            ) : (
-              <MarketCard
-                key={item.id}
-                market={catalogMarketToMarketItem(item)}
-              />
-            ),
-          )}
-        </MarketGrid>
-      )}
-    </main>
-  );
-}
-
-/** Explicit empty state for any zero-result filter combination (BRW-05). */
-function CatalogEmpty() {
-  return (
-    <div
-      className="flex flex-col items-center justify-center py-24 text-center"
-      role="status"
-    >
-      <h2 className="text-lg font-semibold">No markets found</h2>
-      <p className="mt-2 text-sm text-zinc-500">
-        No markets match your current filters. Try adjusting the search or filter
-        criteria.
-      </p>
-    </div>
-  );
-}
-
-/** Catalog fetch failure (distinct from an empty result). */
-function CatalogError() {
-  return (
-    <div
-      className="flex flex-col items-center justify-center py-24 text-center"
-      role="status"
-    >
-      <h2 className="text-lg font-semibold text-rose-700">
-        Failed to load markets
-      </h2>
-      <p className="mt-2 text-sm text-zinc-500">
-        Something went wrong while loading the catalog. Please try again.
-      </p>
-    </div>
+    <>
+      <HeroBand brandName={brandName} />
+      <Pillars />
+      <CapabilityGrid />
+      <ApiSection />
+      <DemoShowcase featured={featured} stats={stats} />
+      <HowItWorks />
+      <LandingCta />
+    </>
   );
 }

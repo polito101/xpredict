@@ -48,12 +48,12 @@ function VerifyEmailContent() {
   return (
     <div className="space-y-6 text-center">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-display text-2xl font-semibold tracking-tight">
           Verifying your email
         </h1>
       </header>
       {pending && (
-        <p role="status" className="text-sm text-zinc-500">
+        <p role="status" className="text-sm text-muted-foreground">
           Please wait…
         </p>
       )}
@@ -61,7 +61,7 @@ function VerifyEmailContent() {
         <>
           <p
             role="status"
-            className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900"
+            className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400"
           >
             Email verified! You can now sign in.
           </p>
@@ -74,7 +74,7 @@ function VerifyEmailContent() {
         <>
           <p
             role="alert"
-            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+            className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-sm text-red-400"
           >
             {result.detail ?? "We couldn't verify your email."}
           </p>
@@ -91,7 +91,7 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <p role="status" className="text-sm text-zinc-500">
+        <p role="status" className="text-sm text-muted-foreground">
           Loading…
         </p>
       }

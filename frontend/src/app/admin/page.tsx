@@ -33,12 +33,12 @@ export default async function AdminHomePage() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
       <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+      <p className="mt-2 text-muted-foreground">
         Your platform at a glance.
       </p>
 
       {kpis === null ? (
-        <p className="mt-8 text-sm text-zinc-500">
+        <p className="mt-8 text-sm text-muted-foreground">
           Couldn&apos;t load dashboard metrics. Refresh the page to try again.
         </p>
       ) : (

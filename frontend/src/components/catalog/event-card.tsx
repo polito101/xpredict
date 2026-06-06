@@ -44,26 +44,34 @@ export function EventCard({ event }: EventCardProps) {
   const isEnded = deadline === "Ended";
 
   return (
-    <Card className="group relative transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-within:ring-2 focus-within:ring-brand-primary focus-within:ring-offset-2">
-      <CardHeader className="p-6 pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-base font-semibold leading-snug line-clamp-2">
-            <Link
-              href={`/events/${event.slug}`}
-              className="after:absolute after:inset-0"
-              aria-label={event.title}
-            >
-              {event.title}
-            </Link>
-          </h3>
-          <Badge variant="secondary" className="relative z-10 shrink-0">
-            Event · {event.outcomes.length} outcomes
-          </Badge>
+    <Card className="group relative flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-brand-primary/40 hover:shadow-pop focus-within:ring-2 focus-within:ring-brand-primary/60">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-brand opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+      />
+      <CardHeader className="flex-row items-start justify-between gap-2 p-5 pb-3">
+        <Badge
+          variant="secondary"
+          className="relative z-10 shrink-0 border-brand-primary/25 bg-brand-primary/10 text-brand-primary"
+        >
+          Event · {event.outcomes.length} outcomes
+        </Badge>
+        <div className="relative z-10 shrink-0">
+          <SourceBadge source={event.source} sourceUrl={null} />
         </div>
       </CardHeader>
-      <CardContent className="p-6 pt-0">
+      <CardContent className="flex-1 p-5 py-0">
+        <h3 className="mb-4 text-[0.95rem] font-semibold leading-snug line-clamp-2 text-foreground">
+          <Link
+            href={`/events/${event.slug}`}
+            className="outline-none after:absolute after:inset-0"
+            aria-label={event.title}
+          >
+            {event.title}
+          </Link>
+        </h3>
         {/* Each outcome's OWN YES probability on its OWN bar — never summed. */}
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2.5">
           {shown.map((o: CatalogOutcome, idx) => {
             const pct = toPct(o.yes_price);
             return (
@@ -72,20 +80,20 @@ export function EventCard({ event }: EventCardProps) {
                 className="flex flex-col gap-1"
               >
                 <div className="flex items-center justify-between gap-2 text-sm">
-                  <span className="min-w-0 truncate text-zinc-700 dark:text-zinc-300">
+                  <span className="min-w-0 truncate text-muted-foreground">
                     {o.label}
                   </span>
-                  <span className="shrink-0 font-semibold tabular-nums">
+                  <span className="shrink-0 font-semibold tabular-nums text-foreground">
                     {pct}%
                   </span>
                 </div>
                 <div
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
                   role="img"
                   aria-label={`${o.label}: ${pct}% YES`}
                 >
                   <div
-                    className="h-full bg-brand-primary"
+                    className="h-full rounded-full bg-gradient-brand"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -93,20 +101,21 @@ export function EventCard({ event }: EventCardProps) {
             );
           })}
           {more > 0 && (
-            <li className="text-xs text-zinc-500">+{more} more</li>
+            <li className="pt-0.5 text-xs font-medium text-subtle-foreground">
+              +{more} more
+            </li>
           )}
         </ul>
       </CardContent>
-      <CardFooter className="p-6 pt-0 flex items-end justify-between gap-2">
-        <div className="min-w-0 truncate text-sm text-zinc-500">
-          <span>Vol: {formatVolume(event.volume)}</span>
-          <span className="mx-2">|</span>
-          <span className={isEnded ? "text-zinc-400" : undefined}>
+      <CardFooter className="mt-4 p-5 pt-3">
+        <div className="flex w-full items-center justify-between border-t border-border/60 pt-3 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground/80">
+            {formatVolume(event.volume)}{" "}
+            <span className="font-normal text-subtle-foreground">vol</span>
+          </span>
+          <span className={isEnded ? "text-subtle-foreground" : undefined}>
             {deadline}
           </span>
-        </div>
-        <div className="relative z-10 shrink-0">
-          <SourceBadge source={event.source} sourceUrl={null} />
         </div>
       </CardFooter>
     </Card>

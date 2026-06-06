@@ -31,7 +31,7 @@ export interface BrandingPublic {
  * white). Mirrors the `:root` defaults in `globals.css`.
  */
 export const DEFAULT_BRANDING: BrandingPublic = {
-  brand_name: "XPredict",
+  brand_name: "XPrediction",
   primary_hex: "#4f46e5",
   secondary_hex: "#0ea5e9",
   logo_url: null,

@@ -38,7 +38,7 @@ export function PaginationControls({
       >
         &lt; Prev
       </Button>
-      <span className="text-sm text-zinc-500" aria-live="polite">
+      <span className="text-sm text-muted-foreground" aria-live="polite">
         Page {page} of {totalPages}
       </span>
       <Button

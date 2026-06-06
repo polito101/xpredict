@@ -18,6 +18,7 @@
 import Link from "next/link";
 
 import { AdminNav } from "@/components/admin/admin-nav";
+import { LogoMark } from "@/components/brand/logo-mark";
 
 export default function AdminLayout({
   children,
@@ -25,32 +26,37 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950">
-      <nav className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <div className="min-h-screen flex flex-col bg-background">
+      <header className="sticky top-0 z-40 border-b border-border/70 surface-glass">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3">
           <Link
             href="/admin"
-            className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50"
+            className="group inline-flex items-center gap-2.5 font-display text-base font-semibold tracking-tight text-foreground"
           >
-            XPredict Admin
+            <LogoMark className="h-7 w-7 transition-transform duration-300 group-hover:scale-105" />
+            <span>
+              <span className="text-gradient-brand">X</span>Prediction
+            </span>
+            <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
+              Admin
+            </span>
           </Link>
-          {/* Phase 8: active CRM links (Users / Audit log) + Markets placeholder. */}
           <AdminNav />
         </div>
-      </nav>
+      </header>
       <main className="flex-1">{children}</main>
-      <footer className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-4 text-xs text-zinc-500 dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+      <footer className="border-t border-border bg-card">
+        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-6 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <nav className="flex flex-wrap gap-x-4 gap-y-1">
             <Link
               href="https://github.com/polito101/xpredict/blob/main/docs/terms-of-service.md"
-              className="hover:text-zinc-700 dark:hover:text-zinc-200"
+              className="hover:text-foreground"
             >
               Terms of Service
             </Link>
             <Link
               href="https://github.com/polito101/xpredict/blob/main/docs/regulatory.md"
-              className="hover:text-zinc-700 dark:hover:text-zinc-200"
+              className="hover:text-foreground"
             >
               Token policy
             </Link>

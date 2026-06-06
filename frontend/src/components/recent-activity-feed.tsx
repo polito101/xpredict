@@ -15,6 +15,7 @@
  * Server Component (no "use client").
  */
 import type { ActivityItem } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 const CURRENCY = "PLAY_USD";
 
@@ -41,7 +42,7 @@ export function RecentActivityFeed({ items }: RecentActivityFeedProps) {
     return (
       <div className="flex flex-col gap-1" role="status">
         <h3 className="text-lg font-semibold">No bets yet</h3>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Be the first to make a prediction on this market.
         </p>
       </div>
@@ -55,24 +56,37 @@ export function RecentActivityFeed({ items }: RecentActivityFeedProps) {
         return (
           <li
             key={`${item.created_at}-${i}`}
-            className="flex items-center gap-1 text-sm text-zinc-600 dark:text-zinc-400"
+            className="flex flex-wrap items-center gap-1.5 rounded-lg border border-transparent px-3 py-2 text-sm text-muted-foreground transition-colors odd:bg-surface/50 hover:border-border"
           >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "h-1.5 w-1.5 shrink-0 rounded-full",
+                isYes ? "bg-emerald-400" : "bg-red-400",
+              )}
+            />
             <span>Someone backed</span>
             <span
               className={
                 isYes
-                  ? "text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400"
-                  : "text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400"
+                  ? "text-xs font-semibold uppercase tracking-wide text-emerald-400"
+                  : "text-xs font-semibold uppercase tracking-wide text-red-400"
               }
             >
               {item.outcome}
             </span>
-            <span aria-hidden="true">·</span>
-            <span>
+            <span aria-hidden="true" className="text-subtle-foreground">
+              ·
+            </span>
+            <span className="font-medium text-foreground/80">
               {item.amount} {CURRENCY}
             </span>
-            <span aria-hidden="true">·</span>
-            <span className="text-zinc-500">{relativeTime(item.created_at)}</span>
+            <span aria-hidden="true" className="text-subtle-foreground">
+              ·
+            </span>
+            <span className="text-subtle-foreground">
+              {relativeTime(item.created_at)}
+            </span>
           </li>
         );
       })}

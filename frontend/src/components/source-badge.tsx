@@ -29,7 +29,7 @@ export function SourceBadge({ source, sourceUrl }: SourceBadgeProps) {
         <Badge
           variant="secondary"
           className={cn(
-            "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+            "gap-1 transition-colors hover:text-foreground",
             "text-xs",
           )}
         >
@@ -41,13 +41,7 @@ export function SourceBadge({ source, sourceUrl }: SourceBadgeProps) {
 
   if (source === "POLYMARKET") {
     return (
-      <Badge
-        variant="secondary"
-        className={cn(
-          "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-          "text-xs",
-        )}
-      >
+      <Badge variant="secondary" className="text-xs">
         Polymarket
       </Badge>
     );
@@ -57,7 +51,7 @@ export function SourceBadge({ source, sourceUrl }: SourceBadgeProps) {
     return (
       <Badge
         className={cn(
-          "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900",
+          "border-brand-primary/30 bg-brand-primary/15 text-brand-primary",
           "text-xs",
         )}
       >

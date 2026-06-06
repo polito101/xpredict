@@ -149,12 +149,12 @@ describe("loginAction", () => {
     expect(errored.errors.email).toBeTruthy();
   });
 
-  it("redirects to '/' on backend 200", async () => {
+  it("redirects to the app ('/markets') on backend 200", async () => {
     fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }));
     await expect(
       loginAction(undefined, fd({ email: "a@b.co", password: "x" })),
     ).rejects.toThrow(/NEXT_REDIRECT:\//);
-    expect(redirectMock).toHaveBeenCalledWith("/");
+    expect(redirectMock).toHaveBeenCalledWith("/markets");
   });
 
   it("returns {errors:{_form:['Invalid credentials']}} on 401", async () => {

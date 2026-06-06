@@ -87,7 +87,7 @@ export function KpiCard({
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm text-zinc-500">{label}</span>
+          <span className="text-sm text-muted-foreground">{label}</span>
           {caption}
         </div>
       </CardHeader>
@@ -125,12 +125,12 @@ export function HousePnlCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <span className="text-sm text-zinc-500">House P&amp;L</span>
+        <span className="text-sm text-muted-foreground">House P&amp;L</span>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
         {rows.map(({ caption, raw }) => (
           <div key={caption} className="flex items-baseline justify-between gap-2">
-            <span className="text-sm text-zinc-500">{caption}</span>
+            <span className="text-sm text-muted-foreground">{caption}</span>
             <span
               data-testid={`kpi-pnl-${caption.toLowerCase()}`}
               className={cn(
@@ -177,7 +177,7 @@ export function KpiGrid({
           the hit target; rounded-xl matches the Card radius for focus ring). */}
       <Link
         href="/admin/markets?status=CLOSED"
-        className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+        className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Pending resolutions — view markets awaiting action"
       >
         <KpiCard

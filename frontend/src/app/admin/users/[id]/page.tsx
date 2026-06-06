@@ -39,7 +39,7 @@ export default async function AdminUserDetailPage({
     <div className="mx-auto max-w-6xl px-6 py-12">
       <Link
         href="/admin/users"
-        className="mb-8 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50"
+        className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to users
@@ -49,10 +49,10 @@ export default async function AdminUserDetailPage({
         <UserDetailTabs initialUser={user} />
       ) : (
         <div className="py-12 text-center">
-          <p className="text-sm font-medium text-red-700 dark:text-red-400">
+          <p className="text-sm font-medium text-red-400">
             Failed to load data
           </p>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Something went wrong while loading this page. Please try again.
           </p>
         </div>

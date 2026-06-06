@@ -67,7 +67,7 @@ export function EventDetailAdminActions({ event }: { event: EventDetail }) {
 
   if (!isHouse) {
     return (
-      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+      <div className="rounded-md border border-border bg-surface p-4 text-sm text-muted-foreground">
         This is a mirrored (Polymarket) event and is read-only. It settles
         automatically via the upstream resolution.
       </div>

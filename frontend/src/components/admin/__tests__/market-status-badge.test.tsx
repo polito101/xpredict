@@ -44,27 +44,27 @@ describe("MarketStatusBadge", () => {
     );
   });
 
-  it("applies the OPEN palette (emerald)", () => {
+  it("applies the OPEN palette (emerald tint)", () => {
     render(<MarketStatusBadge status="OPEN" />);
     expect(screen.getByLabelText("Status: OPEN")).toHaveClass(
-      "bg-emerald-100",
-      "text-emerald-700",
+      "bg-emerald-500/15",
+      "text-emerald-400",
     );
   });
 
-  it("applies the RESOLVED palette (zinc-900 terminal)", () => {
+  it("applies the RESOLVED palette (neutral terminal)", () => {
     render(<MarketStatusBadge status="RESOLVED" />);
     expect(screen.getByLabelText("Status: RESOLVED")).toHaveClass(
-      "bg-zinc-900",
-      "text-zinc-50",
+      "bg-foreground/10",
+      "text-foreground",
     );
   });
 
-  it("applies the CANCELLED palette (red terminal-negative)", () => {
+  it("applies the CANCELLED palette (red tint terminal-negative)", () => {
     render(<MarketStatusBadge status="CANCELLED" />);
     expect(screen.getByLabelText("Status: CANCELLED")).toHaveClass(
-      "bg-red-100",
-      "text-red-700",
+      "bg-red-500/15",
+      "text-red-400",
     );
   });
 

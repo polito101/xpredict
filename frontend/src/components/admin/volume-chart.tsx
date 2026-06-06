@@ -22,6 +22,7 @@
  */
 "use client";
 
+import { useId } from "react";
 import {
   Area,
   AreaChart,
@@ -34,16 +35,16 @@ import {
 
 import type { VolumeBucket } from "@/lib/kpi-types";
 
-/** Brand-primary stroke/fill so the chart re-skins live; emerald fallback. */
+/** Brand-primary stroke so the chart re-skins live; emerald fallback. */
 const VOLUME_STROKE = "var(--brand-primary, #059669)";
 
 function VolumeChartEmptyState() {
   return (
     <div className="flex h-64 w-full flex-col items-center justify-center text-center">
-      <p className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+      <p className="text-lg font-semibold text-foreground">
         No activity yet
       </p>
-      <p className="mt-1 max-w-xs text-sm text-zinc-500">
+      <p className="mt-1 max-w-xs text-sm text-muted-foreground">
         Volume appears here as players place bets.
       </p>
     </div>
@@ -51,9 +52,11 @@ function VolumeChartEmptyState() {
 }
 
 export function VolumeChart({ buckets }: { buckets: VolumeBucket[] }) {
+  const uid = useId().replace(/:/g, "");
+  const fillId = `volfill-${uid}`;
   return (
     <div className="space-y-2">
-      <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+      <h2 className="text-sm font-medium text-foreground">
         Bet volume — last 30 days
       </h2>
       {buckets.length < 1 ? (
@@ -71,21 +74,52 @@ export function VolumeChart({ buckets }: { buckets: VolumeBucket[] }) {
                 // readability — kpi-card.tsx still shows full 4 dp in the cards.
                 volume: Math.round(parseFloat(b.volume) * 100) / 100,
               }))}
+              margin={{ top: 8, right: 8, bottom: 0, left: -8 }}
             >
-              <CartesianGrid stroke="#e4e4e7" strokeDasharray="3 3" />
+              <defs>
+                <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={VOLUME_STROKE} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={VOLUME_STROKE} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                stroke="var(--border)"
+                strokeDasharray="3 3"
+                vertical={false}
+              />
               <XAxis
                 dataKey="day"
-                tick={{ fontSize: 12, fill: "#71717a" }}
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                axisLine={{ stroke: "var(--border)" }}
+                tickLine={false}
+                minTickGap={32}
               />
-              <YAxis tick={{ fontSize: 12, fill: "#71717a" }} />
-              <Tooltip />
+              <YAxis
+                tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
+                axisLine={false}
+                tickLine={false}
+                width={48}
+              />
+              <Tooltip
+                cursor={{ stroke: "var(--border-strong)", strokeWidth: 1 }}
+                contentStyle={{
+                  background: "var(--popover)",
+                  border: "1px solid var(--border)",
+                  borderRadius: "0.75rem",
+                  color: "var(--popover-foreground)",
+                  fontSize: "0.8rem",
+                  boxShadow: "var(--shadow-pop)",
+                }}
+                labelStyle={{ color: "var(--muted-foreground)" }}
+                itemStyle={{ color: "var(--foreground)" }}
+              />
               <Area
                 type="monotone"
                 dataKey="volume"
                 stroke={VOLUME_STROKE}
-                fill={VOLUME_STROKE}
-                fillOpacity={0.15}
+                fill={`url(#${fillId})`}
                 strokeWidth={2}
+                isAnimationActive={false}
               />
             </AreaChart>
           </ResponsiveContainer>

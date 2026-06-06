@@ -12,8 +12,10 @@ export default function NotFound() {
       <p className="text-sm font-semibold uppercase tracking-wide text-brand-primary">
         404
       </p>
-      <h1 className="text-3xl font-semibold tracking-tight">Page not found</h1>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <h1 className="font-display text-3xl font-semibold tracking-tight">
+        Page not found
+      </h1>
+      <p className="text-sm text-muted-foreground">
         The page you&apos;re looking for doesn&apos;t exist or may have moved.
       </p>
       <Button asChild>

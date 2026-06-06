@@ -117,7 +117,8 @@ export async function loginAction(
   }
 
   await forwardSessionCookie(res.headers.get("set-cookie"));
-  redirect("/");
+  // Phase 19: land in the app (markets) after login; the public landing is `/`.
+  redirect("/markets");
 }
 
 // ---------------------------------------------------------------------------

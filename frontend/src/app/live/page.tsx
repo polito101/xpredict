@@ -95,9 +95,11 @@ function LiveShell({ children }: { children: React.ReactNode }) {
   return (
     <main className={PAGE_SHELL}>
       <header className="mb-8 flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Live</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Multiplayer live bets — your XPredict balance, in real time.
+        <h1 className="font-display text-3xl font-semibold tracking-tight">
+          Live
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Multiplayer live bets — your XPrediction balance, in real time.
         </p>
       </header>
       {children}
@@ -112,7 +114,9 @@ function BalanceHeader({ balance }: { balance: string }) {
       <CardHeader>
         <CardTitle>
           <span aria-label="wallet balance">{balance}</span>{" "}
-          <span className="text-base font-normal text-zinc-500">{CURRENCY}</span>
+          <span className="text-base font-normal text-muted-foreground">
+            {CURRENCY}
+          </span>
         </CardTitle>
       </CardHeader>
     </Card>
@@ -129,9 +133,11 @@ async function LiveBody() {
     return (
       <main className={PAGE_SHELL}>
         <header className="mb-8 flex flex-col gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Live</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Multiplayer live bets with your XPredict balance.
+          <h1 className="font-display text-3xl font-semibold tracking-tight">
+          Live
+        </h1>
+          <p className="text-sm text-muted-foreground">
+            Multiplayer live bets with your XPrediction balance.
           </p>
         </header>
         <SignedOutNotice resource="live" />
@@ -171,9 +177,9 @@ async function LiveBody() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               The live-bets table isn&apos;t set up in this environment yet. Once
-              a table is running, it will appear here and your XPredict balance
+              a table is running, it will appear here and your XPrediction balance
               will react to every bet.
             </p>
           </CardContent>

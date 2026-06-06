@@ -66,23 +66,23 @@ export function BetConfirmDialog({
         </DialogHeader>
 
         <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-zinc-500">Stake</dt>
+          <dt className="text-muted-foreground">Stake</dt>
           <dd className="text-right font-normal">
             {stake} {CURRENCY}
           </dd>
 
-          <dt className="text-zinc-500">Current odds</dt>
+          <dt className="text-muted-foreground">Current odds</dt>
           <dd className="text-right font-normal">
             {yesPct}% YES / {noPct}% NO
           </dd>
 
-          <dt className="text-zinc-500">Expected payout</dt>
+          <dt className="text-muted-foreground">Expected payout</dt>
           <dd className="text-right font-normal">
             {payout} {CURRENCY}
           </dd>
         </dl>
 
-        <p className="text-xs text-zinc-500">
+        <p className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
           Odds may move before your bet is placed.
         </p>
 

@@ -238,7 +238,7 @@ export function EventForm({
         {locked && (
           <div
             role="alert"
-            className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300"
+            className="rounded-md border border-amber-500/25 bg-amber-500/10 p-3 text-sm text-amber-300"
           >
             This event has bets and can no longer be edited.
           </div>
@@ -318,7 +318,7 @@ export function EventForm({
 
         <fieldset className="flex flex-col gap-3" disabled={locked}>
           <legend className="text-sm font-medium">Outcomes</legend>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted-foreground">
             At least 2 outcomes; each is an independent YES/NO market with an
             initial YES probability between 0 and 1.
           </p>

@@ -82,9 +82,9 @@ describe("fetchBrandingPublic", () => {
 });
 
 describe("DEFAULT_BRANDING", () => {
-  it("is the XPredict indigo/sky safe-fallback palette", () => {
+  it("is the XPrediction indigo/sky safe-fallback palette", () => {
     expect(DEFAULT_BRANDING).toEqual({
-      brand_name: "XPredict",
+      brand_name: "XPrediction",
       primary_hex: "#4f46e5",
       secondary_hex: "#0ea5e9",
       logo_url: null,

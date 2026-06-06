@@ -10,15 +10,15 @@ export default function RegisterPage() {
   return (
     <div className="space-y-6">
       <header className="space-y-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="font-display text-2xl font-semibold tracking-tight">
           Create your account
         </h1>
-        <p className="text-sm text-zinc-500">
-          Get started with XPredict — it&apos;s free.
+        <p className="text-sm text-muted-foreground">
+          Get started with XPrediction — it&apos;s free.
         </p>
       </header>
       <RegisterForm />
-      <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
         <Link href="/login" className="underline">
           Sign in

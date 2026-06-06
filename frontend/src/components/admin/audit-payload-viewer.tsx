@@ -46,7 +46,7 @@ export function AuditPayloadViewer({
         aria-expanded={expanded}
         aria-controls={regionId}
         onClick={() => setExpanded((v) => !v)}
-        className="flex items-center gap-1 text-left text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-50"
+        className="flex items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
       >
         {expanded ? (
           <ChevronUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -62,7 +62,7 @@ export function AuditPayloadViewer({
           id={regionId}
           role="region"
           aria-label="Audit event payload"
-          className="overflow-x-auto rounded-md bg-zinc-50 p-4 text-xs font-mono text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+          className="overflow-x-auto rounded-md bg-surface p-4 text-xs font-mono text-foreground"
         >
           {pretty}
         </pre>

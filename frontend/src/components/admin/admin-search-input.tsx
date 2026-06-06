@@ -48,7 +48,7 @@ export function AdminSearchInput({
   return (
     <div className={cn("relative min-w-[280px]", className)}>
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+        className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-subtle-foreground"
         aria-hidden="true"
       />
       <Input
