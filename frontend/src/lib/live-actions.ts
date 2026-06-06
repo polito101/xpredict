@@ -48,6 +48,14 @@ export type LiveSessionResult =
   | { ok: true; session_token: string; expires_at: string }
   | { ok: false; reason: "unauthenticated" | "not_found" | "conflict" | "error" };
 
+/**
+ * Result of `getLiveBalance` — the current XPredict wallet balance (a STRING on
+ * the wire, SP-1) for the in-island refresh after a placed/settled mirror.
+ */
+export type LiveBalanceResult =
+  | { ok: true; balance: string }
+  | { ok: false };
+
 /** Server-only backend base (NO `NEXT_PUBLIC_` — mirrors `bet-actions.ts`). */
 function getBackendUrl(): string {
   return process.env.BACKEND_URL || "http://localhost:8000";
@@ -196,4 +204,37 @@ export async function mintLiveSession(
     return { ok: false, reason: "error" };
   }
   return { ok: false, reason: reasonForStatus(res.status) };
+}
+
+/**
+ * Read the player's CURRENT XPredict wallet balance via `GET /wallet/me/balance`
+ * (the same mechanism `wallet/page.tsx` uses), forwarding the session cookie.
+ *
+ * Plan-check M-2: the `/live` widget host calls this AFTER a placed/settled
+ * mirror and writes the result into its LOCAL `useState` balance, so the unified
+ * XPredict balance visibly moves in the client island. `router.refresh()` alone
+ * would re-run the Server Component but NOT update the client island's `useState`
+ * copy (stale balance), so the in-island refresh reads the balance explicitly.
+ * Money is a STRING on the wire (SP-1) — returned verbatim, never parsed.
+ */
+export async function getLiveBalance(): Promise<LiveBalanceResult> {
+  const session = await readSession();
+  if (!session) return { ok: false };
+
+  try {
+    const res = await fetch(`${getBackendUrl()}/wallet/me/balance`, {
+      headers: { Cookie: `xpredict_session=${session}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return { ok: false };
+    const data = (await res.json().catch(() => null)) as {
+      balance?: unknown;
+    } | null;
+    if (data && typeof data.balance === "string") {
+      return { ok: true, balance: data.balance };
+    }
+    return { ok: false };
+  } catch {
+    return { ok: false };
+  }
 }

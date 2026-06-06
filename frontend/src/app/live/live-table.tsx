@@ -11,7 +11,14 @@
  * React 19 renders custom elements and passes props through, but HYPHENATED
  * attributes (`session-token`, `table-id`) are set via `ref` + `setAttribute` —
  * the robust path for hyphenated names, and it lets the session-expired handler
- * (Task 3) re-set the token imperatively.
+ * re-set the token imperatively.
+ *
+ * DOM events (design §5/§6, SC3): the four widget events are wired in a single
+ * effect that REMOVES every listener on cleanup. Each maps to an LB-B-01 Server
+ * Action; placed/settled then refresh the IN-ISLAND wallet balance via
+ * `getLiveBalance` (plan-check M-2 — `router.refresh()` would re-run the Server
+ * Component but NOT update this island's `useState` balance, leaving it stale).
+ * `applied:false` is a benign idempotent no-op (a duplicate event), NOT an error.
  *
  * TypeScript: `<live-bets-table>` is declared on `React.JSX.IntrinsicElements`
  * via a `declare module "react"` augmentation (verified against the installed
@@ -21,8 +28,16 @@
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
+import { toast } from "sonner";
+
+import {
+  getLiveBalance,
+  mintLiveSession,
+  recordLivePlaced,
+  recordLiveSettled,
+} from "@/lib/live-actions";
 
 // React 19 custom-element typing: augment `React.JSX.IntrinsicElements` (this
 // @types/react ships `JSX` under the module, not a global namespace) so
@@ -58,26 +73,130 @@ export interface LiveTableProps {
  * loads `widget.js`, and renders `<live-bets-table>` with `session-token` +
  * `table-id` set via `setAttribute`.
  */
+/** Defensive read of `bet_id` off an untrusted widget event detail. */
+function readBetId(detail: unknown): string | null {
+  if (detail && typeof detail === "object" && "bet_id" in detail) {
+    const v = (detail as { bet_id?: unknown }).bet_id;
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return null;
+}
+
+/** Defensive read of an optional string field off an untrusted event detail. */
+function readString(detail: unknown, key: string): string | null {
+  if (detail && typeof detail === "object" && key in detail) {
+    const v = (detail as Record<string, unknown>)[key];
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return null;
+}
+
 export function LiveTable({
   sessionToken,
   tableId,
   initialBalance,
 }: LiveTableProps) {
   const elementRef = useRef<HTMLElement>(null);
-  // Balance is held locally so Task 3's wallet refresh can move it in place
-  // (the unified XPredict balance reacting to bets is the whole point — §8).
-  const [balance] = useState(initialBalance);
+  // Balance is held locally so the wallet refresh can move it IN PLACE (the
+  // unified XPredict balance reacting to bets is the whole point — design §8).
+  const [balance, setBalance] = useState(initialBalance);
 
   const widgetSrc = process.env.NEXT_PUBLIC_LIVEBETS_WIDGET_SRC;
 
-  // Set the hyphenated attributes imperatively (robust for custom elements; also
-  // lets Task 3 re-set `session-token` on session-expired). Keyed on the inputs.
+  // M-2: re-read the XPredict balance and update the LOCAL state after a mirror,
+  // so the displayed balance actually moves (router.refresh() would not touch
+  // this island's useState copy). A failed refresh leaves the prior value.
+  const refreshBalance = useCallback(async () => {
+    const result = await getLiveBalance();
+    if (result.ok) setBalance(result.balance);
+  }, []);
+
+  // Set the hyphenated attributes imperatively (the robust path for custom
+  // elements). Keyed on the server-provided props; the session-expired handler
+  // re-sets `session-token` on the element directly (no state → no re-render
+  // churn, and no setState-in-effect). Re-running this effect on a fresh
+  // `sessionToken` prop re-applies the server's value, which is correct.
   useEffect(() => {
     const el = elementRef.current;
     if (!el) return;
     el.setAttribute("session-token", sessionToken);
     el.setAttribute("table-id", tableId);
   }, [sessionToken, tableId]);
+
+  // Wire the four widget DOM events; the cleanup removes EVERY listener (SC3).
+  // The event detail is UNTRUSTED (third-party widget) — only `bet_id` is passed
+  // to the Server Action; LB-A re-verifies status/stake/payout (T-LBB-04).
+  useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
+
+    const onPlaced = (e: Event) => {
+      const betId = readBetId((e as CustomEvent).detail);
+      if (!betId) return; // missing bet_id → defensive no-op (no call).
+      void (async () => {
+        const result = await recordLivePlaced(betId);
+        if (result.ok) {
+          await refreshBalance();
+        } else {
+          toast.error("Couldn't record your bet. Please try again.");
+        }
+      })();
+    };
+
+    const onResult = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      const betId = readBetId(detail);
+      if (!betId) return;
+      const status = readString(detail, "status");
+      void (async () => {
+        const result = await recordLiveSettled(betId);
+        if (result.ok) {
+          await refreshBalance();
+          if (status && status.toUpperCase() === "WON") {
+            toast.success("You won! Your balance has been updated.");
+          } else if (status && status.toUpperCase() === "LOST") {
+            toast("Bet settled — better luck next round.");
+          } else {
+            toast("Bet settled. Your balance has been updated.");
+          }
+        } else {
+          toast.error("Couldn't settle your bet. Please try again.");
+        }
+      })();
+    };
+
+    const onSessionExpired = () => {
+      void (async () => {
+        const result = await mintLiveSession(tableId);
+        if (result.ok) {
+          // Re-set the token imperatively on the element (design §7 re-mint).
+          elementRef.current?.setAttribute(
+            "session-token",
+            result.session_token,
+          );
+        } else {
+          toast.error("Your live session expired. Please refresh the page.");
+        }
+      })();
+    };
+
+    const onError = (e: Event) => {
+      const message = readString((e as CustomEvent).detail, "message");
+      toast.error(message ?? "The live table hit an error. Please try again.");
+    };
+
+    el.addEventListener("live-bets-bet-placed", onPlaced);
+    el.addEventListener("live-bets-result", onResult);
+    el.addEventListener("live-bets-session-expired", onSessionExpired);
+    el.addEventListener("live-bets-error", onError);
+
+    return () => {
+      el.removeEventListener("live-bets-bet-placed", onPlaced);
+      el.removeEventListener("live-bets-result", onResult);
+      el.removeEventListener("live-bets-session-expired", onSessionExpired);
+      el.removeEventListener("live-bets-error", onError);
+    };
+  }, [tableId, refreshBalance]);
 
   return (
     <div className="flex flex-col gap-4">
