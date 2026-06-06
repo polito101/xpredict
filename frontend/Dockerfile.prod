@@ -1,0 +1,45 @@
+# XPredict frontend — PRODUCTION image (Next.js 16 `next build` + `next start`).
+#
+# Unlike the dev `Dockerfile` (which runs `pnpm dev` for hot-reload), this builds
+# the app once at image-build time and serves it with `next start`, so the
+# frontend is ALWAYS WARM — no per-request cold start, fast container restarts.
+# Mirrors the proven CI build (ubuntu + Node 20 + pnpm 9.15.0 + `pnpm build`,
+# green in .github/workflows/frontend-ci.yml).
+#
+# NEXT_PUBLIC_* are compiled into the browser bundle at BUILD time, so they are
+# passed as build args (see docker-compose.prod.yml `frontend.build.args`) and
+# promoted to ENV before `pnpm build`. Server-only vars (BACKEND_URL,
+# ADMIN_JWT_PUBLIC_SECRET) are runtime env and are NOT set here.
+
+FROM node:20-alpine
+
+# Pin pnpm to the lockfile's version (pnpm@latest = 11+ needs Node >=22.13).
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+# Dependency layer first for cache reuse on source-only changes.
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# App source.
+COPY . .
+
+# Public (browser-inlined) vars — must be present BEFORE `pnpm build`.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_WS_URL
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_LIVEBETS_WIDGET_SRC
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL \
+    NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
+    NEXT_PUBLIC_LIVEBETS_WIDGET_SRC=$NEXT_PUBLIC_LIVEBETS_WIDGET_SRC \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+
+RUN pnpm build
+
+EXPOSE 3000
+
+# `next start` binds 0.0.0.0:3000 by default; Caddy reaches it as `frontend:3000`.
+CMD ["pnpm", "start"]

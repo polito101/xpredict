@@ -3,6 +3,12 @@
 .env*.local
 .env
 *.env
+# Production demo deploy secrets (Hetzner runbook) — `*.env` does NOT match
+# `.env.prod` (no `.env` suffix), so ignore it explicitly. The committed
+# template `.env.prod.example` is re-included below.
+.env.prod
+.env.prod.*
+!.env.prod.example
 # ...except the shared, non-secret Linear IDs (team + workflow states)
 !.claude/linear.shared.env
 
