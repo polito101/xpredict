@@ -54,6 +54,8 @@ x-backend-env: &backend-env
   # Phase 5 sign-up bonus (house->wallet credit granted on email verification).
   # Overridable per-deploy via .env.prod; falls back to the app's config.py default.
   SIGNUP_BONUS_AMOUNT: ${SIGNUP_BONUS_AMOUNT:-1000.0000}
+  # DEMO_MODE: frictionless demo (6-char passwords, auto-verify + bonus at sign-up).
+  DEMO_MODE: ${DEMO_MODE:-false}
 
 services:
   # ----------------------------------------------------------------------
@@ -172,6 +174,8 @@ services:
         NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:?set NEXT_PUBLIC_WS_URL in .env.prod (e.g. wss://api.your-domain.com)}
         NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
         NEXT_PUBLIC_LIVEBETS_WIDGET_SRC: ${NEXT_PUBLIC_LIVEBETS_WIDGET_SRC:-}
+        # Build-time demo flag — relaxes client password rule + auto-login on sign-up.
+        NEXT_PUBLIC_DEMO_MODE: ${NEXT_PUBLIC_DEMO_MODE:-false}
     restart: unless-stopped
     environment:
       NODE_ENV: production

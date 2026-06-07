@@ -206,6 +206,24 @@ export async function registerAction(
     return { errors: { _form: ["Registration failed. Please try again."] } };
   }
 
+  // DEMO_MODE: the account is created already-verified + funded, so log in
+  // immediately and drop the user straight into the app (no email, no extra login).
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
+    const loginRes = await fetch(`${getBackendUrl()}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        username: parsed.data.email,
+        password: parsed.data.password,
+      }),
+      credentials: "include",
+    });
+    if (loginRes.ok) {
+      await forwardSessionCookie(loginRes.headers.get("set-cookie"));
+      redirect("/markets");
+    }
+  }
+
   redirect("/login?registered=1");
 }
 

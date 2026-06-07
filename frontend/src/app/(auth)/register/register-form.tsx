@@ -25,6 +25,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 type RegisterValues = z.infer<typeof RegisterSchema>;
 
 export function RegisterForm() {
@@ -51,7 +53,8 @@ export function RegisterForm() {
     const fd = new FormData();
     fd.append("email", values.email);
     fd.append("password", values.password);
-    fd.append("confirm_password", values.confirm_password);
+    if (values.confirm_password)
+      fd.append("confirm_password", values.confirm_password);
     if (values.display_name) fd.append("display_name", values.display_name);
     startTransition(() => formAction(fd));
   });
@@ -85,24 +88,26 @@ export function RegisterForm() {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="display_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Display name (optional)</FormLabel>
-              <FormControl>
-                <Input
-                  type="text"
-                  autoComplete="nickname"
-                  {...field}
-                  value={field.value ?? ""}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {!DEMO_MODE && (
+          <FormField
+            control={form.control}
+            name="display_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Display name (optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    autoComplete="nickname"
+                    {...field}
+                    value={field.value ?? ""}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         <FormField
           control={form.control}
           name="password"
@@ -120,23 +125,25 @@ export function RegisterForm() {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="confirm_password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm password</FormLabel>
-              <FormControl>
-                <Input
-                  type="password"
-                  autoComplete="new-password"
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {!DEMO_MODE && (
+          <FormField
+            control={form.control}
+            name="confirm_password"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm password</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
         {formError && (
           <p
             role="alert"

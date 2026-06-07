@@ -107,6 +107,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         )
         password = user_dict.pop("password")
         user_dict["hashed_password"] = self.password_helper.hash(password)
+        # DEMO_MODE: auto-verify at registration (no email step) so the player can
+        # bet immediately (current_active_player requires verified=True).
+        if get_settings().DEMO_MODE:
+            user_dict["is_verified"] = True
 
         # Use the SAME session the user_db adapter holds, and do NOT let the
         # stock adapter commit early — we own the single commit below so the
@@ -155,7 +159,14 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         password: str,
         user: User | UserCreate,
     ) -> None:
-        """Enforce 12+ chars, upper/lower/digit, no email substring."""
+        """Enforce 12+ chars, upper/lower/digit, no email substring.
+
+        DEMO_MODE relaxes this to length-only (>= 6 chars) for a frictionless demo.
+        """
+        if get_settings().DEMO_MODE:
+            if len(password) < 6:
+                raise InvalidPasswordException(reason="Password must be at least 6 characters.")
+            return
         if len(password) < 12:
             raise InvalidPasswordException(reason="Password must be at least 12 characters.")
         if not re.search(r"[A-Z]", password):
@@ -188,6 +199,26 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             payload={"email": user.email},
             request=request,
         )
+        if get_settings().DEMO_MODE:
+            # DEMO_MODE: the account is created already-verified (see create()), so
+            # there is no verification email — grant the sign-up bonus NOW
+            # (idempotent, key bonus:{user_id}) so the wallet is funded the moment
+            # the player signs up. on_after_verify is never reached in this flow.
+            try:
+                async with self.audit_session_factory() as session:
+                    await WalletService.grant_signup_bonus(
+                        session,
+                        user_id=user.id,
+                        amount=get_settings().SIGNUP_BONUS_AMOUNT,
+                    )
+            except Exception as exc:
+                logger.error(
+                    "signup_bonus_grant_failed",
+                    user_id=str(user.id),
+                    error_type=type(exc).__name__,
+                    error=str(exc)[:200],
+                )
+            return
         try:
             await self.request_verify(user, request)
         except Exception as exc:

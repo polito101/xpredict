@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     )
 
     ENVIRONMENT: Literal["dev", "staging", "prod"] = "dev"
+    # DEMO_MODE relaxes the product for a sales demo: 6-char passwords (no
+    # complexity), accounts auto-verified at registration, and the sign-up bonus
+    # granted at registration (no email step). Default OFF — production behavior.
+    DEMO_MODE: bool = False
     DATABASE_URL: PostgresDsn
     DATABASE_URL_SYNC: PostgresDsn  # Alembic uses psycopg2 — see D-16
     REDIS_URL: RedisDsn
