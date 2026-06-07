@@ -51,6 +51,9 @@ x-backend-env: &backend-env
   SENTRY_TRACES_SAMPLE_RATE: "0.1"
   RESEND_API_KEY: ${RESEND_API_KEY:-}
   RESEND_FROM_ADDRESS: ${RESEND_FROM_ADDRESS:-}
+  # Phase 5 sign-up bonus (house->wallet credit granted on email verification).
+  # Overridable per-deploy via .env.prod; falls back to the app's config.py default.
+  SIGNUP_BONUS_AMOUNT: ${SIGNUP_BONUS_AMOUNT:-1000.0000}
 
 services:
   # ----------------------------------------------------------------------
