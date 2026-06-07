@@ -80,6 +80,15 @@ class BetService:
         if stake <= 0:
             raise ValueError("stake must be > 0")
 
+        # Defensive: clear any transaction inherited from dependency resolution
+        # before our own session.begin() calls below. get_user_db now uses a
+        # DEDICATED session so the request session should arrive clean, but the
+        # money path guards anyway — belt-and-suspenders, mirroring
+        # app/settlement/router.py. A stray inherited read-tx would otherwise make
+        # _ensure_market_liability_account's begin() raise "transaction already begun".
+        if session.in_transaction():
+            await session.rollback()
+
         # 1. Validate the market via the port (read-only; MUST NOT touch `session`).
         market = await market_source.get_market(market_id)
         if market is None:

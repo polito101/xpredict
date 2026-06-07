@@ -26,19 +26,27 @@ from uuid import UUID
 
 from fastapi import Depends
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.email import EmailService
 from app.auth.manager import UserManager
 from app.auth.models import User
-from app.db.session import get_async_session
+from app.db.session import _get_session_maker
 
 
-async def get_user_db(
-    session: AsyncSession = Depends(get_async_session),
-) -> AsyncGenerator[SQLAlchemyUserDatabase[User, UUID], None]:
-    """Yield the fastapi-users SQLAlchemy adapter bound to the request session."""
-    yield SQLAlchemyUserDatabase(session, User)
+async def get_user_db() -> AsyncGenerator[SQLAlchemyUserDatabase[User, UUID], None]:
+    """Yield the fastapi-users adapter on a DEDICATED session (NOT the request session).
+
+    Resolving ``current_active_*`` loads the user with a SELECT, which autobegins a
+    transaction on whatever session the adapter holds. If that were the shared request
+    session (``get_async_session``), the open read-tx would make a route's own
+    ``async with session.begin()`` raise "A transaction is already begun" — this broke
+    EVERY authenticated write (e.g. ``POST /bets``). Binding fastapi-users to its OWN
+    session keeps auth reads off the business session. fastapi-users commits its own
+    register/verify/reset mutations on THIS session; ``UserManager``'s other hooks
+    already use independent sessions, so nothing relies on sharing the request tx.
+    """
+    async with _get_session_maker()() as session:
+        yield SQLAlchemyUserDatabase(session, User)
 
 
 @lru_cache(maxsize=1)
@@ -66,7 +74,8 @@ async def get_user_manager(
     or from routes that explicitly commit the session themselves.
 
     Rationale: ``UserManager`` does not hold its own session; all DB mutations
-    go through the request-scoped session from ``get_user_db``.
+    go through the dedicated session from ``get_user_db`` (its OWN session, not the
+    shared request session — see ``get_user_db`` for why).
     ``get_user_manager`` does NOT call ``session.commit()`` at teardown — it
     relies entirely on fastapi-users' internal commit logic.
 
