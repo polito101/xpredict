@@ -1,8 +1,9 @@
 # XPredict demo — Caddy reverse-proxy + automatic HTTPS (Let's Encrypt).
 #
-# Two subdomains (both must have DNS A records pointing at the VM's public IP):
-#   {$APP_DOMAIN}  → the Next.js frontend  (app.your-domain.com)
-#   {$API_DOMAIN}  → the FastAPI backend + WebSocket  (api.your-domain.com)
+# Three subdomains (all must have DNS A records pointing at the VM's public IP):
+#   {$APP_DOMAIN}       → the Next.js frontend  (app.your-domain.com)
+#   {$API_DOMAIN}       → the FastAPI backend + WebSocket  (api.your-domain.com)
+#   {$LIVEBETS_DOMAIN}  → the live-bets service (live.your-domain.com)
 #
 # Why two subdomains instead of path-based routing on one host: the frontend
 # serves its own Next.js routes under /api/* (e.g. /api/healthz), which would
@@ -30,4 +31,10 @@
 {$API_DOMAIN} {
 	encode zstd gzip
 	reverse_proxy backend:8000
+}
+
+# ---- live-bets (v1.3 /live demo) ---------------------------------------------
+{$LIVEBETS_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy livebets:8000
 }
