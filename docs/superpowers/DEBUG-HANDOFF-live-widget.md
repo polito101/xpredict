@@ -3,6 +3,52 @@
 **Date:** 2026-06-08 · **For:** a fresh session (clear context) to debug with subagents.
 **Read first**, then open DevTools per **STEP 1**.
 
+---
+
+## ✅ RESOLVED — 2026-06-08 (root cause was NOT membership)
+
+**Root cause = auth-routing MISROUTE in `live-bets/live_bets/api/ws.py` (~L120).** The `/ws`
+gateway verified the **legacy** player JWT (`verify_token`) **before** the **session** JWT
+(`verify_session_token`). `verify_token` accepts ANY UUID-shaped `sub`, and the bridge mints
+session tokens whose `sub` (player_ref) is the XPredict user UUID (e.g. `dbc14fc0-…`). So the
+session token was wrongly accepted by `verify_token` → took the **legacy branch** →
+`is_member(table, that_uuid)` → **False** (operator player_refs can never be rows in
+`live_bets.users` — FK; INSERT is impossible by design) → `websocket.close(4403)` **BEFORE
+`accept()`**. A pre-accept close in ASGI/uvicorn is emitted as an **HTTP 403 handshake
+rejection**, not a WS close frame → the browser sees close code **1006** and the widget loops
+on "connecting…". The widget's `if (e.code===4401)` branch never fires. **The PRIME HYPOTHESIS
+(4403 = not a member, seed membership) was WRONG** — membership is correctly *skipped* for
+session tokens once the session branch is reached ("the JWT IS the proof"); the bug was that
+the session branch was never reached.
+
+**Why HLS worked but WS didn't:** `/stream/*` and `POST /v2/bets` auth via
+`get_session_or_operator` (operators/auth.py), which branches on token **prefix** (`eyJ` →
+`verify_session_token` FIRST) and skips `is_member`. `/ws` reimplemented auth inline with the
+opposite order. Caddy was fully EXONERATED (direct-to-livebets reproduced the identical 403).
+
+**Fix (1 file):** reorder `ws.py` to try `verify_session_token` FIRST, legacy `verify_token` as
+fallback. Safe because a legacy token lacks the `table_id` claim → `verify_session_token`
+KeyErrors → `None` → falls through to the legacy branch unchanged. Committed on live-bets branch
+`fix/ws-session-jwt-first` (commit `8bcd789`) + regression test
+`tests/integration/test_ws_session_auth.py::test_ws_session_jwt_uuid_player_ref_takes_session_path`
+(the old tests used a non-UUID player_ref so never caught this).
+
+**Verified live on the VM:** after rebuild+recreate of the `livebets` container, the direct-to-
+livebets AND through-Caddy `/ws` handshakes both return **`101 Switching Protocols`** and emit
+`subscription_ready`/`pdt_anchor`/`hello`. A `BETTING_OPEN` round is live on bangkok so bet
+options appear; `/v2/bets` was confirmed (subagent sweep) to NOT share the misroute.
+
+**Remaining:** (1) browser confirm at `app.xprediction.online/live`; (2) merge/PR
+`fix/ws-session-jwt-first` into live-bets master + fold into the VM-deploy branch
+`gsd/live-bets-vm-deploy`; (3) optional hardening — make `verify_token`/`get_current_user_id`
+reject tokens carrying `table_id`/`scope` claims so session tokens can't masquerade on legacy
+REST routes; (4) extract a shared session-decode helper so `/ws` and `get_session_or_operator`
+can't drift again. **Rollback** if needed: VM has `/tmp/ws.py.vm-orig`; restore + rebuild.
+
+*Everything below is the original (pre-fix) handoff, kept for history.*
+
+---
+
 ## Symptom (reproducible)
 On `https://app.xprediction.online/live` logged in as a demo player: the **real Bangkok
 traffic video plays** (HLS, with the red detection line), BUT the widget is stuck on
