@@ -16,10 +16,13 @@ import { BrandLogo } from "@/components/brand-logo";
 import { PlayerNav } from "@/components/player-nav";
 import { SocialLinks } from "@/components/social-links";
 
-/** In-page section links shown in the landing header (home only). Each targets a
- *  section `id` on `/` (Pillars/CapabilityGrid/ApiSection/DemoShowcase). */
+/** In-page section links shown in the landing header (home only), in page order.
+ *  Each href targets a real section `id` on `/`:
+ *  Pillars(#platform) · WhyXPrediction(#why) · CapabilityGrid(#capabilities) ·
+ *  ApiSection(#developers) · DemoShowcase(#demo) · ContactSection(#contact). */
 const SECTION_LINKS = [
   { href: "/#platform", label: "Platform" },
+  { href: "/#why", label: "Why" },
   { href: "/#capabilities", label: "Capabilities" },
   { href: "/#developers", label: "Developers" },
   { href: "/#demo", label: "Live demo" },
