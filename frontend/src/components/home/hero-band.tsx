@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Spark } from "@/components/brand/spark";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { HeroVisual } from "@/components/home/hero-visual";
+import { GlowDivider } from "@/components/home/glow-divider";
 
 export function HeroBand({ brandName }: { brandName: string }) {
   const raw = brandName.trim();
@@ -99,11 +100,8 @@ export function HeroBand({ brandName }: { brandName: string }) {
         </div>
       </div>
 
-      {/* Hairline divider into the body. */}
-      <div
-        aria-hidden="true"
-        className="mx-auto h-px w-full max-w-6xl bg-gradient-to-r from-transparent via-border to-transparent"
-      />
+      {/* Glowing hairline divider into the body. */}
+      <GlowDivider />
     </section>
   );
 }

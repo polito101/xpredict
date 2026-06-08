@@ -22,6 +22,7 @@ import {
 import { HowItWorks } from "@/components/home/how-it-works";
 import { ContactSection } from "@/components/home/contact-section";
 import { LandingCta } from "@/components/home/landing-cta";
+import { GlowDivider } from "@/components/home/glow-divider";
 import { fetchBrandingPublic, DEFAULT_BRANDING } from "@/lib/branding-public";
 import { fetchCatalog, fetchCategories, type CatalogItem } from "@/lib/catalog";
 import { formatVolume } from "@/lib/api";
@@ -78,9 +79,11 @@ export default async function Landing() {
       <div className="reveal">
         <DemoShowcase featured={featured} stats={stats} />
       </div>
+      <GlowDivider />
       <div className="reveal">
         <HowItWorks />
       </div>
+      <GlowDivider />
       <div className="reveal">
         <ContactSection />
       </div>
