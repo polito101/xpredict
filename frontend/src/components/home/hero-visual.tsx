@@ -416,17 +416,6 @@ export function HeroVisual() {
         );
         })}
       </div>
-
-      {/* Atmospheric vignette — melts the square frame into the canvas and pulls
-          the eye to the center. Sits above the field, never over the nodes. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(circle at 50% 50%, transparent 64%, color-mix(in oklab, var(--background) 60%, transparent) 100%)",
-        }}
-      />
     </div>
   );
 }
