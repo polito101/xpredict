@@ -70,7 +70,7 @@ const CAPS: Cap[] = [
 
 export function CapabilityGrid() {
   return (
-    <section className="border-y border-border bg-surface/40">
+    <section id="capabilities" className="scroll-mt-20 border-y border-border bg-surface/40">
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
         <div className="mb-10 max-w-2xl">
           <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">

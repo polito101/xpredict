@@ -362,15 +362,18 @@ export function HeroVisual() {
         </div>
       </div>
 
-      {/* ── Nodes (HTML): refined icon badges, evenly placed, gently floating ── */}
-      {points.map((p, i) => {
-        const Icon = p.Icon;
-        return (
-          <div
-            key={`n-${p.label}`}
-            className="absolute"
-            style={{ left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%, -50%)" }}
-          >
+      {/* ── Nodes (HTML): the whole ring sways together (hv-sway) around the
+          stable core, and each badge drifts a little on its own — so the
+          ecosystem floats coherently, alive but never chaotic. ── */}
+      <div className="absolute inset-0 hv-sway">
+        {points.map((p, i) => {
+          const Icon = p.Icon;
+          return (
+            <div
+              key={`n-${p.label}`}
+              className="absolute"
+              style={{ left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%, -50%)" }}
+            >
             <div
               className="hv-drift flex flex-col items-center gap-2"
               style={{ animationDelay: `${(i * 0.55).toFixed(2)}s` }}
@@ -390,7 +393,8 @@ export function HeroVisual() {
             </div>
           </div>
         );
-      })}
+        })}
+      </div>
 
       {/* Atmospheric vignette — melts the square frame into the canvas and pulls
           the eye to the center. Sits above the field, never over the nodes. */}

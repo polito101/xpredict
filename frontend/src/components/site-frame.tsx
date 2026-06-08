@@ -16,6 +16,15 @@ import { BrandLogo } from "@/components/brand-logo";
 import { PlayerNav } from "@/components/player-nav";
 import { SocialLinks } from "@/components/social-links";
 
+/** In-page section links shown in the landing header (home only). Each targets a
+ *  section `id` on `/` (Pillars/CapabilityGrid/ApiSection/DemoShowcase). */
+const SECTION_LINKS = [
+  { href: "/#platform", label: "Platform" },
+  { href: "/#capabilities", label: "Capabilities" },
+  { href: "/#developers", label: "Developers" },
+  { href: "/#demo", label: "Live demo" },
+] as const;
+
 export function SiteFrame({
   brandName,
   logoUrl,
@@ -30,6 +39,7 @@ export function SiteFrame({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isLanding = pathname === "/";
 
   // The admin surface supplies its own chrome — render the page bare. Use a
   // word-boundary check (mirrors the proxy's ADMIN_PROTECTED regex) so a future
@@ -42,7 +52,22 @@ export function SiteFrame({
     <>
       <header className="sticky top-0 z-40 border-b border-border/70 surface-glass">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <BrandLogo brandName={brandName} logoUrl={logoUrl} />
+          <div className="flex items-center gap-6">
+            <BrandLogo brandName={brandName} logoUrl={logoUrl} />
+            {isLanding && (
+              <nav className="hidden items-center gap-0.5 lg:flex">
+                {SECTION_LINKS.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    className="rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </nav>
+            )}
+          </div>
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Social presence — hidden on mobile to keep the compact header
                 uncluttered; mobile visitors reach it via the footer. */}

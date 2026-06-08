@@ -13,6 +13,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Spark } from "@/components/brand/spark";
 import { LogoMark } from "@/components/brand/logo-mark";
+import { XMark } from "@/components/brand/x-mark";
 import { HeroVisual } from "@/components/home/hero-visual";
 
 export function HeroBand({ brandName }: { brandName: string }) {
@@ -20,7 +21,17 @@ export function HeroBand({ brandName }: { brandName: string }) {
   const name = !raw || raw === "XPredict" ? "XPrediction" : raw;
   return (
     <section className="relative overflow-hidden">
-      <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.82fr_1.18fr] lg:py-28">
+      {/* Subtle brand watermark — a giant X fused into the backdrop for depth +
+          identity, set well behind the copy (left) so it never competes with the
+          live ecosystem on the right. Desktop only; reduced-motion-irrelevant. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-28 top-20 hidden select-none lg:block"
+      >
+        <XMark spark={false} className="h-[38rem] w-[38rem] opacity-[0.07] blur-[0.5px]" />
+      </div>
+
+      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-[0.82fr_1.18fr] lg:py-28">
         {/* Copy */}
         <div className="flex flex-col items-start gap-6 text-balance">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3 py-1 text-xs font-medium text-muted-foreground">

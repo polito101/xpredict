@@ -240,6 +240,17 @@
     opacity: 0.7;
   }
 }
+/* The node ring sways as ONE — a coherent, suspended-in-space drift, so the
+   ecosystem floats together rather than each node wandering on its own. */
+@keyframes hv-sway {
+  0%,
+  100% {
+    transform: rotate(-1.5deg);
+  }
+  50% {
+    transform: rotate(1.5deg);
+  }
+}
 
 @layer utilities {
   .hv-orbit {
@@ -279,6 +290,11 @@
   .hv-drift {
     animation: hv-drift 9s ease-in-out infinite;
     transform-box: fill-box;
+    transform-origin: center;
+  }
+  /* Whole node ring, swaying together (HTML wrapper — no fill-box needed). */
+  .hv-sway {
+    animation: hv-sway 12s ease-in-out infinite;
     transform-origin: center;
   }
   .hv-star {
@@ -384,10 +400,22 @@
     .hv-ring,
     .hv-drift,
     .hv-star,
+    .hv-sway,
     .hv-spin,
     .hv-spin-rev {
       animation: none !important;
     }
+  }
+}
+
+/* Smooth in-page navigation for the header's section links (disabled for
+   reduced-motion users). */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 }
 

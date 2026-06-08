@@ -30,7 +30,10 @@ const PILLARS = [
 
 export function Pillars() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+    <section
+      id="platform"
+      className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 sm:py-20"
+    >
       <div className="mb-10 max-w-2xl">
         <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           One platform, three ways to play.
