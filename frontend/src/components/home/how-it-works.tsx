@@ -37,7 +37,7 @@ export function HowItWorks() {
         {STEPS.map(({ n, title, body }) => (
           <li
             key={n}
-            className="group relative flex flex-col gap-3 rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-pop"
+            className="group relative flex flex-col gap-3 rounded-2xl border border-border bg-card card-raised p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-pop"
           >
             <span className="font-display text-3xl font-semibold text-gradient-brand">
               {n}

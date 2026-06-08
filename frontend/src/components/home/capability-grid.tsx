@@ -116,7 +116,7 @@ export function CapabilityGrid() {
             ) : (
               <div
                 key={title}
-                className="group flex flex-col gap-3 rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-pop"
+                className="group flex flex-col gap-3 rounded-2xl border border-border bg-card card-raised p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-primary/40 hover:shadow-pop"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-brand-primary">
                   <Icon className="h-5 w-5" aria-hidden="true" />
