@@ -234,7 +234,27 @@ export function LiveTable({
         </p>
       )}
 
-      <live-bets-table ref={elementRef} />
+      {/* CP-12: the widget renders HLS into a light-DOM `<video slot="video">`
+          child (NOT its shadow DOM). Without it the widget reports
+          `<video slot="video"> missing` and stays stuck on "connecting". The
+          attrs/styles mirror the live-bets canonical embed (static/demo.html). */}
+      <live-bets-table ref={elementRef}>
+        <video
+          slot="video"
+          autoPlay
+          muted
+          playsInline
+          controls
+          style={{
+            width: "100%",
+            aspectRatio: "16 / 9",
+            background: "#000",
+            display: "block",
+            borderRadius: "0.5rem",
+            objectFit: "contain",
+          }}
+        />
+      </live-bets-table>
     </div>
   );
 }
