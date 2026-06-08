@@ -204,11 +204,13 @@ export function HeroVisual() {
         </g>
 
         {/* Calibration reference engraved on the dial — a quiet fabrication-style
-            mark in the dial's own color and weight (no glow, low contrast). Reads
-            as a system reference, not a label; invisible at a glance. */}
+            mark in the dial's own color and weight (no glow, low contrast). It is
+            self-referential: placed at exactly 293° of the dial (r≈262), so the
+            mark and its angular coordinate match. Reads as a system reference, not
+            a label; invisible at a glance, legible only on close inspection. */}
         <text
-          x="592"
-          y="752"
+          x="602"
+          y="741"
           textAnchor="middle"
           fill="var(--border-strong)"
           fillOpacity="0.55"
