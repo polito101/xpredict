@@ -130,12 +130,13 @@ export function SiteFrame({
       <div className="flex-1">{children}</div>
 
       <footer className="border-t border-border/70 bg-surface/60">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 text-xs text-muted-foreground sm:px-6">
-          {/* Brand presence: follow XPrediction across socials + the disclaimer. */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-subtle-foreground">Follow XPrediction</span>
+        <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6">
+          {/* Brand presence + reach. */}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+            <BrandLogo brandName={brandName} logoUrl={logoUrl} />
+            <div className="flex flex-col gap-3 text-sm sm:items-end">
+              <div className="flex items-center gap-2 text-subtle-foreground">
+                <span>Follow</span>
                 <SocialLinks className="-ml-1" />
               </div>
               <Link
@@ -145,33 +146,33 @@ export function SiteFrame({
                 support@xprediction.online
               </Link>
             </div>
-            <p className="text-subtle-foreground">
-              Play-money tokens have no monetary value.
-            </p>
           </div>
 
-          <div className="h-px bg-border/60" aria-hidden="true" />
+          <div className="my-8 h-px bg-border/60" aria-hidden="true" />
 
-          {/* Copyright + legal. */}
-          <div className="flex items-center gap-2">
-            <span className="text-subtle-foreground">© XPrediction</span>
-            <span aria-hidden="true" className="text-border-strong">
-              ·
-            </span>
-            <nav className="flex flex-wrap gap-x-4 gap-y-1">
-              <Link
-                href="https://github.com/polito101/xpredict/blob/main/docs/terms-of-service.md"
-                className="rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                Terms of Service
-              </Link>
-              <Link
-                href="https://github.com/polito101/xpredict/blob/main/docs/regulatory.md"
-                className="rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              >
-                Token policy
-              </Link>
-            </nav>
+          {/* Copyright + legal + disclaimer. */}
+          <div className="flex flex-col gap-3 text-xs text-subtle-foreground sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>© {new Date().getFullYear()} XPrediction</span>
+              <span aria-hidden="true" className="text-border-strong">
+                ·
+              </span>
+              <nav className="flex flex-wrap gap-x-4 gap-y-1">
+                <Link
+                  href="https://github.com/polito101/xpredict/blob/main/docs/terms-of-service.md"
+                  className="rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  Terms of Service
+                </Link>
+                <Link
+                  href="https://github.com/polito101/xpredict/blob/main/docs/regulatory.md"
+                  className="rounded transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                >
+                  Token policy
+                </Link>
+              </nav>
+            </div>
+            <p>Play-money tokens have no monetary value.</p>
           </div>
         </div>
       </footer>
