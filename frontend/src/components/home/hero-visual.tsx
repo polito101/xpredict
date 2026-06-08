@@ -303,6 +303,21 @@ export function HeroVisual() {
           strokeDasharray="1 13"
           className="hv-spin-rev"
         />
+
+        {/* Energy emitted from the core — a calm sonar pulsing out to the ring. */}
+        {[0, 2.75].map((d, i) => (
+          <circle
+            key={`emit-${i}`}
+            cx="500"
+            cy="500"
+            r="290"
+            fill="none"
+            stroke="var(--brand-secondary)"
+            strokeWidth="1.5"
+            className="hv-emit"
+            style={{ animationDelay: `${d}s` }}
+          />
+        ))}
       </svg>
 
       {/* ── Core (HTML): premium glass hub + double breathing aura + the X ── */}
@@ -379,11 +394,17 @@ export function HeroVisual() {
               style={{ animationDelay: `${(i * 0.55).toFixed(2)}s` }}
             >
               <span
-                className="grid h-14 w-14 place-items-center rounded-full border border-border/70 backdrop-blur-md"
+                className="relative grid h-14 w-14 place-items-center rounded-full border border-border/70 backdrop-blur-md"
                 style={BADGE_STYLE}
               >
+                {/* Soft pulsing halo — each node quietly breathes with light. */}
+                <span
+                  aria-hidden="true"
+                  className="hv-pulse absolute inset-[-22%] rounded-full bg-brand-secondary/20 blur-md"
+                  style={{ animationDelay: `${(i * 0.4).toFixed(2)}s` }}
+                />
                 <Icon
-                  className="h-[1.4rem] w-[1.4rem] text-foreground/85"
+                  className="relative h-[1.4rem] w-[1.4rem] text-foreground/85"
                   strokeWidth={1.6}
                 />
               </span>

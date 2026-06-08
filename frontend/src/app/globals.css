@@ -251,6 +251,21 @@
     transform: rotate(1.5deg);
   }
 }
+/* A calm sonar — an energy ring emitted from the core out to the ecosystem.
+   Scales from just inside the glass disc out to the node ring, fading as it goes. */
+@keyframes hv-emit {
+  0% {
+    transform: scale(0.78);
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.26);
+    opacity: 0;
+  }
+}
 
 @layer utilities {
   .hv-orbit {
@@ -295,6 +310,12 @@
   /* Whole node ring, swaying together (HTML wrapper — no fill-box needed). */
   .hv-sway {
     animation: hv-sway 12s ease-in-out infinite;
+    transform-origin: center;
+  }
+  /* Sonar-like energy ring emitted from the core. */
+  .hv-emit {
+    animation: hv-emit 5.5s ease-out infinite;
+    transform-box: fill-box;
     transform-origin: center;
   }
   .hv-star {
@@ -401,6 +422,7 @@
     .hv-drift,
     .hv-star,
     .hv-sway,
+    .hv-emit,
     .hv-spin,
     .hv-spin-rev {
       animation: none !important;
