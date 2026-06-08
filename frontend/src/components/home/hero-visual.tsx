@@ -203,6 +203,22 @@ export function HeroVisual() {
           ))}
         </g>
 
+        {/* Calibration reference engraved on the dial — a quiet fabrication-style
+            mark in the dial's own color and weight (no glow, low contrast). Reads
+            as a system reference, not a label; invisible at a glance. */}
+        <text
+          x="592"
+          y="752"
+          textAnchor="middle"
+          fill="var(--border-strong)"
+          fillOpacity="0.55"
+          fontSize="11"
+          letterSpacing="1.5"
+          fontFamily="var(--font-space-grotesk), ui-sans-serif, sans-serif"
+        >
+          293
+        </text>
+
         {/* Faint guide ring through the nodes — the ecosystem's structure. */}
         <circle
           cx="500"
