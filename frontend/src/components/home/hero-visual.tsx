@@ -390,25 +390,26 @@ export function HeroVisual() {
               style={{ left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%, -50%)" }}
             >
             <div
-              className="hv-drift flex flex-col items-center gap-2"
+              className="hv-drift group flex cursor-default flex-col items-center gap-2"
               style={{ animationDelay: `${(i * 0.55).toFixed(2)}s` }}
             >
               <span
-                className="relative grid h-14 w-14 place-items-center rounded-full border border-border/70 backdrop-blur-md"
+                className="relative grid h-14 w-14 place-items-center rounded-full border border-border/70 backdrop-blur-md transition-all duration-300 group-hover:scale-110 group-hover:border-brand-primary/60"
                 style={BADGE_STYLE}
               >
-                {/* Soft pulsing halo — each node quietly breathes with light. */}
+                {/* Soft pulsing halo — each node quietly breathes with light, and
+                    flares to full on hover. */}
                 <span
                   aria-hidden="true"
-                  className="hv-pulse absolute inset-[-22%] rounded-full bg-brand-secondary/20 blur-md"
+                  className="hv-pulse absolute inset-[-22%] rounded-full bg-brand-secondary/20 blur-md transition-opacity duration-300 group-hover:opacity-100"
                   style={{ animationDelay: `${(i * 0.4).toFixed(2)}s` }}
                 />
                 <Icon
-                  className="relative h-[1.4rem] w-[1.4rem] text-foreground/85"
+                  className="relative h-[1.4rem] w-[1.4rem] text-foreground/85 transition-colors duration-300 group-hover:text-brand-primary"
                   strokeWidth={1.6}
                 />
               </span>
-              <span className="font-display text-[13px] font-medium tracking-tight text-muted-foreground">
+              <span className="font-display text-[13px] font-medium tracking-tight text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
                 {p.label}
               </span>
             </div>

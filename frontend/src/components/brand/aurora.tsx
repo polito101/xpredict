@@ -17,6 +17,24 @@ export function Aurora({ className }: { className?: string }) {
         className,
       )}
     >
+      {/* Drifting brand glow orbs — a slow, living aurora behind everything. */}
+      <div
+        className="aurora-float-a absolute left-[-12%] top-[-8%] h-[40rem] w-[40rem] rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, color-mix(in oklab, var(--brand-primary) 16%, transparent), transparent 70%)",
+          filter: "blur(44px)",
+        }}
+      />
+      <div
+        className="aurora-float-b absolute right-[-8%] top-[6%] h-[32rem] w-[32rem] rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle, color-mix(in oklab, var(--brand-secondary) 13%, transparent), transparent 70%)",
+          filter: "blur(44px)",
+        }}
+      />
+
       {/* A faint technical line grid — blueprint / infrastructure texture that
           adds depth without noise. Masked to the top so it frames the hero and
           melts away down the page. */}

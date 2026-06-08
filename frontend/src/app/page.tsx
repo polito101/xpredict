@@ -66,13 +66,27 @@ export default async function Landing() {
   return (
     <>
       <HeroBand brandName={brandName} />
-      <Pillars />
-      <CapabilityGrid />
-      <ApiSection />
-      <DemoShowcase featured={featured} stats={stats} />
-      <HowItWorks />
-      <ContactSection />
-      <LandingCta />
+      <div className="reveal">
+        <Pillars />
+      </div>
+      <div className="reveal">
+        <CapabilityGrid />
+      </div>
+      <div className="reveal">
+        <ApiSection />
+      </div>
+      <div className="reveal">
+        <DemoShowcase featured={featured} stats={stats} />
+      </div>
+      <div className="reveal">
+        <HowItWorks />
+      </div>
+      <div className="reveal">
+        <ContactSection />
+      </div>
+      <div className="reveal">
+        <LandingCta />
+      </div>
     </>
   );
 }
