@@ -218,13 +218,13 @@ services:
       # routes already send Access-Control-Allow-Origin:*). Reuses FRONTEND_BASE_URL.
       LIVE_BETS_CORS_ORIGINS: ${FRONTEND_BASE_URL}
     # No host ports — only Caddy ({$LIVEBETS_DOMAIN}) and the backend reach it.
-    # ---- F1 (betting-UI only): the image's default CMD runs
-    #        migrate && serve-all --host 0.0.0.0 --port 8000 --bus in-memory --no-hls
-    # ---- F2 (HLS video): uncomment the command + volumes below, then re-up:
-    # command: ["sh","-c","python -m live_bets.cli migrate && python -m live_bets.cli serve-all --host 0.0.0.0 --port 8000 --bus in-memory --hls --hls-out /app/var/hls"]
-    # volumes:
-    #   - livebets_clips:/var/lib/live-bets/clips
-    #   - livebets_hls:/app/var/hls
+    # ---- F2 (HLS video) ENABLED: real traffic clips streamed over HLS.
+    #   serve-all (no --no-hls) spawns the per-table HLSChannelManager (ffmpeg -c copy
+    #   remux to fMP4). Clips live on the livebets_clips volume; segments on livebets_hls.
+    command: ["sh", "-c", "python -m live_bets.cli migrate && python -m live_bets.cli serve-all --host 0.0.0.0 --port 8000 --bus in-memory --hls --hls-out /app/var/hls"]
+    volumes:
+      - livebets_clips:/var/lib/live-bets/clips
+      - livebets_hls:/app/var/hls
 
   # ----------------------------------------------------------------------
   # Frontend (Next.js 16 production build — `next start`, always warm)
@@ -298,6 +298,5 @@ volumes:
   caddy_config:
   livebets_pgdata:
   livebets_redis_data:
-  # F2 (HLS):
-  # livebets_clips:
-  # livebets_hls:
+  livebets_clips:
+  livebets_hls:
