@@ -13,6 +13,7 @@
  */
 import { HeroBand } from "@/components/home/hero-band";
 import { Pillars } from "@/components/home/pillars";
+import { WhyXPrediction } from "@/components/home/why-xprediction";
 import { CapabilityGrid } from "@/components/home/capability-grid";
 import { ApiSection } from "@/components/home/api-section";
 import {
@@ -69,6 +70,9 @@ export default async function Landing() {
       <HeroBand brandName={brandName} />
       <div className="reveal">
         <Pillars />
+      </div>
+      <div className="reveal">
+        <WhyXPrediction />
       </div>
       <div className="reveal">
         <CapabilityGrid />
