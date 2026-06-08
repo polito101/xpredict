@@ -24,7 +24,18 @@
 # ---- Frontend ----------------------------------------------------------------
 {$APP_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy frontend:3000
+	# The embedded live-bets widget (script loaded from {$LIVEBETS_DOMAIN}) makes
+	# SAME-ORIGIN RELATIVE calls (/ws, /stream/*, /v2/*, /time) — it has no
+	# configurable API base. So the app origin must serve those live-bets paths:
+	# proxy them to livebets (same origin → no CORS needed). None collide with the
+	# Next.js routes. Everything else is the frontend.
+	@livebets path /ws /ws/* /stream/* /v2/* /time
+	handle @livebets {
+		reverse_proxy livebets:8000
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
 }
 
 # ---- Backend API + WebSocket -------------------------------------------------
