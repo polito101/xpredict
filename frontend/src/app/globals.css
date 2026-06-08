@@ -240,6 +240,62 @@
     opacity: 0.7;
   }
 }
+/* The node ring sways as ONE — a coherent, suspended-in-space drift, so the
+   ecosystem floats together rather than each node wandering on its own. */
+@keyframes hv-sway {
+  0%,
+  100% {
+    transform: rotate(-1.5deg);
+  }
+  50% {
+    transform: rotate(1.5deg);
+  }
+}
+/* A calm sonar — an energy ring emitted from the core out to the ecosystem.
+   Scales from just inside the glass disc out to the node ring, fading as it goes. */
+@keyframes hv-emit {
+  0% {
+    transform: scale(0.78);
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.26);
+    opacity: 0;
+  }
+}
+/* Living aurora — brand glow orbs drifting + breathing slowly behind the page. */
+@keyframes aurora-float-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(6%, 4%) scale(1.08);
+  }
+}
+@keyframes aurora-float-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-5%, 3%) scale(1.1);
+  }
+}
+/* Scroll-reveal — sections fade up as they enter the viewport. */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 @layer utilities {
   .hv-orbit {
@@ -280,6 +336,24 @@
     animation: hv-drift 9s ease-in-out infinite;
     transform-box: fill-box;
     transform-origin: center;
+  }
+  /* Whole node ring, swaying together (HTML wrapper — no fill-box needed). */
+  .hv-sway {
+    animation: hv-sway 12s ease-in-out infinite;
+    transform-origin: center;
+  }
+  /* Sonar-like energy ring emitted from the core. */
+  .hv-emit {
+    animation: hv-emit 5.5s ease-out infinite;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  /* Drifting aurora glow orbs. */
+  .aurora-float-a {
+    animation: aurora-float-a 19s ease-in-out infinite;
+  }
+  .aurora-float-b {
+    animation: aurora-float-b 24s ease-in-out infinite;
   }
   .hv-star {
     animation: hv-star 4s ease-in-out infinite;
@@ -335,6 +409,16 @@
       color-mix(in oklab, var(--brand-primary) 50%, transparent);
   }
 
+  /* Premium card surface — a hairline top-light + layered depth shadow, so a
+     card reads as a built, physical surface rather than a flat fill. No glow;
+     pure materiality (Linear / Apple / Stripe altitude). */
+  .card-raised {
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklab, #ffffff 6%, transparent),
+      0 1px 2px 0 rgb(0 0 0 / 0.4),
+      0 18px 36px -26px rgb(0 0 0 / 0.85);
+  }
+
   /* Obsidian aurora backdrop — radial brand glows echoing the X crossing. */
   .aurora {
     background-color: var(--background);
@@ -384,9 +468,37 @@
     .hv-ring,
     .hv-drift,
     .hv-star,
+    .hv-sway,
+    .hv-emit,
     .hv-spin,
-    .hv-spin-rev {
+    .hv-spin-rev,
+    .aurora-float-a,
+    .aurora-float-b {
       animation: none !important;
+    }
+  }
+}
+
+/* Smooth in-page navigation for the header's section links (disabled for
+   reduced-motion users). */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Scroll-reveal for landing sections — progressive enhancement: applied ONLY
+   where the browser supports scroll-driven animations and the user hasn't asked
+   for reduced motion. Everywhere else, `.reveal` is inert and content shows as-is. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 5% cover 20%;
     }
   }
 }

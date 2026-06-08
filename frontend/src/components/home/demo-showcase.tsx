@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MarketCard } from "@/components/market-card";
 import { EventCard } from "@/components/catalog/event-card";
+import { InfraMetrics } from "@/components/home/infra-metrics";
 import { catalogMarketToMarketItem, type CatalogItem } from "@/lib/catalog";
 
 export interface DemoStat {
@@ -34,15 +35,20 @@ export function DemoShowcase({
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-primary">
-              The platform, live
+            <span className="inline-flex items-center gap-2 rounded-full border border-brand-secondary/25 bg-brand-secondary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-brand-secondary">
+              <span aria-hidden="true" className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-brand-secondary opacity-70 animate-pulse" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-brand-secondary" />
+              </span>
+              Live
             </span>
-            <h2 className="mt-1 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
               See the engine running.
             </h2>
             <p className="mt-3 text-base text-muted-foreground">
-              This site is XPrediction running as its own tenant. Your deployment
-              works the same — it just looks like you.
+              This site is XPrediction running as its own tenant — live odds and
+              volume, straight from the running platform. Your deployment works
+              the same; it just looks like you.
             </p>
           </div>
           <Button asChild size="lg" className="shrink-0 self-start sm:self-auto">
@@ -67,6 +73,8 @@ export function DemoShowcase({
             ))}
           </dl>
         )}
+
+        <InfraMetrics />
 
         {featured.length > 0 && (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
