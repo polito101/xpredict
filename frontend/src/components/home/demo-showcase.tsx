@@ -12,6 +12,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MarketCard } from "@/components/market-card";
 import { EventCard } from "@/components/catalog/event-card";
+import { InfraMetrics } from "@/components/home/infra-metrics";
 import { catalogMarketToMarketItem, type CatalogItem } from "@/lib/catalog";
 
 export interface DemoStat {
@@ -67,6 +68,8 @@ export function DemoShowcase({
             ))}
           </dl>
         )}
+
+        <InfraMetrics />
 
         {featured.length > 0 && (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
