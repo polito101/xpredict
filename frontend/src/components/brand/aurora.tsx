@@ -17,17 +17,19 @@ export function Aurora({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* A faint dotted grid adds depth without noise. */}
+      {/* A faint technical line grid — blueprint / infrastructure texture that
+          adds depth without noise. Masked to the top so it frames the hero and
+          melts away down the page. */}
       <div
-        className="absolute inset-0 opacity-[0.4]"
+        className="absolute inset-0 opacity-[0.55]"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 0)",
-          backgroundSize: "44px 44px",
+            "linear-gradient(to right, color-mix(in oklab, var(--foreground) 7%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 7%, transparent) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
           maskImage:
-            "radial-gradient(70% 60% at 50% 0%, black, transparent 80%)",
+            "radial-gradient(78% 68% at 50% 0%, black, transparent 82%)",
           WebkitMaskImage:
-            "radial-gradient(70% 60% at 50% 0%, black, transparent 80%)",
+            "radial-gradient(78% 68% at 50% 0%, black, transparent 82%)",
         }}
       />
     </div>
