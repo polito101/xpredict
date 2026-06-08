@@ -20,6 +20,7 @@ import {
   type DemoStat,
 } from "@/components/home/demo-showcase";
 import { HowItWorks } from "@/components/home/how-it-works";
+import { ContactSection } from "@/components/home/contact-section";
 import { LandingCta } from "@/components/home/landing-cta";
 import { fetchBrandingPublic, DEFAULT_BRANDING } from "@/lib/branding-public";
 import { fetchCatalog, fetchCategories, type CatalogItem } from "@/lib/catalog";
@@ -70,6 +71,7 @@ export default async function Landing() {
       <ApiSection />
       <DemoShowcase featured={featured} stats={stats} />
       <HowItWorks />
+      <ContactSection />
       <LandingCta />
     </>
   );

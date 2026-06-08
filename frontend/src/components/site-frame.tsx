@@ -23,6 +23,7 @@ const SECTION_LINKS = [
   { href: "/#capabilities", label: "Capabilities" },
   { href: "/#developers", label: "Developers" },
   { href: "/#demo", label: "Live demo" },
+  { href: "/#contact", label: "Contact" },
 ] as const;
 
 export function SiteFrame({
@@ -87,9 +88,17 @@ export function SiteFrame({
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 text-xs text-muted-foreground sm:px-6">
           {/* Brand presence: follow XPrediction across socials + the disclaimer. */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-subtle-foreground">Follow XPrediction</span>
-              <SocialLinks className="-ml-1" />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-subtle-foreground">Follow XPrediction</span>
+                <SocialLinks className="-ml-1" />
+              </div>
+              <Link
+                href="mailto:support@xprediction.online"
+                className="rounded text-subtle-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                support@xprediction.online
+              </Link>
             </div>
             <p className="text-subtle-foreground">
               Play-money tokens have no monetary value.
