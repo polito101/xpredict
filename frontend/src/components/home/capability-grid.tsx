@@ -49,7 +49,7 @@ const CAPS: Cap[] = [
   {
     icon: ShieldCheck,
     title: "Prediction infrastructure",
-    body: "ACID settlement on a double-entry ledger plus real-time odds over WebSockets, on Postgres · Redis · Celery. Balances never drift.",
+    body: "Real-time odds and money-safe settlement on a transparent, double-entry ledger — engineered to scale, so balances never drift.",
   },
   {
     icon: Code2,

@@ -12,8 +12,8 @@ const FEATURES = [
   "REST + JSON API",
   "Real-time odds over WebSocket",
   "Double-entry ledger settlement",
-  "Cookie (player) & Bearer (admin) auth",
-  "Runs on Docker — Postgres · Redis · Celery",
+  "Separate player & admin auth, secure by default",
+  "One-command Docker deploy — production-ready",
 ] as const;
 
 export function ApiSection() {
