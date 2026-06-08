@@ -71,16 +71,20 @@ export function WhyXPrediction() {
         </p>
       </div>
 
-      <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
         {REASONS.map(({ icon: Icon, title, body }) => (
-          <div key={title} className="flex flex-col gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-brand-primary/20 bg-brand-primary/10 text-brand-primary">
+          <div key={title} className="flex gap-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-brand-primary/20 bg-brand-primary/10 text-brand-primary">
               <Icon className="h-5 w-5" aria-hidden="true" strokeWidth={1.75} />
             </span>
-            <h3 className="font-display text-lg font-semibold tracking-tight">
-              {title}
-            </h3>
-            <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
+            <div className="flex flex-col gap-1.5">
+              <h3 className="font-display text-base font-semibold tracking-tight">
+                {title}
+              </h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {body}
+              </p>
+            </div>
           </div>
         ))}
       </div>
