@@ -66,7 +66,7 @@ export default async function Landing() {
   }
 
   return (
-    <>
+    <main>
       <HeroBand brandName={brandName} />
       <div className="reveal">
         <Pillars />
@@ -94,6 +94,6 @@ export default async function Landing() {
       <div className="reveal">
         <LandingCta />
       </div>
-    </>
+    </main>
   );
 }

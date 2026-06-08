@@ -36,12 +36,16 @@ export function SiteFrame({
   logoUrl,
   isAuthenticated,
   playerName,
+  year,
   children,
 }: {
   brandName: string;
   logoUrl: string | null;
   isAuthenticated: boolean;
   playerName: string | null;
+  /** Current year, resolved server-side (avoids a client `new Date()` in render
+   *  that could mismatch on hydration). */
+  year: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -153,7 +157,7 @@ export function SiteFrame({
           {/* Copyright + legal + disclaimer. */}
           <div className="flex flex-col gap-3 text-xs text-subtle-foreground sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span>© {new Date().getFullYear()} XPrediction</span>
+              <span>© {year} XPrediction</span>
               <span aria-hidden="true" className="text-border-strong">
                 ·
               </span>
