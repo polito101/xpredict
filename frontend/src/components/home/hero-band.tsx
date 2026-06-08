@@ -9,11 +9,13 @@
  * Component (composes the client XMark/Spark).
  */
 import Link from "next/link";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spark } from "@/components/brand/spark";
 import { LogoMark } from "@/components/brand/logo-mark";
 import { HeroVisual } from "@/components/home/hero-visual";
+import { GlowDivider } from "@/components/home/glow-divider";
 
 export function HeroBand({ brandName }: { brandName: string }) {
   const raw = brandName.trim();
@@ -49,11 +51,29 @@ export function HeroBand({ brandName }: { brandName: string }) {
             </Button>
           </div>
 
-          <p className="max-w-xl text-sm leading-relaxed text-subtle-foreground">
-            Stripe for payments · Shopify for commerce · Vercel for deploy —{" "}
-            <span className="text-muted-foreground">
-              {name} for prediction markets.
-            </span>{" "}
+          {/* Quiet trust indicators under the CTAs — credibility, not marketing. */}
+          <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
+            {[
+              "White-label ready",
+              "Multi-outcome markets",
+              "Real-time odds",
+              "API-first",
+            ].map((t) => (
+              <li
+                key={t}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground"
+              >
+                <Check
+                  className="h-4 w-4 shrink-0 text-brand-primary"
+                  aria-hidden="true"
+                  strokeWidth={2.5}
+                />
+                {t}
+              </li>
+            ))}
+          </ul>
+
+          <p className="text-sm text-subtle-foreground">
             New here?{" "}
             <Link
               href="/register"
@@ -80,17 +100,18 @@ export function HeroBand({ brandName }: { brandName: string }) {
         <HeroVisual />
       </div>
 
-      {/* Audience strip — who it's for. */}
-      <div className="mx-auto w-full max-w-6xl px-4 pb-10 sm:px-6">
-        <p className="mb-3 text-center text-xs font-medium uppercase tracking-[0.18em] text-subtle-foreground sm:text-left">
-          Built for the teams that shape what happens next
+      {/* Trust bar — the kinds of organizations XPrediction is built for. No
+          invented logos; an honest "built for" bar at infra-company altitude. */}
+      <div className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
+        <p className="mb-5 text-center text-xs font-medium uppercase tracking-[0.2em] text-subtle-foreground">
+          Built for the teams shaping what happens next
         </p>
-        <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 sm:gap-x-14">
           {["Companies", "Platforms", "Media", "Communities", "Operators"].map(
             (a) => (
               <span
                 key={a}
-                className="rounded-full border border-border bg-surface/60 px-3.5 py-1.5 text-sm text-muted-foreground"
+                className="text-sm font-semibold uppercase tracking-[0.14em] text-muted-foreground/75 transition-colors hover:text-foreground"
               >
                 {a}
               </span>
@@ -99,11 +120,8 @@ export function HeroBand({ brandName }: { brandName: string }) {
         </div>
       </div>
 
-      {/* Hairline divider into the body. */}
-      <div
-        aria-hidden="true"
-        className="mx-auto h-px w-full max-w-6xl bg-gradient-to-r from-transparent via-border to-transparent"
-      />
+      {/* Glowing hairline divider into the body. */}
+      <GlowDivider />
     </section>
   );
 }
