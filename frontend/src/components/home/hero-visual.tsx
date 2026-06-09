@@ -1,31 +1,20 @@
 /**
- * HeroVisual — the XPrediction ecosystem core (Phase 19 → Quality Pass v2).
+ * HeroVisual — the XPrediction ecosystem core (Phase 19, Quality Pass).
  *
  * The landing's signature piece: the "X" as the calm center of a sophisticated
  * ecosystem map. Ten ecosystem domains sit on a single, evenly-spaced ring as
- * refined icon badges; clean spokes carry a subtle energy flow inward so the
- * message reads instantly — everything routes through XPrediction.
+ * refined icon badges; clean spokes carry a subtle energy flow inward/outward so
+ * the message reads instantly — everything routes through XPrediction.
  *
- * Quality Pass v2 — a more cinematic, "infrastructure instrument" feel, built
- * ENTIRELY from the design-system's existing `hv-*` keyframes (already
- * reduced-motion-safe, already SSR-safe):
- *   · a slow-rotating PRECISION TICK RING around the hub (radar/dial language);
- *   · luminous data packets + connection ports (real SVG Gaussian-blur glow)
- *     travelling node → core, so connections read as ACTIVE routing into the hub;
- *   · a deeper, double-layer core aura that breathes (the X reads "powered on");
- *   · a more defined conic light sheen travelling the glass rim;
- *   · an atmospheric vignette that melts the square frame into the canvas and
- *     focuses the eye on the center.
+ * Built as a hybrid for fidelity: an SVG layer draws the connections, guide ring
+ * and core accent ring (crisp vector geometry + animated dash flow); an HTML layer
+ * renders the X hub and the node badges (real CSS typography, premium glass/glow,
+ * and — by living inside the container box — no clipped or overflowing labels).
  *
- * Built as a hybrid for fidelity: an SVG layer draws the connections, rings and
- * ticks (crisp vector geometry + animated flow); an HTML layer renders the X hub
- * and the node badges (real CSS typography, premium glass/glow, and — by living
- * inside the container box — no clipped or overflowing labels).
- *
- * Decorative (`aria-hidden`). All motion is reduced-motion-safe (every `hv-*`
- * class is disabled under `prefers-reduced-motion`). Node/line/tick/star coords
- * are rounded (trig can differ in the last ULP across engines) so SSR === CSR —
- * no hydration mismatch. Client Component (collision-free `useId`).
+ * Decorative (`aria-hidden`). All motion is reduced-motion-safe (`hv-*` classes
+ * are disabled under `prefers-reduced-motion`). Node/line coordinates are rounded
+ * (trig can differ in the last ULP across engines) so SSR === CSR — no hydration
+ * mismatch. Client Component (collision-free `useId`).
  */
 "use client";
 
@@ -88,45 +77,6 @@ const points = NODES.map((n) => {
   };
 });
 
-// Each spoke is the same length (uniform radial), so one packet travel distance
-// covers them all; +8 so the dot fully clears the hub before it fades.
-const SPOKE_LEN = 306 - 214 + 8;
-
-// Precision tick ring between the core and the node ring — a quiet "instrument"
-// dial. 60 ticks (every 6°); every 5th is a longer, brand-lit major tick.
-const TICKS = Array.from({ length: 60 }, (_, i) => {
-  const a = (i * 6 * Math.PI) / 180;
-  const cos = Math.cos(a);
-  const sin = Math.sin(a);
-  const major = i % 5 === 0;
-  const rIn = major ? 250 : 258;
-  const rOut = 270;
-  return {
-    x1: r2(500 + rIn * cos),
-    y1: r2(500 - rIn * sin),
-    x2: r2(500 + rOut * cos),
-    y2: r2(500 - rOut * sin),
-    major,
-  };
-});
-
-// Faint starfield — fixed coordinates (no Math.random → SSR-safe), kept clear of
-// the central core. Pure depth/texture, like the obsidian sky behind the system.
-const STARS: { cx: number; cy: number; r: number; delay: number }[] = [
-  { cx: 120, cy: 160, r: 1.6, delay: 0 },
-  { cx: 880, cy: 130, r: 1.3, delay: 0.8 },
-  { cx: 940, cy: 420, r: 1.7, delay: 1.6 },
-  { cx: 800, cy: 880, r: 1.4, delay: 0.4 },
-  { cx: 470, cy: 60, r: 1.2, delay: 2.1 },
-  { cx: 60, cy: 540, r: 1.5, delay: 1.2 },
-  { cx: 180, cy: 860, r: 1.3, delay: 2.6 },
-  { cx: 540, cy: 950, r: 1.6, delay: 0.6 },
-  { cx: 930, cy: 690, r: 1.2, delay: 3.0 },
-  { cx: 70, cy: 300, r: 1.3, delay: 1.9 },
-  { cx: 360, cy: 905, r: 1.1, delay: 3.4 },
-  { cx: 905, cy: 250, r: 1.1, delay: 2.3 },
-];
-
 const BADGE_STYLE: React.CSSProperties = {
   background: "color-mix(in oklab, var(--card) 80%, transparent)",
   boxShadow:
@@ -137,14 +87,13 @@ export function HeroVisual() {
   const uid = useId().replace(/:/g, "");
   const link = `hv-link-${uid}`;
   const ambient = `hv-amb-${uid}`;
-  const glow = `hv-glow-${uid}`;
 
   return (
     <div
       aria-hidden="true"
       className="relative mx-auto hidden aspect-square w-full max-w-[40rem] lg:block"
     >
-      {/* ── Connection layer (SVG): stars, ambient lift, ticks, rings, flow ── */}
+      {/* ── Connection layer (SVG): ambient lift, guide ring, spokes, flow ── */}
       <svg
         viewBox="0 0 1000 1000"
         className="absolute inset-0 h-full w-full"
@@ -156,70 +105,14 @@ export function HeroVisual() {
             <stop offset="100%" stopColor="var(--brand-primary)" />
           </linearGradient>
           <radialGradient id={ambient} cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="var(--brand-primary)" stopOpacity="0.2" />
-            <stop offset="55%" stopColor="#7c3aed" stopOpacity="0.07" />
+            <stop offset="0%" stopColor="var(--brand-primary)" stopOpacity="0.18" />
+            <stop offset="55%" stopColor="#7c3aed" stopOpacity="0.06" />
             <stop offset="100%" stopColor="var(--brand-primary)" stopOpacity="0" />
           </radialGradient>
-          {/* Soft luminous bloom for packets + ports — the "data is light" feel. */}
-          <filter id={glow} x="-60%" y="-60%" width="220%" height="220%">
-            <feGaussianBlur stdDeviation="3.2" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
 
-        {/* Faint starfield — depth behind the whole system. */}
-        {STARS.map((s, i) => (
-          <circle
-            key={`star-${i}`}
-            cx={s.cx}
-            cy={s.cy}
-            r={s.r}
-            fill="var(--foreground)"
-            className="hv-star"
-            style={{ animationDelay: `${s.delay}s` }}
-          />
-        ))}
-
-        {/* A restrained glow lifts the core off the background. */}
-        <circle cx="500" cy="500" r="320" fill={`url(#${ambient})`} className="hv-core" />
-
-        {/* Precision tick ring — a slow, quiet instrument dial around the hub. */}
-        <g className="hv-spin-rev">
-          {TICKS.map((t, i) => (
-            <line
-              key={`tick-${i}`}
-              x1={t.x1}
-              y1={t.y1}
-              x2={t.x2}
-              y2={t.y2}
-              stroke={t.major ? "var(--brand-secondary)" : "var(--border-strong)"}
-              strokeWidth={t.major ? 1.5 : 1}
-              strokeOpacity={t.major ? 0.5 : 0.28}
-              strokeLinecap="round"
-            />
-          ))}
-        </g>
-
-        {/* Calibration reference engraved on the dial — a quiet fabrication-style
-            mark in the dial's own color and weight (no glow, low contrast). It is
-            self-referential: placed at exactly 293° of the dial (r≈262), so the
-            mark and its angular coordinate match. Reads as a system reference, not
-            a label; invisible at a glance, legible only on close inspection. */}
-        <text
-          x="602"
-          y="741"
-          textAnchor="middle"
-          fill="var(--border-strong)"
-          fillOpacity="0.55"
-          fontSize="11"
-          letterSpacing="1.5"
-          fontFamily="var(--font-space-grotesk), ui-sans-serif, sans-serif"
-        >
-          293
-        </text>
+        {/* A single restrained glow lifts the core off the background. */}
+        <circle cx="500" cy="500" r="300" fill={`url(#${ambient})`} className="hv-core" />
 
         {/* Faint guide ring through the nodes — the ecosystem's structure. */}
         <circle
@@ -255,8 +148,8 @@ export function HeroVisual() {
             x2={p.x2}
             y2={p.y2}
             stroke="var(--brand-secondary)"
-            strokeWidth="1.5"
-            strokeOpacity="0.6"
+            strokeWidth="1.6"
+            strokeOpacity="0.85"
             strokeLinecap="round"
             strokeDasharray="2 14"
             className="hv-flow"
@@ -264,96 +157,27 @@ export function HeroVisual() {
           />
         ))}
 
-        {/* Luminous, blurred-glow layer: data packets travelling node → core, and
-            the connection ports where the wires meet the hub. */}
-        <g filter={`url(#${glow})`}>
-          {points.map((p, i) => (
-            <line
-              key={`pkt-${p.label}`}
-              x1={p.x2}
-              y1={p.y2}
-              x2={p.x1}
-              y2={p.y1}
-              stroke="var(--brand-secondary)"
-              strokeWidth="2.8"
-              strokeLinecap="round"
-              strokeDasharray="0.5 240"
-              className="hv-packet"
-              style={
-                {
-                  "--len": SPOKE_LEN,
-                  animationDelay: `${(i * 0.34).toFixed(2)}s`,
-                } as React.CSSProperties
-              }
-            />
-          ))}
-          {points.map((p, i) => (
-            <circle
-              key={`port-${p.label}`}
-              cx={p.x1}
-              cy={p.y1}
-              r="2.8"
-              fill="var(--brand-secondary)"
-              className="hv-twinkle"
-              style={{ animationDelay: `${(i * 0.27).toFixed(2)}s` }}
-            />
-          ))}
-        </g>
-
-        {/* Two accent rings hugging the hub, counter-rotating for quiet depth. */}
+        {/* Slow dashed accent ring hugging the hub — quiet kinetic life. */}
         <circle
           cx="500"
           cy="500"
           r="214"
           stroke="var(--brand-secondary)"
           strokeWidth="1"
-          strokeOpacity="0.4"
+          strokeOpacity="0.35"
           strokeDasharray="2 12"
           className="hv-spin"
         />
-        <circle
-          cx="500"
-          cy="500"
-          r="242"
-          stroke="var(--brand-primary)"
-          strokeWidth="1"
-          strokeOpacity="0.2"
-          strokeDasharray="1 13"
-          className="hv-spin-rev"
-        />
-
-        {/* Energy emitted from the core — a calm sonar pulsing out to the ring. */}
-        {[0, 2.75].map((d, i) => (
-          <circle
-            key={`emit-${i}`}
-            cx="500"
-            cy="500"
-            r="290"
-            fill="none"
-            stroke="var(--brand-secondary)"
-            strokeWidth="1.5"
-            className="hv-emit"
-            style={{ animationDelay: `${d}s` }}
-          />
-        ))}
       </svg>
 
-      {/* ── Core (HTML): premium glass hub + double breathing aura + the X ── */}
-      <div className="absolute left-1/2 top-1/2 aspect-square w-[45%] -translate-x-1/2 -translate-y-1/2">
-        {/* Wide, soft outer aura — the core's cinematic "powered-on" presence. */}
+      {/* ── Core (HTML): premium glass hub + breathing glow + the X mark ── */}
+      <div className="absolute left-1/2 top-1/2 aspect-square w-[41%] -translate-x-1/2 -translate-y-1/2">
+        {/* Breathing outer glow. */}
         <div
-          className="hv-core absolute inset-[-52%] rounded-full"
+          className="hv-ring absolute inset-[-16%] rounded-full"
           style={{
             background:
-              "radial-gradient(circle, color-mix(in oklab, var(--brand-primary) 24%, transparent), transparent 68%)",
-          }}
-        />
-        {/* Tighter breathing glow right at the rim. */}
-        <div
-          className="hv-ring absolute inset-[-22%] rounded-full"
-          style={{
-            background:
-              "radial-gradient(circle, color-mix(in oklab, var(--brand-primary) 48%, transparent), transparent 70%)",
+              "radial-gradient(circle, color-mix(in oklab, var(--brand-primary) 38%, transparent), transparent 70%)",
           }}
         />
         {/* Glass disc — material, depth, top-light reflection. */}
@@ -362,16 +186,16 @@ export function HeroVisual() {
           style={{
             background:
               "radial-gradient(circle at 50% 36%, #16203a, #0a0f1e 60%, #070b16)",
-            border: "1px solid color-mix(in oklab, var(--brand-primary) 46%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent)",
             boxShadow:
-              "inset 0 1px 1px rgba(255,255,255,0.16), inset 0 -24px 48px rgba(0,0,0,0.55), 0 40px 90px -34px rgba(0,0,0,0.92)",
+              "inset 0 1px 1px rgba(255,255,255,0.14), inset 0 -24px 48px rgba(0,0,0,0.55), 0 30px 70px -34px rgba(0,0,0,0.85)",
           }}
         >
           <div
             className="pointer-events-none absolute inset-0 rounded-full"
             style={{
               background:
-                "linear-gradient(180deg, rgba(255,255,255,0.13), rgba(255,255,255,0) 44%)",
+                "linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0) 44%)",
             }}
           />
           {/* A brand-light highlight that slowly travels the rim — the premium
@@ -380,61 +204,50 @@ export function HeroVisual() {
             className="hv-spin pointer-events-none absolute inset-0 rounded-full"
             style={{
               background:
-                "conic-gradient(from 0deg, transparent 276deg, color-mix(in oklab, var(--brand-secondary) 60%, transparent) 326deg, color-mix(in oklab, var(--brand-secondary) 100%, transparent) 348deg, transparent 360deg)",
+                "conic-gradient(from 0deg, transparent 285deg, color-mix(in oklab, var(--brand-secondary) 55%, transparent) 330deg, color-mix(in oklab, var(--brand-secondary) 95%, transparent) 348deg, transparent 360deg)",
               WebkitMaskImage:
                 "radial-gradient(closest-side, transparent 90%, #000 92%)",
               maskImage:
                 "radial-gradient(closest-side, transparent 90%, #000 92%)",
-              opacity: 0.9,
+              opacity: 0.75,
             }}
           />
           <LogoMark
             animated
-            className="relative h-[66%] w-[66%] drop-shadow-[0_14px_50px_rgba(56,128,255,0.7)]"
+            className="relative h-[64%] w-[64%] drop-shadow-[0_10px_36px_rgba(56,128,255,0.5)]"
           />
         </div>
       </div>
 
-      {/* ── Nodes (HTML): the whole ring sways together (hv-sway) around the
-          stable core, and each badge drifts a little on its own — so the
-          ecosystem floats coherently, alive but never chaotic. ── */}
-      <div className="absolute inset-0 hv-sway">
-        {points.map((p, i) => {
-          const Icon = p.Icon;
-          return (
+      {/* ── Nodes (HTML): refined icon badges, evenly placed, gently floating ── */}
+      {points.map((p, i) => {
+        const Icon = p.Icon;
+        return (
+          <div
+            key={`n-${p.label}`}
+            className="absolute"
+            style={{ left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%, -50%)" }}
+          >
             <div
-              key={`n-${p.label}`}
-              className="absolute"
-              style={{ left: `${p.left}%`, top: `${p.top}%`, transform: "translate(-50%, -50%)" }}
-            >
-            <div
-              className="hv-drift group flex cursor-default flex-col items-center gap-2"
+              className="hv-drift flex flex-col items-center gap-2"
               style={{ animationDelay: `${(i * 0.55).toFixed(2)}s` }}
             >
               <span
-                className="relative grid h-14 w-14 place-items-center rounded-full border border-border/70 backdrop-blur-md transition-all duration-300 group-hover:scale-110 group-hover:border-brand-primary/60"
+                className="grid h-14 w-14 place-items-center rounded-full border border-border/70 backdrop-blur-md"
                 style={BADGE_STYLE}
               >
-                {/* Soft pulsing halo — each node quietly breathes with light, and
-                    flares to full on hover. */}
-                <span
-                  aria-hidden="true"
-                  className="hv-pulse absolute inset-[-22%] rounded-full bg-brand-secondary/20 blur-md transition-opacity duration-300 group-hover:opacity-100"
-                  style={{ animationDelay: `${(i * 0.4).toFixed(2)}s` }}
-                />
                 <Icon
-                  className="relative h-[1.4rem] w-[1.4rem] text-foreground/85 transition-colors duration-300 group-hover:text-brand-primary"
+                  className="h-[1.4rem] w-[1.4rem] text-foreground/85"
                   strokeWidth={1.6}
                 />
               </span>
-              <span className="font-display text-[13px] font-medium tracking-tight text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
+              <span className="font-display text-[13px] font-medium tracking-tight text-muted-foreground">
                 {p.label}
               </span>
             </div>
           </div>
         );
-        })}
-      </div>
+      })}
     </div>
   );
 }
