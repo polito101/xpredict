@@ -15,10 +15,11 @@ WR-05) and the ``tenant_id`` ghost column (PLT-01).
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID as PyUUID
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Index, Text, func
+from sqlalchemy import CheckConstraint, DateTime, Index, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,7 +34,8 @@ class Bet(Base):
 
     Created in the SAME ACID transaction as the stake's ledger movement (Phase 5 SC#1):
     a kill-mid-transaction failure must leave neither the bet nor its ledger entries.
-    ``status`` walks ``PENDING`` -> ``SETTLED_WON`` / ``SETTLED_LOST`` at settlement.
+    ``status`` walks ``PENDING`` -> ``SETTLED_WON`` / ``SETTLED_LOST`` at settlement, or
+    ``PENDING`` -> ``CLOSED`` when the player cashes out early (early close).
     """
 
     __tablename__ = "bets"
@@ -56,6 +58,11 @@ class Bet(Base):
     # lint stays green; mirrors Phase 4's Outcome.current_odds precision.
     odds_at_placement: Mapped[Odds] = mapped_column()
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=BET_PENDING)
+    # Early close (cash-out before resolution): both NULL until the bet is CLOSED.
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The outcome's price captured at close — Numeric(8,6) like odds_at_placement, but nullable
+    # (so NOT the non-null Odds alias). Realized-on-close P&L derives from stake/odds/exit_odds.
+    exit_odds: Mapped[Decimal | None] = mapped_column(Numeric(8, 6), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -69,7 +76,7 @@ class Bet(Base):
     __table_args__ = (
         CheckConstraint("stake > 0", name="bets_stake_positive"),
         CheckConstraint(
-            "status IN ('PENDING','SETTLED_WON','SETTLED_LOST')",
+            "status IN ('PENDING','SETTLED_WON','SETTLED_LOST','CLOSED')",
             name="bets_status_check",
         ),
         Index("bets_user_idx", "user_id"),

@@ -28,3 +28,11 @@ class StakeOutOfRange(BetError):
     the market) and fall back to the global ``BET_MIN_STAKE`` / ``BET_MAX_STAKE`` config.
     The router maps this to HTTP 422 with the message carried on the exception.
     """
+
+
+class BetNotFound(BetError):
+    """No open bet with this id belongs to the requesting player (close target missing)."""
+
+
+class BetNotClosable(BetError):
+    """The bet cannot be closed — it is no longer ``PENDING`` (already settled or closed)."""

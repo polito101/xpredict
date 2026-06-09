@@ -57,3 +57,25 @@ def profit_or_loss(stake: Decimal, payout: Decimal) -> Decimal:
     A winner is positive; a loser is exactly ``-stake``.
     """
     return quantize_money(payout - stake)
+
+
+def cashout_value(stake: Decimal, entry_price: Decimal, current_price: Decimal) -> Decimal:
+    """Mark-to-market value of a fixed-odds position at the live price.
+
+    A bet of ``stake`` at ``entry_price`` holds ``stake / entry_price`` binary units that each
+    pay 1 if the outcome wins; their value at ``current_price`` is
+    ``stake * current_price / entry_price``, money-quantized. Serves BOTH the live unrealized
+    P&L view (BET-07) and the early-close cash-out value — at fair value (no house edge, v1)
+    the liquidation value equals the expected value.
+
+    ``entry_price`` is in (0, 1]; ``current_price`` in [0, 1] (0 == the outcome is now deemed
+    impossible -> value 0). Raises :class:`ValueError` on a non-positive stake or an
+    out-of-range price.
+    """
+    if stake <= 0:
+        raise ValueError("stake must be > 0")
+    if not (0 < entry_price <= 1):
+        raise ValueError("entry_price must be in (0, 1]")
+    if not (0 <= current_price <= 1):
+        raise ValueError("current_price must be in [0, 1]")
+    return quantize_money(stake * current_price / entry_price)

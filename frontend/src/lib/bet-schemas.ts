@@ -72,3 +72,9 @@ export type ActionState =
   | { errors: ActionErrors }
   | { success: true; message: string }
   | undefined;
+
+export type SellState = {
+  success?: boolean;
+  message?: string;
+  error?: string;
+};

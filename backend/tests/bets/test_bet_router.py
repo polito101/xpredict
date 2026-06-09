@@ -353,13 +353,155 @@ async def test_post_bets_accepts_within_per_market_range(api: httpx.AsyncClient)
     assert Decimal(r.json()["stake"]) == Decimal("25.0000")
 
 
-async def test_sell_position_returns_405(api: httpx.AsyncClient) -> None:
-    """Selling a position is not supported in v1 — the API returns 405 (SC#3)."""
-    _auth_as(_User(uuid4()))
-    r = await api.post(f"/bets/{uuid4()}/sell")
-    assert r.status_code == 405
+async def test_get_portfolio_open_position_uses_live_unrealized_pnl(api: httpx.AsyncClient) -> None:
+    """Open P&L is mark-to-market against the LIVE current odds, not the win-scenario payout.
+
+    Bet 40 on YES at 0.5, then YES rises to 0.625 (more likely): current_value =
+    40 * 0.625 / 0.5 = 50 -> unrealized_pnl = +10. The win-scenario potential_pnl (+40) is
+    separate and unchanged.
+    """
+    user_id = await _seed_wallet(Decimal("100.0000"))
+    _auth_as(_User(user_id))
+    market_id = uuid4()
+    yes_id = uuid4()
+    no_id = uuid4()
+
+    def market_at(yes_price: str) -> MarketView:
+        return MarketView(
+            id=market_id,
+            status=MARKET_OPEN,
+            deadline=datetime.now(UTC) + timedelta(days=1),
+            outcomes=(
+                OutcomeView(id=yes_id, label="YES", price=Decimal(yes_price)),
+                OutcomeView(id=no_id, label="NO", price=Decimal("0.5")),
+            ),
+        )
+
+    src = StubMarketSource()
+    src.add(market_at("0.5"))  # entry price
+    _wire_market(src)
+
+    r = await api.post(
+        "/bets",
+        json={"market_id": str(market_id), "outcome_id": str(yes_id), "stake": "40.0000"},
+    )
+    assert r.status_code == 201
+
+    src.add(market_at("0.625"))  # YES rises -> position gains
+    body = (await api.get("/bets/me/portfolio")).json()
+    op = next(p for p in body["open"] if p["outcome_id"] == str(yes_id))
+    assert op["priced"] is True
+    assert Decimal(op["current_value"]) == Decimal("50.0000")
+    assert Decimal(op["unrealized_pnl"]) == Decimal("10.0000")
+    assert Decimal(op["potential_pnl"]) == Decimal("40.0000")  # 40/0.5 - 40, unchanged
 
 
 async def test_sell_position_requires_auth(api: httpx.AsyncClient) -> None:
     r = await api.post(f"/bets/{uuid4()}/sell")
     assert r.status_code == 401
+
+
+async def test_sell_position_happy_path_200(api: httpx.AsyncClient) -> None:
+    """Closing a gained position pays the live fair value.
+
+    Bet 40 @ 0.5, YES rises to 0.8 -> payout 64 (pnl +24).
+    """
+    user_id = await _seed_wallet(Decimal("100.0000"))
+    _auth_as(_User(user_id))
+    market_id, yes_id, no_id = uuid4(), uuid4(), uuid4()
+
+    def market_at(yes_price: str, status: str = MARKET_OPEN) -> MarketView:
+        return MarketView(
+            id=market_id,
+            status=status,
+            deadline=datetime.now(UTC) + timedelta(days=1),
+            outcomes=(
+                OutcomeView(id=yes_id, label="YES", price=Decimal(yes_price)),
+                OutcomeView(id=no_id, label="NO", price=Decimal("0.5")),
+            ),
+        )
+
+    src = StubMarketSource()
+    src.add(market_at("0.5"))
+    _wire_market(src)
+    place = await api.post(
+        "/bets", json={"market_id": str(market_id), "outcome_id": str(yes_id), "stake": "40.0000"}
+    )
+    assert place.status_code == 201
+    bet_id = place.json()["bet_id"]
+
+    src.add(market_at("0.8"))  # YES rises -> gain
+    r = await api.post(f"/bets/{bet_id}/sell")
+    assert r.status_code == 200
+    body = r.json()
+    assert Decimal(body["payout"]) == Decimal("64.0000")
+    assert Decimal(body["pnl"]) == Decimal("24.0000")
+    assert Decimal(body["new_balance"]) == Decimal("124.0000")  # 100 - 40 + 64
+    assert isinstance(body["payout"], str)  # money as JSON string (SC#4)
+
+
+async def test_sell_position_404_when_not_owner_or_unknown(api: httpx.AsyncClient) -> None:
+    """Closing a bet that is not the caller's (here: a non-existent bet id) is 404."""
+    user_id = await _seed_wallet(Decimal("100.0000"))
+    _auth_as(_User(user_id))
+    src = StubMarketSource()
+    _wire_market(src)
+    r = await api.post(f"/bets/{uuid4()}/sell")
+    assert r.status_code == 404
+
+
+async def test_sell_position_409_when_already_closed(api: httpx.AsyncClient) -> None:
+    """A second close on the same bet is 409 (no double cash-out)."""
+    user_id = await _seed_wallet(Decimal("100.0000"))
+    _auth_as(_User(user_id))
+    market_id, yes_id, no_id = uuid4(), uuid4(), uuid4()
+
+    def market_at(yes_price: str, status: str = MARKET_OPEN) -> MarketView:
+        return MarketView(
+            id=market_id,
+            status=status,
+            deadline=datetime.now(UTC) + timedelta(days=1),
+            outcomes=(
+                OutcomeView(id=yes_id, label="YES", price=Decimal(yes_price)),
+                OutcomeView(id=no_id, label="NO", price=Decimal("0.5")),
+            ),
+        )
+
+    src = StubMarketSource()
+    src.add(market_at("0.5"))
+    _wire_market(src)
+    place = await api.post(
+        "/bets", json={"market_id": str(market_id), "outcome_id": str(yes_id), "stake": "40.0000"}
+    )
+    bet_id = place.json()["bet_id"]
+    assert (await api.post(f"/bets/{bet_id}/sell")).status_code == 200
+    assert (await api.post(f"/bets/{bet_id}/sell")).status_code == 409
+
+
+async def test_sell_position_409_when_market_closed(api: httpx.AsyncClient) -> None:
+    """Closing once the market is no longer OPEN is 409 (cash-out needs a live price)."""
+    user_id = await _seed_wallet(Decimal("100.0000"))
+    _auth_as(_User(user_id))
+    market_id, yes_id, no_id = uuid4(), uuid4(), uuid4()
+
+    def market_at(yes_price: str, status: str = MARKET_OPEN) -> MarketView:
+        return MarketView(
+            id=market_id,
+            status=status,
+            deadline=datetime.now(UTC) + timedelta(days=1),
+            outcomes=(
+                OutcomeView(id=yes_id, label="YES", price=Decimal(yes_price)),
+                OutcomeView(id=no_id, label="NO", price=Decimal("0.5")),
+            ),
+        )
+
+    src = StubMarketSource()
+    src.add(market_at("0.5"))
+    _wire_market(src)
+    place = await api.post(
+        "/bets", json={"market_id": str(market_id), "outcome_id": str(yes_id), "stake": "40.0000"}
+    )
+    bet_id = place.json()["bet_id"]
+    src.add(market_at("0.5", status=MARKET_CLOSED))  # market closes
+    r = await api.post(f"/bets/{bet_id}/sell")
+    assert r.status_code == 409
