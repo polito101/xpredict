@@ -17,7 +17,13 @@ from app.bets.constants import BET_PENDING, BET_SETTLED_LOST, BET_SETTLED_WON
 from app.bets.portfolio import PositionInput, build_portfolio
 
 
-def _pos(status: str, *, stake: str = "40", odds: str = "0.5") -> PositionInput:
+def _pos(
+    status: str,
+    *,
+    stake: str = "40",
+    odds: str = "0.5",
+    current_odds: str | None = None,
+) -> PositionInput:
     return PositionInput(
         bet_id=uuid4(),
         market_id=uuid4(),
@@ -25,6 +31,7 @@ def _pos(status: str, *, stake: str = "40", odds: str = "0.5") -> PositionInput:
         stake=Decimal(stake),
         odds_at_placement=Decimal(odds),
         status=status,
+        current_odds=Decimal(current_odds) if current_odds is not None else None,
     )
 
 
@@ -65,3 +72,55 @@ def test_empty_portfolio() -> None:
     p = build_portfolio([])
     assert p.open == ()
     assert p.settled == ()
+
+
+# --------------------------------------------------------------------------- #
+# Mark-to-market: live current_odds enrichment on open positions (BET-07).
+# --------------------------------------------------------------------------- #
+def test_open_priced_gain() -> None:
+    # entry 0.5, live 0.6 → 40 * 0.6 / 0.5 = 48 (outcome got more likely).
+    p = build_portfolio([_pos(BET_PENDING, stake="40", odds="0.5", current_odds="0.6")])
+    op = p.open[0]
+    assert op.current_value == Decimal("48.0000")
+    assert op.unrealized_pnl == Decimal("8.0000")
+    assert op.priced is True
+
+
+def test_open_priced_loss() -> None:
+    # entry 0.5, live 0.4 → 40 * 0.4 / 0.5 = 32 (outcome got less likely).
+    p = build_portfolio([_pos(BET_PENDING, stake="40", odds="0.5", current_odds="0.4")])
+    op = p.open[0]
+    assert op.current_value == Decimal("32.0000")
+    assert op.unrealized_pnl == Decimal("-8.0000")
+    assert op.priced is True
+
+
+def test_open_priced_equal() -> None:
+    # live price unchanged → zero unrealized P&L.
+    p = build_portfolio([_pos(BET_PENDING, stake="40", odds="0.5", current_odds="0.5")])
+    op = p.open[0]
+    assert op.unrealized_pnl == Decimal("0.0000")
+    assert op.priced is True
+
+
+def test_open_unpriced_neutral_fallback() -> None:
+    # No live price → current_value == stake, unrealized_pnl == 0, priced False.
+    p = build_portfolio([_pos(BET_PENDING, stake="40", odds="0.5")])
+    op = p.open[0]
+    assert op.current_value == Decimal("40.0000")
+    assert op.unrealized_pnl == Decimal("0.0000")
+    assert op.priced is False
+    # Existing potential fields must remain unchanged.
+    assert op.potential_payout == Decimal("80.0000")
+    assert op.potential_pnl == Decimal("40.0000")
+
+
+def test_settled_position_carries_status() -> None:
+    # SettledPosition must expose the bet's terminal status string.
+    p = build_portfolio([_pos(BET_SETTLED_WON, stake="40", odds="0.5")])
+    sp = p.settled[0]
+    assert sp.status == BET_SETTLED_WON
+
+    p2 = build_portfolio([_pos(BET_SETTLED_LOST, stake="40", odds="0.5")])
+    sp2 = p2.settled[0]
+    assert sp2.status == BET_SETTLED_LOST

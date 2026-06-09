@@ -105,3 +105,54 @@ def test_quantize_money_rounds_down_below_half() -> None:
 def test_quantize_money_passthrough_when_already_four_dp() -> None:
     assert quantize_money(Decimal("10.0000")) == Decimal("10.0000")
     assert quantize_money(Decimal("10.0000")).as_tuple().exponent == -4
+
+
+# --------------------------------------------------------------------------- #
+# cashout_value — mark-to-market value of a position at the live price.
+# --------------------------------------------------------------------------- #
+from app.settlement.payout import cashout_value  # noqa: E402
+
+
+def test_cashout_value_gain() -> None:
+    # stake 40 at entry 0.5, live price 0.6 → 40 * 0.6 / 0.5 = 48.
+    assert cashout_value(Decimal("40"), Decimal("0.5"), Decimal("0.6")) == Decimal("48.0000")
+
+
+def test_cashout_value_loss() -> None:
+    # live price dropped to 0.4 → 40 * 0.4 / 0.5 = 32.
+    assert cashout_value(Decimal("40"), Decimal("0.5"), Decimal("0.4")) == Decimal("32.0000")
+
+
+def test_cashout_value_equal_price() -> None:
+    # current_price == entry_price → no change in value.
+    assert cashout_value(Decimal("40"), Decimal("0.5"), Decimal("0.5")) == Decimal("40.0000")
+
+
+def test_cashout_value_current_price_zero() -> None:
+    # outcome deemed impossible → value 0.
+    assert cashout_value(Decimal("40"), Decimal("0.5"), Decimal("0")) == Decimal("0.0000")
+
+
+def test_cashout_value_rejects_nonpositive_stake() -> None:
+    with pytest.raises(ValueError):
+        cashout_value(Decimal("0"), Decimal("0.5"), Decimal("0.5"))
+    with pytest.raises(ValueError):
+        cashout_value(Decimal("-10"), Decimal("0.5"), Decimal("0.5"))
+
+
+def test_cashout_value_rejects_invalid_entry_price() -> None:
+    # entry_price must be in (0, 1]
+    with pytest.raises(ValueError):
+        cashout_value(Decimal("40"), Decimal("0"), Decimal("0.5"))
+    with pytest.raises(ValueError):
+        cashout_value(Decimal("40"), Decimal("1.1"), Decimal("0.5"))
+
+
+def test_cashout_value_rejects_current_price_above_one() -> None:
+    with pytest.raises(ValueError):
+        cashout_value(Decimal("40"), Decimal("0.5"), Decimal("1.1"))
+
+
+def test_cashout_value_result_is_money_scale() -> None:
+    # Result is always 4-dp ledger scale.
+    assert cashout_value(Decimal("40"), Decimal("0.5"), Decimal("0.6")).as_tuple().exponent == -4
