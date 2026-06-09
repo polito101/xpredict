@@ -11,7 +11,8 @@ from __future__ import annotations
 from uuid import UUID
 
 # --------------------------------------------------------------------------- #
-# Bet lifecycle status. Settlement transitions PENDING -> SETTLED_WON/_LOST.
+# Bet lifecycle status. Settlement transitions PENDING -> SETTLED_WON/_LOST;
+# early close (cash-out) transitions PENDING -> CLOSED (see BET_CLOSED below).
 # --------------------------------------------------------------------------- #
 BET_PENDING = "PENDING"
 BET_SETTLED_WON = "SETTLED_WON"

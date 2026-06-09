@@ -34,7 +34,8 @@ class Bet(Base):
 
     Created in the SAME ACID transaction as the stake's ledger movement (Phase 5 SC#1):
     a kill-mid-transaction failure must leave neither the bet nor its ledger entries.
-    ``status`` walks ``PENDING`` -> ``SETTLED_WON`` / ``SETTLED_LOST`` at settlement.
+    ``status`` walks ``PENDING`` -> ``SETTLED_WON`` / ``SETTLED_LOST`` at settlement, or
+    ``PENDING`` -> ``CLOSED`` when the player cashes out early (early close).
     """
 
     __tablename__ = "bets"
