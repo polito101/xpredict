@@ -19,7 +19,7 @@ For a SETTLED position the realized P&L equals exactly what settlement posted: a
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
@@ -39,8 +39,8 @@ class PositionInput:
     stake: Decimal
     odds_at_placement: Decimal
     status: str
-    current_odds: Decimal | None = None  # live price of THIS outcome (for OPEN mark-to-market); None = unavailable
-    exit_odds: Decimal | None = None     # price captured at early-close (for CLOSED positions; unused this task)
+    current_odds: Decimal | None = None  # live price of THIS outcome (OPEN mark-to-market)
+    exit_odds: Decimal | None = None  # price captured at early-close (CLOSED; unused here)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,10 +59,10 @@ class OpenPosition:
     odds_at_placement: Decimal
     potential_payout: Decimal  # stake / odds — what a win pays at the locked price
     potential_pnl: Decimal     # potential_payout - stake
-    current_odds: Decimal | None  # the live price used for the mark-to-market (None if unavailable)
-    current_value: Decimal        # stake * current_odds / odds_at_placement (== stake when unpriced)
-    unrealized_pnl: Decimal       # current_value - stake (SIGNED — can be negative)
-    priced: bool                  # True if a live current_odds was available; False = neutral fallback
+    current_odds: Decimal | None  # live price used for mark-to-market (None if unavailable)
+    current_value: Decimal  # stake * current_odds / odds_at_placement (== stake if unpriced)
+    unrealized_pnl: Decimal  # current_value - stake (SIGNED — can be negative)
+    priced: bool  # True if a live current_odds was available; False = neutral fallback
 
 
 @dataclass(frozen=True, slots=True)
