@@ -32,6 +32,7 @@ from app.bets.router import get_market_source
 from app.db.session import _get_session_maker
 from app.main import app
 from app.wallet.constants import KIND_USER_WALLET, OWNER_USER, PLAY_USD
+from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
@@ -112,8 +113,16 @@ def _market(
 
 
 async def _seed_wallet(balance: Decimal) -> UUID:
-    """INSERT a user_wallet at ``balance`` (committed); return its owner user_id."""
+    """Create a LEDGER-BACKED user_wallet at ``balance`` (committed); return its owner user_id.
+
+    INSERTs at balance 0, then funds via the real ``WalletService.recharge`` (``house_promo ->
+    wallet``, a proper ledger entry). A bare-balance INSERT leaves an orphan balance with no
+    offsetting entry; because the testcontainer is session-scoped, the committed orphan leaks
+    into later suites whose DB-wide ledger-integrity gate then flags it as drift. Ledger-backed
+    seeding keeps the combined suite order-independent.
+    """
     user_id = uuid4()
+    wallet_id = uuid4()
     sm = _get_session_maker()
     async with sm() as s, s.begin():
         await s.execute(
@@ -122,14 +131,23 @@ async def _seed_wallet(balance: Decimal) -> UUID:
                 "VALUES (:id, :ot, :oid, :k, :c, :b)"
             ),
             {
-                "id": uuid4(),
+                "id": wallet_id,
                 "ot": OWNER_USER,
                 "oid": user_id,
                 "k": KIND_USER_WALLET,
                 "c": PLAY_USD,
-                "b": balance,
+                "b": Decimal("0"),
             },
         )
+    if balance > 0:
+        async with sm() as s:
+            await WalletService.recharge(
+                s,
+                user_id=user_id,
+                amount=balance,
+                reason="test seed",
+                idempotency_key=f"seed:{wallet_id}",
+            )
     return user_id
 
 

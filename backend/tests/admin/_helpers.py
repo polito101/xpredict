@@ -68,7 +68,15 @@ async def seed_user(
 
 
 async def seed_wallet(engine: AsyncEngine, user_id: UUID, *, balance: Decimal) -> UUID:
-    """INSERT a ``user_wallet`` account for ``user_id`` (committed); return its id."""
+    """INSERT a ``user_wallet`` account for ``user_id`` (committed); return its id.
+
+    NOTE: this writes the cached ``balance`` directly, WITHOUT a backing ledger entry. A
+    non-zero ``balance`` MUST be matched by ``seed_transaction`` credit(s) summing to it,
+    otherwise the account registers as drift in the DB-wide ledger reconciler
+    (``app.wallet.reconcile._reconcile_async``) — and because the testcontainer Postgres is
+    session-scoped, that committed orphan leaks into other suites' integrity gate (e.g.
+    ``tests/settlement/test_event_*``), failing them depending on file ordering.
+    """
     wallet_id = uuid4()
     async with engine.connect() as conn:
         await conn.execute(

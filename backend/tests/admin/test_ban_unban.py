@@ -34,6 +34,7 @@ from tests.admin._helpers import (
     cleanup_user,
     client,
     get_admin_token,
+    seed_transaction,
     seed_user,
     seed_wallet,
 )
@@ -235,7 +236,8 @@ async def test_recharge_banned_user_returns_403(engine: AsyncEngine) -> None:
 async def test_balance_unchanged_after_ban_unban_cycle(engine: AsyncEngine) -> None:
     await seed_user(engine, ADMIN_EMAIL, is_superuser=True)
     uid = await seed_user(engine, "frozen-bal@test.com")
-    await seed_wallet(engine, uid, balance=Decimal("77.7700"))
+    wallet_id = await seed_wallet(engine, uid, balance=Decimal("77.7700"))
+    await seed_transaction(engine, wallet_id, amount=Decimal("77.7700"), reason="opening")
     try:
         async with await client() as c:
             token = await get_admin_token(c)

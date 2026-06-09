@@ -29,6 +29,7 @@ from app.markets.enums import MarketSourceEnum, MarketStatus
 from app.markets.models import Market, Outcome
 from app.wallet.constants import KIND_USER_WALLET, OWNER_USER, PLAY_USD
 from app.wallet.models import Account
+from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
@@ -88,6 +89,14 @@ async def _create_open_house_market(yes_price: Decimal = Decimal("0.5")) -> tupl
 
 
 async def _seed_wallet(user_id: UUID, balance: Decimal) -> None:
+    """Create a LEDGER-BACKED user_wallet for ``user_id`` at ``balance`` (committed).
+
+    INSERTs at balance 0, then funds via the real ``WalletService.recharge`` (``house_promo ->
+    wallet``, a proper ledger entry) so the committed wallet never registers as drift in the
+    DB-wide ledger reconciler — which, on the session-scoped testcontainer, would otherwise leak
+    into ``tests/settlement/test_event_*``. A bare-balance INSERT was the older shortcut.
+    """
+    wallet_id = uuid4()
     sm = _get_session_maker()
     async with sm() as s, s.begin():
         await s.execute(
@@ -96,14 +105,23 @@ async def _seed_wallet(user_id: UUID, balance: Decimal) -> None:
                 "VALUES (:id, :ot, :oid, :k, :c, :b)"
             ),
             {
-                "id": uuid4(),
+                "id": wallet_id,
                 "ot": OWNER_USER,
                 "oid": user_id,
                 "k": KIND_USER_WALLET,
                 "c": PLAY_USD,
-                "b": balance,
+                "b": Decimal("0"),
             },
         )
+    if balance > 0:
+        async with sm() as s:
+            await WalletService.recharge(
+                s,
+                user_id=user_id,
+                amount=balance,
+                reason="test seed",
+                idempotency_key=f"seed:{wallet_id}",
+            )
 
 
 async def _wallet_balance(user_id: UUID) -> Decimal:

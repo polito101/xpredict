@@ -34,6 +34,7 @@ from app.bets.service import BetService
 from app.db.session import _get_session_maker
 from app.settlement.service import SettlementService
 from app.wallet.constants import KIND_USER_WALLET, OWNER_USER, PLAY_USD
+from app.wallet.service import WalletService
 from tests.admin._helpers import (
     auth,
     client,
@@ -121,7 +122,13 @@ def _binary_market() -> MarketView:
 
 
 async def _seed_wallet(balance: Decimal) -> tuple[UUID, UUID]:
-    """INSERT a user_wallet at ``balance`` (committed); return (user_id, wallet_id)."""
+    """Create a LEDGER-BACKED user_wallet at ``balance`` (committed); return (user_id, wallet_id).
+
+    INSERTs at balance 0, then funds via the real ``WalletService.recharge``. ``house_pnl`` is
+    kind-filtered (``settle_*`` / ``reverse_*``) so the ``recharge`` funding is excluded from the
+    P&L deltas this suite asserts; ledger-backing keeps the committed wallet from leaking drift
+    into other suites' DB-wide ledger-integrity gate (e.g. ``tests/settlement/test_event_*``).
+    """
     from sqlalchemy import text
 
     user_id = uuid4()
@@ -139,9 +146,18 @@ async def _seed_wallet(balance: Decimal) -> tuple[UUID, UUID]:
                 "oid": user_id,
                 "kind": KIND_USER_WALLET,
                 "cur": PLAY_USD,
-                "bal": balance,
+                "bal": Decimal("0"),
             },
         )
+    if balance > 0:
+        async with sm() as s:
+            await WalletService.recharge(
+                s,
+                user_id=user_id,
+                amount=balance,
+                reason="test seed",
+                idempotency_key=f"seed:{wallet_id}",
+            )
     return user_id, wallet_id
 
 

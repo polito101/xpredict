@@ -38,6 +38,7 @@ from tests.admin._helpers import (
     client,
     get_admin_token,
     seed_bet,
+    seed_transaction,
     seed_user,
     seed_wallet,
 )
@@ -254,7 +255,8 @@ async def test_export_users_returns_csv_with_attachment_header(engine: AsyncEngi
 async def test_export_users_includes_data_rows(engine: AsyncEngine) -> None:
     await seed_user(engine, ADMIN_EMAIL, is_superuser=True)
     uid = await seed_user(engine, _EXPORT_USER, display_name="Exported")
-    await seed_wallet(engine, uid, balance=Decimal("99.0000"))
+    wallet_id = await seed_wallet(engine, uid, balance=Decimal("99.0000"))
+    await seed_transaction(engine, wallet_id, amount=Decimal("99.0000"), reason="opening")
     try:
         async with await client() as c:
             token = await get_admin_token(c)
@@ -324,9 +326,7 @@ async def test_export_users_sanitizes_formula_email_on_wire(engine: AsyncEngine)
 async def test_export_transactions_returns_csv(engine: AsyncEngine) -> None:
     await seed_user(engine, ADMIN_EMAIL, is_superuser=True)
     uid = await seed_user(engine, _EXPORT_USER, display_name="Tx User")
-    wallet_id = await seed_wallet(engine, uid, balance=Decimal("100.0000"))
-    from tests.admin._helpers import seed_transaction
-
+    wallet_id = await seed_wallet(engine, uid, balance=Decimal("25.0000"))
     await seed_transaction(engine, wallet_id, amount=Decimal("25.0000"), reason="topup")
     try:
         async with await client() as c:

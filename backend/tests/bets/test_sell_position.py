@@ -52,6 +52,7 @@ from app.wallet.constants import (
     PLAY_USD,
 )
 from app.wallet.models import Account
+from app.wallet.service import WalletService
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncEngine
@@ -138,7 +139,15 @@ def _market(
 # Committed-session helpers (assert against committed state).
 # --------------------------------------------------------------------------- #
 async def _seed_wallet(balance: Decimal) -> tuple[UUID, UUID]:
-    """INSERT a user_wallet at ``balance`` (committed); return (user_id, wallet_id)."""
+    """Create a LEDGER-BACKED user_wallet at ``balance`` (committed); return (user_id, wallet_id).
+
+    INSERTs at balance 0, then funds via the real ``WalletService.recharge`` (``house_promo ->
+    wallet``, a proper ledger entry). A bare-balance INSERT leaves an orphan balance with no
+    offsetting entry; because the testcontainer is session-scoped, the committed orphan leaks
+    into other suites' DB-wide ledger-integrity gate (e.g. ``tests/settlement/test_event_*``),
+    failing them depending on file ordering. The house singletons are snapshotted AFTER seeding
+    in each test, so the funding recharge falls outside the before/after deltas.
+    """
     user_id = uuid4()
     wallet_id = uuid4()
     sm = _get_session_maker()
@@ -154,9 +163,18 @@ async def _seed_wallet(balance: Decimal) -> tuple[UUID, UUID]:
                 "oid": user_id,
                 "kind": KIND_USER_WALLET,
                 "cur": PLAY_USD,
-                "bal": balance,
+                "bal": Decimal("0"),
             },
         )
+    if balance > 0:
+        async with sm() as s:
+            await WalletService.recharge(
+                s,
+                user_id=user_id,
+                amount=balance,
+                reason="test seed",
+                idempotency_key=f"seed:{wallet_id}",
+            )
     return user_id, wallet_id
 
 

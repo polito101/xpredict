@@ -18,6 +18,7 @@ from tests.admin._helpers import (
     cleanup_user,
     client,
     get_admin_token,
+    seed_transaction,
     seed_user,
     seed_wallet,
 )
@@ -133,7 +134,8 @@ async def test_list_users_sort_by_email_asc(engine: AsyncEngine) -> None:
 async def test_list_users_includes_balance(engine: AsyncEngine) -> None:
     await seed_user(engine, ADMIN_EMAIL, is_superuser=True)
     uid = await seed_user(engine, "rich-crm@test.com")
-    await seed_wallet(engine, uid, balance=Decimal("123.4500"))
+    wallet_id = await seed_wallet(engine, uid, balance=Decimal("123.4500"))
+    await seed_transaction(engine, wallet_id, amount=Decimal("123.4500"), reason="opening")
     try:
         async with await client() as c:
             token = await get_admin_token(c)

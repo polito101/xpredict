@@ -109,7 +109,17 @@ def _market(
 # Committed-session helpers (assert against committed state).
 # --------------------------------------------------------------------------- #
 async def _seed_wallet(balance: Decimal) -> tuple[UUID, UUID]:
-    """INSERT a user_wallet at ``balance`` (committed); return (user_id, wallet_id)."""
+    """Create a LEDGER-BACKED user_wallet at ``balance`` (committed); return (user_id, wallet_id).
+
+    INSERTs the wallet at balance 0, then funds it to ``balance`` via the real
+    ``WalletService.recharge`` (a ``house_promo -> wallet`` credit with a proper ledger entry;
+    ``house_promo`` is the one deliberately non-ledger-backed source, excluded from the drift
+    check by design). A bare-balance INSERT leaves an orphan balance with NO offsetting entry —
+    and because the testcontainer Postgres is session-scoped, committed orphans leak into any
+    later suite whose DB-wide ledger-integrity gate (``tests/settlement/test_event_*``) then
+    counts them as drift. Seeding through the ledger keeps the combined suite green regardless
+    of file ordering, without weakening that gate.
+    """
     user_id = uuid4()
     wallet_id = uuid4()
     sm = _get_session_maker()
@@ -125,9 +135,18 @@ async def _seed_wallet(balance: Decimal) -> tuple[UUID, UUID]:
                 "oid": user_id,
                 "kind": KIND_USER_WALLET,
                 "cur": PLAY_USD,
-                "bal": balance,
+                "bal": Decimal("0"),
             },
         )
+    if balance > 0:
+        async with sm() as s:
+            await WalletService.recharge(
+                s,
+                user_id=user_id,
+                amount=balance,
+                reason="test seed",
+                idempotency_key=f"seed:{wallet_id}",
+            )
     return user_id, wallet_id
 
 
