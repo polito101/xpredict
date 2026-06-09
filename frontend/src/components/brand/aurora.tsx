@@ -17,37 +17,17 @@ export function Aurora({ className }: { className?: string }) {
         className,
       )}
     >
-      {/* Drifting brand glow orbs — a slow, living aurora behind everything. */}
+      {/* A faint dotted grid adds depth without noise. */}
       <div
-        className="aurora-float-a absolute left-[-12%] top-[-8%] h-[40rem] w-[40rem] rounded-full"
-        style={{
-          background:
-            "radial-gradient(circle, color-mix(in oklab, var(--brand-primary) 16%, transparent), transparent 70%)",
-          filter: "blur(44px)",
-        }}
-      />
-      <div
-        className="aurora-float-b absolute right-[-8%] top-[6%] h-[32rem] w-[32rem] rounded-full"
-        style={{
-          background:
-            "radial-gradient(circle, color-mix(in oklab, var(--brand-secondary) 13%, transparent), transparent 70%)",
-          filter: "blur(44px)",
-        }}
-      />
-
-      {/* A faint technical line grid — blueprint / infrastructure texture that
-          adds depth without noise. Masked to the top so it frames the hero and
-          melts away down the page. */}
-      <div
-        className="absolute inset-0 opacity-[0.55]"
+        className="absolute inset-0 opacity-[0.4]"
         style={{
           backgroundImage:
-            "linear-gradient(to right, color-mix(in oklab, var(--foreground) 7%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, var(--foreground) 7%, transparent) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
+            "radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 0)",
+          backgroundSize: "44px 44px",
           maskImage:
-            "radial-gradient(78% 68% at 50% 0%, black, transparent 82%)",
+            "radial-gradient(70% 60% at 50% 0%, black, transparent 80%)",
           WebkitMaskImage:
-            "radial-gradient(78% 68% at 50% 0%, black, transparent 82%)",
+            "radial-gradient(70% 60% at 50% 0%, black, transparent 80%)",
         }}
       />
     </div>

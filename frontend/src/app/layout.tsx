@@ -111,7 +111,6 @@ export default async function RootLayout({
           logoUrl={b.logo_url}
           isAuthenticated={isAuthenticated}
           playerName={playerName}
-          year={new Date().getFullYear()}
         >
           {children}
         </SiteFrame>
