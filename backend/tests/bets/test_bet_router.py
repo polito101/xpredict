@@ -353,6 +353,49 @@ async def test_post_bets_accepts_within_per_market_range(api: httpx.AsyncClient)
     assert Decimal(r.json()["stake"]) == Decimal("25.0000")
 
 
+async def test_get_portfolio_open_position_uses_live_unrealized_pnl(api: httpx.AsyncClient) -> None:
+    """Open P&L is mark-to-market against the LIVE current odds, not the win-scenario payout.
+
+    Bet 40 on YES at 0.5, then YES rises to 0.625 (more likely): current_value =
+    40 * 0.625 / 0.5 = 50 -> unrealized_pnl = +10. The win-scenario potential_pnl (+40) is
+    separate and unchanged.
+    """
+    user_id = await _seed_wallet(Decimal("100.0000"))
+    _auth_as(_User(user_id))
+    market_id = uuid4()
+    yes_id = uuid4()
+    no_id = uuid4()
+
+    def market_at(yes_price: str) -> MarketView:
+        return MarketView(
+            id=market_id,
+            status=MARKET_OPEN,
+            deadline=datetime.now(UTC) + timedelta(days=1),
+            outcomes=(
+                OutcomeView(id=yes_id, label="YES", price=Decimal(yes_price)),
+                OutcomeView(id=no_id, label="NO", price=Decimal("0.5")),
+            ),
+        )
+
+    src = StubMarketSource()
+    src.add(market_at("0.5"))  # entry price
+    _wire_market(src)
+
+    r = await api.post(
+        "/bets",
+        json={"market_id": str(market_id), "outcome_id": str(yes_id), "stake": "40.0000"},
+    )
+    assert r.status_code == 201
+
+    src.add(market_at("0.625"))  # YES rises -> position gains
+    body = (await api.get("/bets/me/portfolio")).json()
+    op = next(p for p in body["open"] if p["outcome_id"] == str(yes_id))
+    assert op["priced"] is True
+    assert Decimal(op["current_value"]) == Decimal("50.0000")
+    assert Decimal(op["unrealized_pnl"]) == Decimal("10.0000")
+    assert Decimal(op["potential_pnl"]) == Decimal("40.0000")  # 40/0.5 - 40, unchanged
+
+
 async def test_sell_position_returns_405(api: httpx.AsyncClient) -> None:
     """Selling a position is not supported in v1 — the API returns 405 (SC#3)."""
     _auth_as(_User(uuid4()))

@@ -164,14 +164,17 @@ class BetService:
             return bet
 
     @classmethod
-    async def get_portfolio(cls, session: AsyncSession, *, user_id: UUID) -> Portfolio:
+    async def get_portfolio(
+        cls, session: AsyncSession, *, user_id: UUID, market_source: MarketReadPort
+    ) -> Portfolio:
         """Return ``user_id``'s portfolio — open + settled positions with P&L (SC#7, read-only).
 
-        Reads the player's bets (newest first) and runs the pure
-        :func:`~app.bets.portfolio.build_portfolio`: OPEN positions carry the potential
-        payout at the LOCKED odds, SETTLED positions carry the realized P&L. No
-        INSERT/UPDATE/commit. Live unrealized P&L at CURRENT odds is enriched at integration
-        once the market read port is wired (the locked-odds view here needs no Phase 4 data).
+        OPEN positions are marked to market against each outcome's LIVE ``current_odds`` (read
+        through ``market_source``, the same port ``place_bet`` validates with): the unrealized
+        P&L is ``current_value - stake`` where ``current_value = stake * current_odds /
+        odds_at_placement``. When a market/outcome price is unavailable the position falls back
+        to a neutral view (``current_value == stake``, ``unrealized_pnl == 0``). SETTLED
+        positions carry the realized P&L exactly as settlement posted. No INSERT/UPDATE/commit.
         """
         bets = list(
             (
@@ -182,6 +185,17 @@ class BetService:
             .scalars()
             .all()
         )
+
+        # Live current odds for OPEN positions — one read per distinct market (no N+1).
+        open_market_ids = {b.market_id for b in bets if b.status == BET_PENDING}
+        current_prices: dict[tuple[UUID, UUID], Decimal] = {}
+        for market_id in open_market_ids:
+            market = await market_source.get_market(market_id)
+            if market is None:
+                continue
+            for outcome in market.outcomes:
+                current_prices[(market_id, outcome.id)] = outcome.price
+
         return build_portfolio(
             [
                 PositionInput(
@@ -191,6 +205,7 @@ class BetService:
                     stake=b.stake,
                     odds_at_placement=b.odds_at_placement,
                     status=b.status,
+                    current_odds=current_prices.get((b.market_id, b.outcome_id)),
                 )
                 for b in bets
             ]

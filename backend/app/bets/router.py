@@ -130,14 +130,15 @@ async def place_bet(
 async def read_portfolio(
     player: Annotated[User, Depends(current_active_player)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
+    market_source: Annotated[MarketReadPort, Depends(get_market_source)],
 ) -> PortfolioResponse:
     """Return the authenticated player's portfolio — open + settled positions (SC#7).
 
-    Self-scoped by ``player.id`` (no ``user_id`` parameter). Open positions show the
-    potential payout at the LOCKED odds; settled positions show the realized P&L. Money +
-    odds serialize as JSON strings (SC#4). Read-only.
+    Self-scoped by ``player.id``. OPEN positions show the live unrealized P&L (mark-to-market
+    against the current odds); SETTLED positions show the realized P&L. Money + odds serialize
+    as JSON strings (SC#4). Read-only.
     """
-    pf = await BetService.get_portfolio(session, user_id=player.id)
+    pf = await BetService.get_portfolio(session, user_id=player.id, market_source=market_source)
     return PortfolioResponse(
         open=[OpenPositionItem.model_validate(o) for o in pf.open],
         settled=[SettledPositionItem.model_validate(s) for s in pf.settled],
