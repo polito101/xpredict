@@ -29,13 +29,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import current_active_player
 from app.auth.models import User
 from app.bets.adapters import HouseMarketReadAdapter
-from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound, StakeOutOfRange
+from app.bets.exceptions import (
+    BetNotClosable,
+    BetNotFound,
+    InvalidOutcome,
+    MarketClosed,
+    MarketNotFound,
+    StakeOutOfRange,
+)
 from app.bets.market_port import MarketReadPort
 from app.bets.schemas import (
     BetResponse,
     OpenPositionItem,
     PlaceBetRequest,
     PortfolioResponse,
+    SellPositionResponse,
     SettledPositionItem,
 )
 from app.bets.service import BetService
@@ -145,20 +153,39 @@ async def read_portfolio(
     )
 
 
-@bets_router.post("/{bet_id}/sell")
+@bets_router.post("/{bet_id}/sell", response_model=SellPositionResponse)
 async def sell_position(
     bet_id: UUID,
     player: Annotated[User, Depends(current_active_player)],
-) -> None:
-    """Selling a position is NOT supported in v1 (SC#3) — always 405.
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    market_source: Annotated[MarketReadPort, Depends(get_market_source)],
+) -> SellPositionResponse:
+    """Close (cash out) the player's own open ``bet_id`` at the current price (fair value).
 
-    A bet is settled at market resolution; there is no secondary market / cash-out. The
-    endpoint exists so the contract is explicit (405 Method Not Allowed) rather than a 404.
+    The position is bought back by the house at its live mark-to-market value (no fee, v1).
+    Self-scoped: the service rejects a bet that is not the caller's (404). Domain errors map to
+    4xx (never a raw 500); money/odds serialize as JSON strings (SC#4). One ACID transaction in
+    ``BetService.sell_position`` — a rejection moves no money. A verified player may close even
+    if banned (it returns their own staked funds); the not-banned gate is intentionally not
+    applied here, unlike ``POST /bets``.
     """
-    raise HTTPException(
-        status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-        detail="Selling a position is not supported; a bet is settled at market resolution.",
-    )
+    try:
+        result = await BetService.sell_position(
+            session, bet_id=bet_id, user_id=player.id, market_source=market_source
+        )
+    except BetNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    except BetNotClosable as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    except MarketClosed as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    except MarketNotFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    except InvalidOutcome as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    except NoResultFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
+    return SellPositionResponse(**result)
 
 
 __all__ = ["bets_router", "current_betting_player", "get_market_source"]

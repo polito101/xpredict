@@ -86,3 +86,13 @@ class PortfolioResponse(BaseModel):
 
     open: list[OpenPositionItem]
     settled: list[SettledPositionItem]
+
+
+class SellPositionResponse(BaseModel):
+    """Result of closing (cashing out) a position — money/odds as JSON strings (SC#4)."""
+
+    bet_id: UUID
+    payout: DecimalStr
+    pnl: DecimalStr
+    exit_odds: DecimalStr
+    new_balance: DecimalStr
