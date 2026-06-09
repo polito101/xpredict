@@ -13,7 +13,7 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import uuid4
 
-from app.bets.constants import BET_PENDING, BET_SETTLED_LOST, BET_SETTLED_WON
+from app.bets.constants import BET_CLOSED, BET_PENDING, BET_SETTLED_LOST, BET_SETTLED_WON
 from app.bets.portfolio import PositionInput, build_portfolio
 
 
@@ -23,6 +23,7 @@ def _pos(
     stake: str = "40",
     odds: str = "0.5",
     current_odds: str | None = None,
+    exit_odds: str | None = None,
 ) -> PositionInput:
     return PositionInput(
         bet_id=uuid4(),
@@ -32,6 +33,7 @@ def _pos(
         odds_at_placement=Decimal(odds),
         status=status,
         current_odds=Decimal(current_odds) if current_odds is not None else None,
+        exit_odds=Decimal(exit_odds) if exit_odds is not None else None,
     )
 
 
@@ -124,3 +126,24 @@ def test_settled_position_carries_status() -> None:
     p2 = build_portfolio([_pos(BET_SETTLED_LOST, stake="40", odds="0.5")])
     sp2 = p2.settled[0]
     assert sp2.status == BET_SETTLED_LOST
+
+
+def test_closed_position_realized_gain_from_exit_odds() -> None:
+    # Bet 40 @ 0.5, cashed out when the outcome rose to 0.625 -> cash-out 50, realized +10.
+    p = build_portfolio([_pos(BET_CLOSED, stake="40", odds="0.5", exit_odds="0.625")])
+    assert p.open == ()
+    sp = p.settled[0]
+    assert sp.status == "CLOSED"
+    assert sp.payout == Decimal("50.0000")
+    assert sp.realized_pnl == Decimal("10.0000")
+    assert sp.won is True
+
+
+def test_closed_position_realized_loss_from_exit_odds() -> None:
+    # Bet 40 @ 0.5, cashed out when the outcome fell to 0.375 -> cash-out 30, realized -10.
+    p = build_portfolio([_pos(BET_CLOSED, stake="40", odds="0.5", exit_odds="0.375")])
+    sp = p.settled[0]
+    assert sp.status == "CLOSED"
+    assert sp.payout == Decimal("30.0000")
+    assert sp.realized_pnl == Decimal("-10.0000")
+    assert sp.won is False

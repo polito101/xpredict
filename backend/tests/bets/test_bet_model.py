@@ -23,6 +23,8 @@ def test_bet_has_expected_columns() -> None:
         "outcome_id",
         "stake",
         "status",
+        "closed_at",
+        "exit_odds",
         "created_at",
         "tenant_id",
     } <= cols
@@ -59,3 +61,33 @@ def test_status_server_default_is_pending() -> None:
 def test_no_fk_to_markets_yet() -> None:
     """Parallel-safe: the Bet has NO FK (added at integration migration 0005)."""
     assert len(Bet.__table__.foreign_keys) == 0
+
+
+def test_exit_odds_is_numeric_8_6_nullable() -> None:
+    """``exit_odds`` (price captured at early close) is a nullable Numeric(8,6)."""
+    col = Bet.__table__.c.exit_odds
+    assert isinstance(col.type, Numeric)
+    assert col.type.precision == 8
+    assert col.type.scale == 6
+    assert col.nullable is True
+
+
+def test_closed_at_is_nullable_timezone_datetime() -> None:
+    from sqlalchemy import DateTime
+
+    col = Bet.__table__.c.closed_at
+    assert isinstance(col.type, DateTime)
+    assert col.type.timezone is True
+    assert col.nullable is True
+
+
+def test_status_check_allows_closed() -> None:
+    """The widened bets_status_check CHECK admits the CLOSED terminal status."""
+    from sqlalchemy import CheckConstraint
+
+    checks = [
+        c for c in Bet.__table__.constraints
+        if isinstance(c, CheckConstraint) and c.name == "bets_status_check"
+    ]
+    assert len(checks) == 1
+    assert "CLOSED" in str(checks[0].sqltext)

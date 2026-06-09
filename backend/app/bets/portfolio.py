@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from app.bets.constants import BET_PENDING, BET_SETTLED_WON
+from app.bets.constants import BET_CLOSED, BET_PENDING, BET_SETTLED_WON
 from app.settlement.payout import cashout_value, compute_payout, profit_or_loss, quantize_money
 
 _ZERO = quantize_money(Decimal("0"))
@@ -115,6 +115,24 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     current_value=current_value,
                     unrealized_pnl=profit_or_loss(p.stake, current_value),
                     priced=priced,
+                )
+            )
+        elif p.status == BET_CLOSED:
+            # Cashed out early — realized at the exit price captured on the bet.
+            exit_price = p.exit_odds if p.exit_odds is not None else p.odds_at_placement
+            payout = cashout_value(p.stake, p.odds_at_placement, exit_price)
+            realized = profit_or_loss(p.stake, payout)
+            settled_positions.append(
+                SettledPosition(
+                    bet_id=p.bet_id,
+                    market_id=p.market_id,
+                    outcome_id=p.outcome_id,
+                    stake=p.stake,
+                    odds_at_placement=p.odds_at_placement,
+                    status=p.status,
+                    won=realized > _ZERO,
+                    payout=payout,
+                    realized_pnl=realized,
                 )
             )
         else:

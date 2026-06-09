@@ -206,6 +206,7 @@ class BetService:
                     odds_at_placement=b.odds_at_placement,
                     status=b.status,
                     current_odds=current_prices.get((b.market_id, b.outcome_id)),
+                    exit_odds=b.exit_odds,
                 )
                 for b in bets
             ]
