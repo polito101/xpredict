@@ -66,3 +66,9 @@ Thumbs.db
 
 .claude/launch.json
 .claude/worktrees/
+
+# ---------------------------------------------------------------------------
+# graphify — generated knowledge graph (never commit; large artifacts)
+# ---------------------------------------------------------------------------
+
+graphify-out/
