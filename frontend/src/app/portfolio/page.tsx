@@ -38,6 +38,9 @@ type OpenPosition = {
   odds_at_placement: string;
   potential_payout: string;
   potential_pnl: string;
+  current_value: string;
+  unrealized_pnl: string;
+  priced: boolean;
 };
 
 type SettledPosition = {
@@ -49,6 +52,7 @@ type SettledPosition = {
   won: boolean;
   payout: string;
   realized_pnl: string;
+  status: string;
 };
 
 type Portfolio = { open: OpenPosition[]; settled: SettledPosition[] };
@@ -104,7 +108,7 @@ function PnL({ value, className }: { value: string; className?: string }) {
     <span
       className={cn(
         "font-medium tabular-nums",
-        negative ? "text-muted-foreground" : "text-emerald-400",
+        negative ? "text-rose-400" : "text-emerald-400",
         className,
       )}
     >
@@ -166,7 +170,7 @@ function PortfolioContent({ open, settled }: Portfolio) {
   const hasAny = open.length + settled.length > 0;
 
   // DISPLAY-only aggregates.
-  const openPnl = sumMoney(open.map((p) => p.potential_pnl));
+  const openPnl = sumMoney(open.map((p) => p.unrealized_pnl));
   const realizedPnl = sumMoney(settled.map((p) => p.realized_pnl));
   const totalStaked = sumMoney([
     ...open.map((p) => p.stake),
@@ -177,7 +181,7 @@ function PortfolioContent({ open, settled }: Portfolio) {
 
   const signed = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}`;
   const signClass = (n: number) =>
-    n >= 0 ? "text-emerald-400" : "text-muted-foreground";
+    n >= 0 ? "text-emerald-400" : "text-rose-400";
 
   return (
     <>
@@ -225,11 +229,25 @@ function PortfolioContent({ open, settled }: Portfolio) {
                       Potential payout {p.potential_payout} {CURRENCY}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <span className="min-w-0 text-sm text-muted-foreground">
-                      If this outcome wins
-                    </span>
-                    <PnL value={p.potential_pnl} className="text-sm" />
+                  <CardContent className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span className="min-w-0 text-sm text-muted-foreground">
+                        Current value{p.priced ? "" : " (live price unavailable)"}
+                      </span>
+                      <span className="text-sm font-medium tabular-nums">
+                        {p.current_value} {CURRENCY}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span className="min-w-0 text-sm text-muted-foreground">Open P&amp;L</span>
+                      <PnL value={p.unrealized_pnl} className="text-sm" />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span className="min-w-0 text-sm text-muted-foreground">
+                        If this outcome wins
+                      </span>
+                      <PnL value={p.potential_pnl} className="text-sm" />
+                    </div>
                   </CardContent>
                 </Card>
               </li>
