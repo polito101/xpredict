@@ -34,12 +34,37 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from app.bets.constants import BET_PENDING, KIND_MARKET_LIABILITY, TRANSFER_BET_PLACED
-from app.bets.exceptions import InvalidOutcome, MarketClosed, MarketNotFound, StakeOutOfRange
+from app.bets.constants import (
+    BET_CLOSED,
+    BET_PENDING,
+    CLOSE_LEG_LOSS,
+    CLOSE_LEG_STAKE,
+    CLOSE_LEG_WIN,
+    KIND_MARKET_LIABILITY,
+    TRANSFER_BET_PLACED,
+    TRANSFER_CLOSE_LOSS,
+    TRANSFER_CLOSE_STAKE_RETURN,
+    TRANSFER_CLOSE_WINNINGS,
+    close_idempotency_key,
+)
+from app.bets.exceptions import (
+    BetNotClosable,
+    BetNotFound,
+    InvalidOutcome,
+    MarketClosed,
+    MarketNotFound,
+    StakeOutOfRange,
+)
 from app.bets.models import Bet
 from app.bets.portfolio import Portfolio, PositionInput, build_portfolio
 from app.core.config import get_settings
-from app.wallet.constants import OWNER_MARKET, PLAY_USD
+from app.settlement.payout import cashout_value, profit_or_loss
+from app.wallet.constants import (
+    HOUSE_PROMO_ACCOUNT_ID,
+    HOUSE_REVENUE_ACCOUNT_ID,
+    OWNER_MARKET,
+    PLAY_USD,
+)
 from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account
 from app.wallet.service import WalletService
@@ -211,6 +236,163 @@ class BetService:
                 for b in bets
             ]
         )
+
+    @classmethod
+    async def sell_position(
+        cls,
+        session: AsyncSession,
+        *,
+        bet_id: UUID,
+        user_id: UUID,
+        market_source: MarketReadPort,
+    ) -> dict:
+        """Close (cash out) ``user_id``'s open ``bet_id`` at the live price, in ONE ACID tx.
+
+        The house is the counterparty (as at settlement): the player is paid the current
+        mark-to-market value ``cashout_value(stake, odds_at_placement, current_odds)`` — fair
+        value, no fee (v1, no house edge). The bet's stake leaves the per-market liability pool;
+        a GAIN above stake is funded by ``house_promo``, a LOSS below stake is swept to
+        ``house_revenue`` (so this bet's liability nets to zero, exactly like settlement). The
+        bet flips ``PENDING -> CLOSED`` with ``closed_at`` / ``exit_odds`` recorded.
+
+        Raises :class:`BetNotFound` (no such bet for this user), :class:`BetNotClosable` (not
+        PENDING — already settled/closed), :class:`MarketNotFound` / :class:`MarketClosed`
+        (market gone or not open), :class:`InvalidOutcome` (outcome missing). On every rejection
+        NO money moves and the bet is unchanged. Returns
+        ``{bet_id, payout, pnl, exit_odds, new_balance}``.
+        """
+        # Defensive: clear any inherited tx before our own session.begin() (mirrors place_bet).
+        if session.in_transaction():
+            await session.rollback()
+
+        # 1. Load the bet (no lock yet) to discover market/outcome; validate ownership + status.
+        bet = (await session.execute(select(Bet).where(Bet.id == bet_id))).scalar_one_or_none()
+        if bet is None or bet.user_id != user_id:
+            raise BetNotFound(f"no open bet {bet_id} for this player")
+        if bet.status != BET_PENDING:
+            raise BetNotClosable(f"bet {bet_id} cannot be closed (status {bet.status})")
+
+        # 2. Validate the market via the port (own-session read, BEFORE begin) — must be OPEN.
+        market = await market_source.get_market(bet.market_id)
+        if market is None:
+            raise MarketNotFound(f"no market {bet.market_id}")
+        if not market.is_open(datetime.now(UTC)):
+            raise MarketClosed(f"market {bet.market_id} is not open — cannot close")
+        chosen = market.outcome(bet.outcome_id)
+        if chosen is None:
+            raise InvalidOutcome(f"outcome {bet.outcome_id} not in market {bet.market_id}")
+        current_price = chosen.price
+        payout = cashout_value(bet.stake, bet.odds_at_placement, current_price)
+        pnl = profit_or_loss(bet.stake, payout)  # signed: payout - stake
+
+        # The bet-load above AUTOBEGAN an implicit read tx on this session; end it (no locks
+        # held, no writes) so the atomic ``session.begin()`` below opens the OUTERMOST tx
+        # rather than raising "a transaction is already begun". The bet is the source of
+        # truth only under the FOR UPDATE re-read inside that block.
+        if session.in_transaction():
+            await session.rollback()
+
+        # 3. Atomic close: lock the bet + accounts, RE-CHECK PENDING, post ledger, flip status.
+        async with session.begin():
+            locked = (
+                await session.execute(select(Bet).where(Bet.id == bet_id).with_for_update())
+            ).scalar_one()
+            # Re-check under the row lock — a concurrent close/resolve may have won the race.
+            if locked.status != BET_PENDING:
+                raise BetNotClosable(f"bet {bet_id} was already settled or closed")
+
+            wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user_id)
+            liability_id = await cls._resolve_market_liability_id(session, market_id=bet.market_id)
+
+            stake = bet.stake
+            # Close legs (mirror settlement). Skip any zero-amount leg (CHECK amount > 0).
+            # (kind, leg, debit_account_id, credit_account_id, amount)
+            specs: list[tuple[str, str, UUID, UUID, Decimal]] = []
+            if payout >= stake:
+                specs.append(
+                    (TRANSFER_CLOSE_STAKE_RETURN, CLOSE_LEG_STAKE, liability_id, wallet_id, stake)
+                )
+                gain = payout - stake
+                if gain > 0:
+                    specs.append(
+                        (
+                            TRANSFER_CLOSE_WINNINGS,
+                            CLOSE_LEG_WIN,
+                            HOUSE_PROMO_ACCOUNT_ID,
+                            wallet_id,
+                            gain,
+                        )
+                    )
+            else:
+                if payout > 0:
+                    specs.append(
+                        (
+                            TRANSFER_CLOSE_STAKE_RETURN,
+                            CLOSE_LEG_STAKE,
+                            liability_id,
+                            wallet_id,
+                            payout,
+                        )
+                    )
+                specs.append(
+                    (
+                        TRANSFER_CLOSE_LOSS,
+                        CLOSE_LEG_LOSS,
+                        liability_id,
+                        HOUSE_REVENUE_ACCOUNT_ID,
+                        stake - payout,
+                    )
+                )
+
+            # Lock every touched account FOR UPDATE in canonical UUID order (Spike 004 / Pitfall 3).
+            touched = {s[2] for s in specs} | {s[3] for s in specs}
+            for account_id in sorted(touched, key=str):
+                await session.execute(
+                    select(Account.id).where(Account.id == account_id).with_for_update()
+                )
+
+            # Post the double-entry moves via the validated writer (locks held).
+            for kind, leg, debit_id, credit_id, amount in specs:
+                await WalletService._post_transfer(
+                    session,
+                    kind=kind,
+                    idempotency_key=close_idempotency_key(bet_id, leg),
+                    actor_user_id=user_id,
+                    debit_account_id=debit_id,
+                    credit_account_id=credit_id,
+                    amount=amount,
+                    metadata={"bet_id": str(bet_id), "market_id": str(bet.market_id)},
+                )
+
+            locked.status = BET_CLOSED
+            locked.closed_at = datetime.now(UTC)
+            locked.exit_odds = current_price
+
+        # Post-commit wallet balance for the response.
+        new_balance = (
+            await session.execute(select(Account.balance).where(Account.id == wallet_id))
+        ).scalar_one()
+        return {
+            "bet_id": bet_id,
+            "payout": payout,
+            "pnl": pnl,
+            "exit_odds": current_price,
+            "new_balance": new_balance,
+        }
+
+    @staticmethod
+    async def _resolve_market_liability_id(session: AsyncSession, *, market_id: UUID) -> UUID:
+        """Return the per-market liability account id (read-only). Exists once a bet was placed."""
+        return (
+            await session.execute(
+                select(Account.id).where(
+                    Account.owner_type == OWNER_MARKET,
+                    Account.owner_id == market_id,
+                    Account.kind == KIND_MARKET_LIABILITY,
+                    Account.currency == PLAY_USD,
+                )
+            )
+        ).scalar_one()
 
     @staticmethod
     async def _ensure_market_liability_account(session: AsyncSession, *, market_id: UUID) -> UUID:

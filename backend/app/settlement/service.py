@@ -109,14 +109,20 @@ class SettlementService:
         """
         async with session.begin():
             # 1. Load the still-PENDING bets (the status filter is the primary idempotency
-            #    guard — already-settled bets are invisible to a re-resolve, SC#6).
+            #    guard — already-settled bets are invisible to a re-resolve, SC#6). FOR UPDATE
+            #    locks those rows so a concurrent early-close (which locks the bet row and flips
+            #    it PENDING -> CLOSED) cannot be double-paid: the close and the settle serialize
+            #    on the same row lock, and whichever commits second sees the other's status flip.
+            #    Lock order stays consistent with close (bet rows before accounts) -> no deadlock.
             bets = list(
                 (
                     await session.execute(
-                        select(Bet).where(
+                        select(Bet)
+                        .where(
                             Bet.market_id == market_id,
                             Bet.status == BET_PENDING,
                         )
+                        .with_for_update()
                     )
                 )
                 .scalars()
