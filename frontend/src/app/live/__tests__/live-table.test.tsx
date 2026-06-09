@@ -95,6 +95,31 @@ describe("<LiveTable /> DOM-event wiring", () => {
     expect(host.getAttribute("table-id")).toBe("tbl");
   });
 
+  it("HOST-01: pushes the initial balance onto the widget `balance` attribute (raw String, D-07)", () => {
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+    // The host reflects the raw `String(initialBalance)` — no `$`, no toFixed;
+    // the widget owns `$X.XX`/`—` formatting (D-07).
+    expect(host.getAttribute("balance")).toBe("100.0000");
+  });
+
+  it("HOST-01: re-pushes the refreshed balance onto the widget `balance` attribute after a bet-placed refresh", async () => {
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+    expect(host.getAttribute("balance")).toBe("100.0000");
+
+    // getLiveBalance resolves "150.0000" (beforeEach default); the bet-placed
+    // refresh moves the in-island `balance`, so the balance-keyed effect re-runs
+    // and the attribute reflects the new value (SC1, post-event push).
+    await fire(host, "live-bets-bet-placed", { bet_id: "B1" });
+
+    expect(host.getAttribute("balance")).toBe("150.0000");
+  });
+
   it("bet-placed -> recordLivePlaced(betId) + getLiveBalance refresh updates the balance", async () => {
     const { container } = render(
       <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,

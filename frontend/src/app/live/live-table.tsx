@@ -121,7 +121,14 @@ export function LiveTable({
     if (!el) return;
     el.setAttribute("session-token", sessionToken);
     el.setAttribute("table-id", tableId);
-  }, [sessionToken, tableId]);
+    // HOST-01: push the player's balance onto the widget so its HUD BALANCE
+    // readout (Plan 24-01) can render it. RAW String(balance) — no `$`, no
+    // toFixed, no currency (D-07); the widget owns `$X.XX`/`—` formatting.
+    // Because refreshBalance() updates `balance` after live-bets-bet-placed /
+    // live-bets-result, this single effect covers the initial push AND every
+    // post-event push (it re-runs on each `balance` change).
+    el.setAttribute("balance", String(balance));
+  }, [sessionToken, tableId, balance]);
 
   // Wire the four widget DOM events; the cleanup removes EVERY listener (SC3).
   // The event detail is UNTRUSTED (third-party widget) — only `bet_id` is passed
