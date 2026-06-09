@@ -89,6 +89,12 @@ export function EventDetailView({
     setLoading(false);
   }
 
+  // Most-likely outcomes first — mirrors the catalog `EventCard` ordering so the
+  // list reads the same inside the event as it does on the overview grid.
+  const sortedOutcomes = [...event.outcomes].sort(
+    (a, b) => parseFloat(b.yes_price) - parseFloat(a.yes_price),
+  );
+
   const outcomes = normalizeOutcomes(child);
   const yesOutcome = outcomes.find((o) => o.label === "YES") ?? outcomes[0];
   const noOutcome = outcomes.find((o) => o.label === "NO") ?? outcomes[1];
@@ -105,7 +111,7 @@ export function EventDetailView({
       <div className="flex min-w-0 flex-col gap-3 lg:col-span-2">
         <h2 className="text-lg font-semibold">Outcomes</h2>
         <ul className="flex flex-col gap-2">
-          {event.outcomes.map((o) => (
+          {sortedOutcomes.map((o) => (
             <li key={o.market_id}>
               <OutcomeRow
                 label={o.label}

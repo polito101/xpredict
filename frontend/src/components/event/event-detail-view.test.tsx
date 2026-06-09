@@ -116,6 +116,32 @@ describe("<EventDetailView />", () => {
     ).toBeInTheDocument();
   });
 
+  it("orders the outcome rows by YES probability descending (highest first)", () => {
+    // Backend order is intentionally NOT sorted here (Bob 0.40, Alice 0.60,
+    // Carol 0.20) to prove the view re-sorts, mirroring the catalog EventCard.
+    const unsorted: EventDetail = {
+      ...event,
+      outcomes: [event.outcomes[1], event.outcomes[0], event.outcomes[2]],
+    };
+    render(
+      <EventDetailView
+        event={unsorted}
+        defaultChild={defaultChild}
+        defaultHistory={[]}
+        isAuthenticated
+      />,
+    );
+    const labels = screen
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"))
+      .filter((l): l is string => Boolean(l?.endsWith("YES")));
+    expect(labels).toEqual([
+      "Alice, 60% YES",
+      "Bob, 40% YES",
+      "Carol, 20% YES",
+    ]);
+  });
+
   it("mounts the order form + exactly ONE live socket for the selected child (WS cap)", () => {
     render(
       <EventDetailView
