@@ -30,8 +30,9 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 
-import type { ActionState } from "./bet-schemas";
+import type { ActionState, SellState } from "./bet-schemas";
 import {
   BET_MAX_STAKE,
   BET_MIN_STAKE,
@@ -148,5 +149,65 @@ export async function placeBetAction(
       return { errors: { _form: [COPY.loginRequired] } };
     default:
       return { errors: { _form: [COPY.generic] } };
+  }
+}
+
+const SELL_COPY = {
+  notClosable: "Esta posición ya no se puede cerrar (mercado cerrado o ya liquidada).",
+  notFound: "No encontramos esa posición.",
+  loginRequired: "Inicia sesión para cerrar la posición.",
+  generic: "No se pudo cerrar la posición. Inténtalo de nuevo.",
+} as const;
+
+/**
+ * Close (cash out) one of the player's open positions at the current price. The backend
+ * (`POST /bets/{id}/sell`) is the authority; this forwards the HttpOnly session cookie and
+ * maps each status to an inline message. On success it revalidates `/portfolio` so the RSC
+ * re-fetches the updated positions + balance.
+ */
+export async function sellPositionAction(
+  _prev: SellState,
+  formData: FormData,
+): Promise<SellState> {
+  const betId = formData.get("bet_id");
+  if (typeof betId !== "string" || betId.length === 0) {
+    return { error: SELL_COPY.generic };
+  }
+
+  const store = await cookies();
+  const session = store.get("xpredict_session")?.value;
+  if (!session) return { error: SELL_COPY.loginRequired };
+
+  let res: Response;
+  try {
+    res = await fetch(`${getBackendUrl()}/bets/${betId}/sell`, {
+      method: "POST",
+      headers: { Cookie: `xpredict_session=${session}` },
+      cache: "no-store",
+    });
+  } catch {
+    return { error: SELL_COPY.generic };
+  }
+
+  if (res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { payout?: string };
+    revalidatePath("/portfolio");
+    return {
+      success: true,
+      message: body.payout
+        ? `Posición cerrada — cobras ${body.payout} PLAY_USD.`
+        : "Posición cerrada.",
+    };
+  }
+
+  switch (res.status) {
+    case 409:
+      return { error: SELL_COPY.notClosable };
+    case 404:
+      return { error: SELL_COPY.notFound };
+    case 401:
+      return { error: SELL_COPY.loginRequired };
+    default:
+      return { error: SELL_COPY.generic };
   }
 }

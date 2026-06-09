@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ClosePositionButton } from "@/components/close-position-button";
 import { RetryError } from "@/components/retry-error";
 import { SignedOutNotice } from "@/components/signed-out-notice";
 import { cn } from "@/lib/utils";
@@ -248,6 +249,7 @@ function PortfolioContent({ open, settled }: Portfolio) {
                       </span>
                       <PnL value={p.potential_pnl} className="text-sm" />
                     </div>
+                    <ClosePositionButton betId={p.bet_id} cashout={p.current_value} />
                   </CardContent>
                 </Card>
               </li>

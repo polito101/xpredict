@@ -18,6 +18,7 @@ vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({ get: cookieGet })),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import PortfolioPage from "../page";
 
@@ -87,6 +88,7 @@ describe("PortfolioPage", () => {
     expect(screen.queryByTestId("portfolio-open-empty")).toBeNull();
     expect(screen.queryByTestId("portfolio-settled-empty")).toBeNull();
     expect(text.toLowerCase()).not.toContain("deposit");
+    expect(text).toContain("Cerrar");
   });
 
   it("prompts to sign in when there is no session — not an empty portfolio", async () => {
