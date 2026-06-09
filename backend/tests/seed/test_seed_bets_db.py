@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from app.bets.adapters import HouseMarketReadAdapter
 from app.bets.service import BetService
 from app.db.session import _get_session_maker
 from bin.seed_demo import SeedConfig, seed_bets, seed_markets, seed_users
@@ -45,7 +46,9 @@ async def test_seed_bets_places_bets_and_funds_open_portfolio() -> None:
     total_open = 0
     for u in users:
         async with sm() as s:
-            pf = await BetService.get_portfolio(s, user_id=u.id)
+            pf = await BetService.get_portfolio(
+                s, user_id=u.id, market_source=HouseMarketReadAdapter()
+            )
             total_open += len(pf.open)
             assert len(pf.settled) == 0  # nothing resolved yet
             for pos in pf.open:

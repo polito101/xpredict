@@ -42,3 +42,13 @@ paths = [
   '''tests/.*fixtures.*''',
   '''\.planning/.*''',
 ]
+# Benign strings the default ``generic-api-key`` rule false-positives on across the
+# repo and its history — NOT real secrets: a weak test-password constant, a ledger
+# transfer-kind literal that appears in code/comments, and an explicit test
+# placeholder. Allowlisted by value (matched against the captured secret) so the
+# full-repo scan stays clean without weakening the real secret rules.
+regexes = [
+  '''Valid-Pass-1234''',
+  '''kind=signup_bonus''',
+  '''test-secret-32-chars-long''',
+]

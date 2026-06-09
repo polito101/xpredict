@@ -166,8 +166,10 @@ def test_downgrade_removes_livebets_bets_and_escrow_singleton(isolated_pg: str) 
     cfg = _alembic_config(isolated_pg)
     command.upgrade(cfg, "head")  # ensure we start at head (the other test may not have run)
 
-    # Downgrade exactly one revision — undoing 0011.
-    command.downgrade(cfg, "-1")
+    # Downgrade to the revision BELOW 0011_livebets_bridge (its down_revision) so the bridge
+    # is fully undone regardless of how many migrations chain ABOVE it (e.g. 0012_early_close).
+    # A relative "-1" would only undo the current head, leaving the bridge's objects in place.
+    command.downgrade(cfg, "0011_phase13_market_groups")
 
     engine = create_engine(isolated_pg)
     try:

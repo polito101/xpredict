@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import select
 
+from app.bets.adapters import HouseMarketReadAdapter
 from app.bets.service import BetService
 from app.db.session import _get_session_maker
 from app.markets.models import Market
@@ -58,7 +59,9 @@ async def test_seed_resolutions_settles_bets_with_pnl() -> None:
     lost_seen = False
     for u in users:
         async with sm() as s:
-            pf = await BetService.get_portfolio(s, user_id=u.id)
+            pf = await BetService.get_portfolio(
+                s, user_id=u.id, market_source=HouseMarketReadAdapter()
+            )
             total_settled += len(pf.settled)
             for pos in pf.settled:
                 if pos.won:
