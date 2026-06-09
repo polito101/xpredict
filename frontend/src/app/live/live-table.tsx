@@ -121,14 +121,29 @@ export function LiveTable({
     if (!el) return;
     el.setAttribute("session-token", sessionToken);
     el.setAttribute("table-id", tableId);
-    // HOST-01: push the player's balance onto the widget so its HUD BALANCE
-    // readout (Plan 24-01) can render it. RAW String(balance) — no `$`, no
-    // toFixed, no currency (D-07); the widget owns `$X.XX`/`—` formatting.
-    // Because refreshBalance() updates `balance` after live-bets-bet-placed /
-    // live-bets-result, this single effect covers the initial push AND every
-    // post-event push (it re-runs on each `balance` change).
+  }, [sessionToken, tableId]);
+
+  // HOST-01: push the player's balance onto the widget so its HUD BALANCE
+  // readout (Plan 24-01) can render it. RAW String(balance) — no `$`, no
+  // toFixed, no currency (D-07); the widget owns `$X.XX`/`—` formatting.
+  // refreshBalance() updates `balance` after live-bets-bet-placed /
+  // live-bets-result, so this effect covers the initial push AND every
+  // post-event push (it re-runs on each `balance` change).
+  //
+  // KEPT SEPARATE from the identity effect above (NOT `[sessionToken, tableId,
+  // balance]`) on purpose: `onSessionExpired` re-mints the token IMPERATIVELY
+  // onto the element without touching the `sessionToken` prop, so the element
+  // can legitimately hold a fresher token than the prop. If the balance push
+  // shared the identity effect, a post-bet balance change would re-run it and
+  // clobber the freshly re-minted `session-token` back to the stale prop —
+  // Branch A in the widget would then teardown WS/HLS and re-init with the
+  // expired token (a session-expired/teardown loop). A `[balance]`-only effect
+  // never re-applies identity attrs, so the re-mint survives. (CR-01)
+  useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
     el.setAttribute("balance", String(balance));
-  }, [sessionToken, tableId, balance]);
+  }, [balance]);
 
   // Wire the four widget DOM events; the cleanup removes EVERY listener (SC3).
   // The event detail is UNTRUSTED (third-party widget) — only `bet_id` is passed
