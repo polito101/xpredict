@@ -56,6 +56,13 @@ x-backend-env: &backend-env
   SIGNUP_BONUS_AMOUNT: ${SIGNUP_BONUS_AMOUNT:-1000.0000}
   # DEMO_MODE: frictionless demo (6-char passwords, auto-verify + bonus at sign-up).
   DEMO_MODE: ${DEMO_MODE:-false}
+  # live-bets bridge (v1.3) — backend talks to the co-located live-bets over the
+  # internal docker network; the operator key never leaves the box. API_KEY +
+  # DEFAULT_TABLE_ID are set in .env.prod AFTER the table is seeded (see runbook).
+  LIVEBETS_API_BASE: ${LIVEBETS_API_BASE:-http://livebets:8000}
+  LIVEBETS_API_KEY: ${LIVEBETS_API_KEY:-}
+  LIVEBETS_DEFAULT_TABLE_ID: ${LIVEBETS_DEFAULT_TABLE_ID:-}
+  LIVEBETS_ENABLE_WEBHOOK: ${LIVEBETS_ENABLE_WEBHOOK:-false}
 
 services:
   # ----------------------------------------------------------------------
@@ -157,6 +164,69 @@ services:
       start_period: 60s
 
   # ----------------------------------------------------------------------
+  # live-bets (v1.3) — co-located so /live has ZERO cold start. Own Postgres +
+  # Redis, isolated from XPredict's. Behind Caddy at {$LIVEBETS_DOMAIN}; the
+  # backend reaches it on the internal network as http://livebets:8000.
+  # ----------------------------------------------------------------------
+  livebets-db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: live_bets
+      POSTGRES_PASSWORD: ${LIVEBETS_DB_PASSWORD:?set LIVEBETS_DB_PASSWORD in .env.prod}
+      POSTGRES_DB: live_bets
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - livebets_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U live_bets -d live_bets"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  livebets-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - livebets_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  livebets:
+    build:
+      context: ${LIVEBETS_BUILD_CONTEXT:-../live-bets}
+    image: live-bets:prod
+    restart: unless-stopped
+    depends_on:
+      livebets-db:
+        condition: service_healthy
+      livebets-redis:
+        condition: service_healthy
+    environment:
+      LIVE_BETS_ENV: prod
+      DATABASE_URL: postgresql://live_bets:${LIVEBETS_DB_PASSWORD}@livebets-db:5432/live_bets
+      REDIS_URL: redis://livebets-redis:6379/0
+      LIVE_BETS_SERVER_KEY: ${LIVE_BETS_SERVER_KEY:?set LIVE_BETS_SERVER_KEY (>=32 chars) in .env.prod}
+      LIVE_BETS_SERVER_KEY_ID: ${LIVE_BETS_SERVER_KEY_ID:-prod-v1}
+      LIVE_BETS_ADMIN_PASSWORD: ${LIVE_BETS_ADMIN_PASSWORD:?set LIVE_BETS_ADMIN_PASSWORD (argon2id hash) in .env.prod}
+      # Embed CORS for the browser widget on the frontend origin (JSON/WS; the HLS
+      # routes already send Access-Control-Allow-Origin:*). Reuses FRONTEND_BASE_URL.
+      LIVE_BETS_CORS_ORIGINS: ${FRONTEND_BASE_URL}
+    # No host ports — only Caddy ({$LIVEBETS_DOMAIN}) and the backend reach it.
+    # ---- F2 (HLS video) ENABLED: real traffic clips streamed over HLS.
+    #   serve-all (no --no-hls) spawns the per-table HLSChannelManager (ffmpeg -c copy
+    #   remux to fMP4). Clips live on the livebets_clips volume; segments on livebets_hls.
+    command: ["sh", "-c", "python -m live_bets.cli migrate && python -m live_bets.cli serve-all --host 0.0.0.0 --port 8000 --bus in-memory --hls --hls-out /app/var/hls"]
+    volumes:
+      - livebets_clips:/var/lib/live-bets/clips
+      - livebets_hls:/app/var/hls
+
+  # ----------------------------------------------------------------------
   # Frontend (Next.js 16 production build — `next start`, always warm)
   # ----------------------------------------------------------------------
 
@@ -211,6 +281,7 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env.prod (e.g. app.your-domain.com)}
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env.prod (e.g. api.your-domain.com)}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env.prod (a real inbox)}
+      LIVEBETS_DOMAIN: ${LIVEBETS_DOMAIN:?set LIVEBETS_DOMAIN to live.APP_DOMAIN}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -225,3 +296,7 @@ volumes:
   beat_heartbeat:
   caddy_data:
   caddy_config:
+  livebets_pgdata:
+  livebets_redis_data:
+  livebets_clips:
+  livebets_hls:

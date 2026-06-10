@@ -95,6 +95,31 @@ describe("<LiveTable /> DOM-event wiring", () => {
     expect(host.getAttribute("table-id")).toBe("tbl");
   });
 
+  it("HOST-01: pushes the initial balance onto the widget `balance` attribute (raw String, D-07)", () => {
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+    // The host reflects the raw `String(initialBalance)` — no `$`, no toFixed;
+    // the widget owns `$X.XX`/`—` formatting (D-07).
+    expect(host.getAttribute("balance")).toBe("100.0000");
+  });
+
+  it("HOST-01: re-pushes the refreshed balance onto the widget `balance` attribute after a bet-placed refresh", async () => {
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+    expect(host.getAttribute("balance")).toBe("100.0000");
+
+    // getLiveBalance resolves "150.0000" (beforeEach default); the bet-placed
+    // refresh moves the in-island `balance`, so the balance-keyed effect re-runs
+    // and the attribute reflects the new value (SC1, post-event push).
+    await fire(host, "live-bets-bet-placed", { bet_id: "B1" });
+
+    expect(host.getAttribute("balance")).toBe("150.0000");
+  });
+
   it("bet-placed -> recordLivePlaced(betId) + getLiveBalance refresh updates the balance", async () => {
     const { container } = render(
       <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
@@ -230,6 +255,33 @@ describe("<LiveTable /> DOM-event wiring", () => {
     await fire(host, "live-bets-session-expired");
 
     expect(actions.mintLiveSession).toHaveBeenCalledWith("tbl");
+    expect(host.getAttribute("session-token")).toBe("t2");
+  });
+
+  it("CR-01: a balance refresh AFTER a session re-mint does NOT clobber the freshly re-minted token (SC3)", async () => {
+    // Regression for CR-01: the balance push must live in its OWN effect, NOT
+    // the identity effect. onSessionExpired re-mints the token imperatively
+    // (element -> "t2") without touching the `sessionToken` prop (still "t").
+    // A subsequent bet triggers refreshBalance -> setBalance, which must
+    // re-push ONLY `balance` — it must NOT re-run the identity effect and
+    // clobber session-token back to the stale prop "t" (which would make the
+    // widget Branch A teardown WS/HLS and re-init with the EXPIRED token: the
+    // stuck-"connecting"/session-expired loop).
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const host = getHost(container);
+
+    // Re-mint: the element's token becomes "t2" (the prop stays "t").
+    await fire(host, "live-bets-session-expired");
+    expect(host.getAttribute("session-token")).toBe("t2");
+
+    // A bet refreshes the balance (-> "150.0000"), re-running the balance effect.
+    await fire(host, "live-bets-bet-placed", { bet_id: "B1" });
+
+    // The balance moved...
+    expect(host.getAttribute("balance")).toBe("150.0000");
+    // ...but the re-minted token MUST survive (NOT reverted to the stale "t").
     expect(host.getAttribute("session-token")).toBe("t2");
   });
 
