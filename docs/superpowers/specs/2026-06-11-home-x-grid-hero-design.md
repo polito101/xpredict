@@ -12,7 +12,8 @@ maximum visual impact. Concept chosen by Pol after interactive prototyping:
 
 ## What the page becomes
 
-One full-viewport section (`min-h-[calc(100dvh-4rem)]`, header is `h-16`) inside the
+One full-viewport section (`min-h-[calc(100svh-4rem)]`, header is `h-16`; svh — not
+dvh — so the mobile URL bar collapsing never resizes the hero/canvas) inside the
 existing `SiteFrame` chrome (nav + footer untouched; footer sits just below the fold).
 No other sections — no scroll content.
 

@@ -19,6 +19,7 @@
 import Link from "next/link";
 
 import { LogoMark } from "@/components/brand/logo-mark";
+import { normalizeBrandName } from "@/lib/brand-name";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,12 +40,7 @@ export interface BrandLogoProps {
 }
 
 export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
-  // Visible brand = "XPrediction" (the product). White-label still wins: a real
-  // operator name renders verbatim. The legacy default "XPredict" (and an empty
-  // name) map to the product brand "XPrediction" so the canonical site is
-  // consistent regardless of the backend's stored brand_name.
-  const raw = brandName.trim();
-  const name = !raw || raw === "XPredict" ? "XPrediction" : raw;
+  const name = normalizeBrandName(brandName);
 
   return (
     <Link

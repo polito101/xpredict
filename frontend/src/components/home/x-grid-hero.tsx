@@ -12,12 +12,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Spark } from "@/components/brand/spark";
 import { XParticles } from "@/components/home/x-particles";
+import { normalizeBrandName } from "@/lib/brand-name";
 
 export function XGridHero({ brandName }: { brandName: string }) {
-  const raw = brandName.trim();
-  const name = !raw || raw === "XPredict" ? "XPrediction" : raw;
+  const name = normalizeBrandName(brandName);
   return (
-    <section className="relative flex min-h-[calc(100dvh-4rem)] items-center justify-center overflow-hidden">
+    // svh (not dvh): the mobile URL bar collapsing must not resize the hero —
+    // a dvh-driven resize would rebuild the canvas layout on every scroll.
+    <section className="relative flex min-h-[calc(100svh-4rem)] items-center justify-center overflow-hidden">
       <XParticles />
 
       <div className="pointer-events-none relative z-10 flex max-w-3xl flex-col items-center gap-6 px-4 py-16 text-center text-balance">

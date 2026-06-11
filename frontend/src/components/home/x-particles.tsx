@@ -13,6 +13,13 @@
  * lines/dots), so an operator palette change re-tints the effect for free.
  * Reduced motion: one static frame, no loop, pointer input ignored.
  * Decorative only (`aria-hidden`); the overlay content never depends on it.
+ *
+ * Render budget: glyph strokes are batched into one path per quantized
+ * brightness level (color strings come from a small LUT), so the grid pass is
+ * O(levels) stroke()/style-parse calls instead of O(cells) — a 4K viewport
+ * has ~7,200 cells. Resizes RETARGET the X (springs glide particles to the
+ * new layout) instead of re-seeding it, and ripples are capped + advanced by
+ * elapsed time so a low frame rate cannot compound their cost.
  */
 "use client";
 
@@ -25,6 +32,10 @@ const GRID_CURSOR_PUSH = 12;
 const GRID_RIPPLE_PUSH = 16;
 const RIPPLE_SPEED = 4.5;
 const RIPPLE_BAND = 28;
+/** Ripples retire (and their influence fades to zero) at this fraction of the
+ * viewport diagonal — past it the visual effect was negligible anyway. */
+const RIPPLE_RANGE = 0.7;
+const MAX_RIPPLES = 6;
 const X_COUNT = 230;
 const X_EXTENT = 0.36;
 const X_JITTER = 13;
@@ -34,6 +45,8 @@ const SPRING_K = 0.016;
 const DAMPING = 0.88;
 const LINK_DIST2 = 32 * 32;
 const QPI = Math.PI / 4;
+/** Brightness quantization levels for the color LUTs / glyph batching. */
+const LUT_N = 32;
 
 type RGB = readonly [number, number, number];
 type GridCell = {
@@ -96,6 +109,10 @@ export function XParticles() {
     const host: HTMLDivElement = hostEl;
     const canvas: HTMLCanvasElement = canvasEl;
     const ctx: CanvasRenderingContext2D = ctx2d;
+    // Pointer events attach to the hero section (the host's parent): the
+    // overlay is pointer-events-none except the CTA container, and section-
+    // level listeners keep working while the cursor is over the CTAs too.
+    const pointerEl: HTMLElement = host.parentElement ?? host;
 
     // White-label palette: brand primary, lightened for visibility on obsidian.
     const css = getComputedStyle(document.documentElement);
@@ -104,20 +121,42 @@ export function XParticles() {
     const dotC = lighten(primary, 0.55);
     const linkC = mix(lineC, dotC, 0.5);
 
+    // Color LUTs indexed by quantized brightness — zero string allocation and
+    // O(LUT_N) style parses per frame instead of O(cells)/O(links).
+    const glyphLut: string[] = [];
+    const linkLut: string[] = [];
+    for (let i = 0; i <= LUT_N; i++) {
+      const t = i / LUT_N;
+      glyphLut.push(rgba(mix(lineC, dotC, t), GRID_REST_ALPHA + t * 0.74));
+      linkLut.push(rgba(linkC, t * 0.5));
+    }
+    const dotFill = rgba(dotC, 0.95);
+
     let W = 0;
     let H = 0;
+    let rawDpr = 0;
     let mx = -9999;
     let my = -9999;
     let raf = 0;
+    let lastT = 0;
     let grid: GridCell[] = [];
-    let pts: Particle[] = [];
-    let ripples: Ripple[] = [];
+    const pts: Particle[] = [];
+    const ripples: Ripple[] = [];
+    // Glyph batches reused across frames (cleared via length = 0).
+    const buckets: GridCell[][] = Array.from({ length: LUT_N + 1 }, () => []);
 
     const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     let reduced = mq?.matches ?? false;
 
-    function rebuild() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    /**
+     * Size the backing store and lay out grid + X targets for the current
+     * host box. Existing particles are RETARGETED (springs glide them to the
+     * new layout); they are seeded randomly only on first run. In-flight
+     * ripples and grid motion state survive ordinary resizes.
+     */
+    function layout() {
+      rawDpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(rawDpr, 2);
       W = host.clientWidth;
       H = host.clientHeight;
       canvas.width = W * dpr;
@@ -132,41 +171,60 @@ export function XParticles() {
       const cx = W / 2;
       const cy = H / 2;
       const ext = Math.min(W, H) * X_EXTENT;
-      pts = [];
+      const fresh = pts.length === 0;
       for (let i = 0; i < X_COUNT; i++) {
         const u = Math.random() * 2 - 1;
         const j = (Math.random() - 0.5) * X_JITTER;
         const onMainStroke = i % 2 === 0;
-        pts.push({
-          x: Math.random() * W,
-          y: Math.random() * H,
-          vx: 0,
-          vy: 0,
-          tx: cx + u * ext - j * 0.707,
-          ty: (onMainStroke ? cy + u * ext : cy - u * ext) + j * 0.707,
-          r: Math.random() * 1.3 + 1,
-        });
+        // Jitter must be PERPENDICULAR to each stroke: the "\" stroke runs
+        // along (1,1)/√2 (perpendicular (-1,1)/√2), the "/" stroke along
+        // (1,-1)/√2 (perpendicular (1,1)/√2) — so both read as ~13px bands.
+        const tx = cx + u * ext + (onMainStroke ? -j : j) * 0.707;
+        const ty = (onMainStroke ? cy + u * ext : cy - u * ext) + j * 0.707;
+        if (fresh) {
+          pts.push({
+            x: Math.random() * W,
+            y: Math.random() * H,
+            vx: 0,
+            vy: 0,
+            tx,
+            ty,
+            r: Math.random() * 1.3 + 1,
+          });
+        } else {
+          pts[i].tx = tx;
+          pts[i].ty = ty;
+        }
       }
-      ripples = [];
     }
 
-    function drawGlyph(g: GridCell, bb: number) {
+    /** Append one mini-X to the current path (second stroke = first rotated
+     * 90°, so cos/sin are reused instead of recomputed). */
+    function addGlyphToPath(g: GridCell, half: number) {
       const px = g.bx + g.ox;
       const py = g.by + g.oy;
-      const half = 4 + bb * 2.5;
-      const a1 = g.rot + QPI;
-      const a2 = g.rot + 3 * QPI;
-      const c1 = Math.cos(a1) * half;
-      const s1 = Math.sin(a1) * half;
-      const c2 = Math.cos(a2) * half;
-      const s2 = Math.sin(a2) * half;
-      ctx.strokeStyle = rgba(mix(lineC, dotC, bb), GRID_REST_ALPHA + bb * 0.74);
-      ctx.beginPath();
+      const c1 = Math.cos(g.rot + QPI) * half;
+      const s1 = Math.sin(g.rot + QPI) * half;
       ctx.moveTo(px - c1, py - s1);
       ctx.lineTo(px + c1, py + s1);
-      ctx.moveTo(px - c2, py - s2);
-      ctx.lineTo(px + c2, py + s2);
-      ctx.stroke();
+      ctx.moveTo(px + s1, py - c1);
+      ctx.lineTo(px - s1, py + c1);
+    }
+
+    /** Stroke every batched glyph: one beginPath/strokeStyle/stroke per
+     * non-empty brightness level. */
+    function flushGlyphBuckets() {
+      for (let bi = 0; bi <= LUT_N; bi++) {
+        const bucket = buckets[bi];
+        if (bucket.length === 0) continue;
+        const t = bi / LUT_N;
+        const half = 4 + t * 2.5;
+        ctx.strokeStyle = glyphLut[bi];
+        ctx.beginPath();
+        for (const g of bucket) addGlyphToPath(g, half);
+        ctx.stroke();
+        bucket.length = 0;
+      }
     }
 
     function drawX() {
@@ -178,28 +236,29 @@ export function XParticles() {
           const dy = p.y - q.y;
           const d2 = dx * dx + dy * dy;
           if (d2 < LINK_DIST2) {
-            ctx.strokeStyle = rgba(linkC, (1 - d2 / LINK_DIST2) * 0.5);
-            ctx.lineWidth = 1;
+            ctx.strokeStyle = linkLut[((1 - d2 / LINK_DIST2) * LUT_N) | 0];
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(q.x, q.y);
             ctx.stroke();
           }
         }
-        ctx.fillStyle = rgba(dotC, 0.95);
+        ctx.fillStyle = dotFill;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    function step() {
+    function step(dt: number) {
       ctx.clearRect(0, 0, W, H);
-      const maxR = Math.sqrt(W * W + H * H);
+      const retireR = Math.sqrt(W * W + H * H) * RIPPLE_RANGE;
 
+      // Time-based advance: a low frame rate must not extend ripple lifetime
+      // (which would compound the per-ripple cost into a feedback loop).
       for (let i = ripples.length - 1; i >= 0; i--) {
-        ripples[i].r += RIPPLE_SPEED;
-        if (ripples[i].r > maxR) ripples.splice(i, 1);
+        ripples[i].r += RIPPLE_SPEED * dt;
+        if (ripples[i].r > retireR) ripples.splice(i, 1);
       }
 
       ctx.lineWidth = 1;
@@ -222,7 +281,7 @@ export function XParticles() {
           const rd = Math.sqrt(rdx * rdx + rdy * rdy);
           const band = Math.abs(rd - rp.r);
           if (band < RIPPLE_BAND && rd > 0.5) {
-            const gg = (1 - band / RIPPLE_BAND) * (1 - rp.r / maxR);
+            const gg = (1 - band / RIPPLE_BAND) * (1 - rp.r / retireR);
             tox += (rdx / rd) * gg * GRID_RIPPLE_PUSH;
             toy += (rdy / rd) * gg * GRID_RIPPLE_PUSH;
             g.rv += gg * 0.22;
@@ -234,8 +293,10 @@ export function XParticles() {
         g.rot += g.rv;
         g.rv *= 0.9;
         g.rot *= 0.94;
-        drawGlyph(g, Math.min(1, bright));
+        const bb = bright >= 1 ? 1 : bright;
+        buckets[(bb * LUT_N) | 0].push(g);
       }
+      flushGlyphBuckets();
 
       for (const p of pts) {
         p.vx += (p.tx - p.x) * SPRING_K;
@@ -254,7 +315,7 @@ export function XParticles() {
           const rd = Math.sqrt(rdx * rdx + rdy * rdy);
           const band = Math.abs(rd - rp.r);
           if (band < X_RIPPLE_BAND && rd > 0.5) {
-            const g2 = (1 - band / X_RIPPLE_BAND) * (1 - rp.r / maxR) * 3.4;
+            const g2 = (1 - band / X_RIPPLE_BAND) * (1 - rp.r / retireR) * 3.4;
             p.vx += (rdx / rd) * g2;
             p.vy += (rdy / rd) * g2;
           }
@@ -270,7 +331,8 @@ export function XParticles() {
     function renderStatic() {
       ctx.clearRect(0, 0, W, H);
       ctx.lineWidth = 1;
-      for (const g of grid) drawGlyph(g, 0);
+      for (const g of grid) buckets[0].push(g);
+      flushGlyphBuckets();
       for (const p of pts) {
         p.x = p.tx;
         p.y = p.ty;
@@ -278,21 +340,27 @@ export function XParticles() {
       drawX();
     }
 
-    function loop() {
-      step();
+    function loop(now: number) {
+      // Clamp dt to [0.25, 3] frames so tab restores can't teleport ripples.
+      const dt = lastT === 0 ? 1 : Math.min(Math.max((now - lastT) / 16.667, 0.25), 3);
+      lastT = now;
+      // A monitor change can alter devicePixelRatio without resizing the host.
+      if ((window.devicePixelRatio || 1) !== rawDpr) layout();
+      step(dt);
       raf = requestAnimationFrame(loop);
     }
 
     function start() {
       cancelAnimationFrame(raf);
-      rebuild();
+      lastT = 0;
+      layout();
       if (reduced) renderStatic();
       else raf = requestAnimationFrame(loop);
     }
 
-    // Pointer input — listeners live on the host wrapper; the hero overlay is
-    // pointer-events-none (except CTAs), so moves/clicks land here. Reduced
-    // motion ignores input entirely (the static frame never changes).
+    // Pointer input — reduced motion ignores it (the static frame never
+    // changes); local coords come from the host box (identical to the
+    // section's: the host is absolute inset-0).
     const toLocal = (cx: number, cy: number) => {
       const b = host.getBoundingClientRect();
       mx = cx - b.left;
@@ -302,28 +370,32 @@ export function XParticles() {
       mx = -9999;
       my = -9999;
     };
+    const pushRipple = () => {
+      if (ripples.length >= MAX_RIPPLES) ripples.shift();
+      ripples.push({ x: mx, y: my, r: 0 });
+    };
     const onMouseMove = (e: MouseEvent) => {
       if (!reduced) toLocal(e.clientX, e.clientY);
     };
     const onMouseDown = (e: MouseEvent) => {
       if (reduced) return;
       toLocal(e.clientX, e.clientY);
-      ripples.push({ x: mx, y: my, r: 0 });
+      pushRipple();
     };
     const onTouchStart = (e: TouchEvent) => {
       if (reduced || !e.touches[0]) return;
       toLocal(e.touches[0].clientX, e.touches[0].clientY);
-      ripples.push({ x: mx, y: my, r: 0 });
+      pushRipple();
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!reduced && e.touches[0]) toLocal(e.touches[0].clientX, e.touches[0].clientY);
     };
-    host.addEventListener("mousemove", onMouseMove);
-    host.addEventListener("mouseleave", clearPointer);
-    host.addEventListener("mousedown", onMouseDown);
-    host.addEventListener("touchstart", onTouchStart, { passive: true });
-    host.addEventListener("touchmove", onTouchMove, { passive: true });
-    host.addEventListener("touchend", clearPointer);
+    pointerEl.addEventListener("mousemove", onMouseMove);
+    pointerEl.addEventListener("mouseleave", clearPointer);
+    pointerEl.addEventListener("mousedown", onMouseDown);
+    pointerEl.addEventListener("touchstart", onTouchStart, { passive: true });
+    pointerEl.addEventListener("touchmove", onTouchMove, { passive: true });
+    pointerEl.addEventListener("touchend", clearPointer);
 
     const onMqChange = (e: MediaQueryListEvent) => {
       reduced = e.matches;
@@ -334,7 +406,11 @@ export function XParticles() {
 
     let ro: ResizeObserver | undefined;
     if (typeof ResizeObserver !== "undefined") {
-      ro = new ResizeObserver(() => start());
+      // Skip no-op observations (incl. the mandatory initial one — start()
+      // below already laid the canvas out).
+      ro = new ResizeObserver(() => {
+        if (host.clientWidth !== W || host.clientHeight !== H) start();
+      });
       ro.observe(host);
     }
 
@@ -344,12 +420,12 @@ export function XParticles() {
       cancelAnimationFrame(raf);
       mq?.removeEventListener("change", onMqChange);
       ro?.disconnect();
-      host.removeEventListener("mousemove", onMouseMove);
-      host.removeEventListener("mouseleave", clearPointer);
-      host.removeEventListener("mousedown", onMouseDown);
-      host.removeEventListener("touchstart", onTouchStart);
-      host.removeEventListener("touchmove", onTouchMove);
-      host.removeEventListener("touchend", clearPointer);
+      pointerEl.removeEventListener("mousemove", onMouseMove);
+      pointerEl.removeEventListener("mouseleave", clearPointer);
+      pointerEl.removeEventListener("mousedown", onMouseDown);
+      pointerEl.removeEventListener("touchstart", onTouchStart);
+      pointerEl.removeEventListener("touchmove", onTouchMove);
+      pointerEl.removeEventListener("touchend", clearPointer);
     };
   }, []);
 

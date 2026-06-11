@@ -45,4 +45,9 @@ describe("XGridHero", () => {
     render(<XGridHero brandName="Acme Bets" />);
     expect(screen.getByText(/^Acme Bets — white-label, API-first/)).toBeInTheDocument();
   });
+
+  it("falls back to XPrediction for a blank brand name", () => {
+    render(<XGridHero brandName="   " />);
+    expect(screen.getByText(/^XPrediction — white-label, API-first/)).toBeInTheDocument();
+  });
 });
