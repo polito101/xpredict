@@ -56,9 +56,10 @@ A single `<canvas>` with the full effect. No new dependencies — hand-rolled ca
   max ≈ 0.5) — the X reads as a connected circuit, echoing "the core that connects".
 
 **Engineering requirements:**
-- Colors read from CSS vars at mount (`--brand-primary`, `--brand-secondary` via
-  `getComputedStyle`), with hard-coded indigo fallbacks → white-label re-skinning
-  tints the effect with no code change.
+- Colors read from CSS vars at mount (`--brand-primary` via
+  `getComputedStyle`; the line/dot/link tints are lightened derivatives of it), with
+  hard-coded indigo fallbacks → white-label re-skinning tints the effect with no
+  code change.
 - DPR-aware rendering (cap 2). Resize via `ResizeObserver` on the section → rebuild
   grid + retargets the X.
 - Pointer handling on the **section** (not the canvas), so events fire even over the
