@@ -100,7 +100,6 @@ export function LiveTable({
   initialBalance,
   counterLabel,
 }: LiveTableProps) {
-  void counterLabel;
   const elementRef = useRef<HTMLElement>(null);
   // Balance is held locally so the wallet refresh can move it IN PLACE (the
   // unified XPredict balance reacting to bets is the whole point — design §8).
@@ -149,6 +148,20 @@ export function LiveTable({
     if (!el) return;
     el.setAttribute("balance", String(balance));
   }, [balance]);
+
+  // Multi-table: name the widget HUD live counter from the catalog label.
+  // `counter-label` is the widget's Branch E — text-only render, NO teardown
+  // (mirrors balance Branch D) — so this effect can never disturb WS/HLS.
+  // Absent prop → attribute removed → the widget's neutral COUNT default.
+  useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
+    if (counterLabel) {
+      el.setAttribute("counter-label", counterLabel);
+    } else {
+      el.removeAttribute("counter-label");
+    }
+  }, [counterLabel]);
 
   // Wire the four widget DOM events; the cleanup removes EVERY listener (SC3).
   // The event detail is UNTRUSTED (third-party widget) — only `bet_id` is passed
