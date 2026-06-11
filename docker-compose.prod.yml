@@ -252,6 +252,8 @@ services:
       # Server-only (SSR / Server Actions reach the backend over the compose
       # network — never bundled into the client).
       BACKEND_URL: http://backend:8000
+      # Live multi-table catalog (server-only; empty → single default table).
+      LIVEBETS_TABLES: ${LIVEBETS_TABLES:-}
       # Currently UNUSED by the frontend (the edge gate in proxy.ts checks the
       # admin_jwt cookie's PRESENCE only — no JWT verification). Kept for dev/prod
       # parity + forward-compat; harmless if blank.
