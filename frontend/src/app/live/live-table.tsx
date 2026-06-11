@@ -64,6 +64,8 @@ export interface LiveTableProps {
   sessionToken: string;
   tableId: string;
   initialBalance: string;
+  /** Names the widget HUD live counter (catalog label); absent → widget COUNT default. */
+  counterLabel?: string;
 }
 
 /** Defensive read of `bet_id` off an untrusted widget event detail. */
@@ -96,7 +98,9 @@ export function LiveTable({
   sessionToken,
   tableId,
   initialBalance,
+  counterLabel,
 }: LiveTableProps) {
+  void counterLabel;
   const elementRef = useRef<HTMLElement>(null);
   // Balance is held locally so the wallet refresh can move it IN PLACE (the
   // unified XPredict balance reacting to bets is the whole point — design §8).
