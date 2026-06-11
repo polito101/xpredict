@@ -44,6 +44,9 @@ describe("PortfolioPage", () => {
           current_value: "40.0000",
           unrealized_pnl: "0.0000",
           priced: true,
+          market_question: "Will it rain tomorrow?",
+          market_slug: "will-it-rain-tomorrow",
+          outcome_label: "YES",
         },
       ],
       settled: [
@@ -57,6 +60,9 @@ describe("PortfolioPage", () => {
           payout: "80.0000",
           realized_pnl: "40.0000",
           status: "SETTLED_WON",
+          market_question: "Will BTC close above 100k?",
+          market_slug: "will-btc-close-above-100k",
+          outcome_label: "NO",
         },
         {
           bet_id: "00000000-0000-0000-0000-0000000000a2",
@@ -68,6 +74,9 @@ describe("PortfolioPage", () => {
           payout: "0.0000",
           realized_pnl: "-60.0000",
           status: "SETTLED_LOST",
+          market_question: null,
+          market_slug: null,
+          outcome_label: null,
         },
       ],
     };
@@ -80,10 +89,22 @@ describe("PortfolioPage", () => {
     render(await PortfolioPage());
 
     const text = document.body.textContent ?? "";
-    expect(text).toContain("Potential payout 80.0000 PLAY_USD");
+    // Every card says WHAT was bet on — market question + chosen outcome.
+    expect(text).toContain("Will it rain tomorrow?");
+    expect(text).toContain("YES");
+    expect(text).toContain("Will BTC close above 100k?");
+    expect(text).toContain("NO");
+    // The market question links to the market page.
+    expect(
+      screen.getByRole("link", { name: "Will it rain tomorrow?" }),
+    ).toHaveAttribute("href", "/markets/will-it-rain-tomorrow");
+    // Missing metadata degrades to a neutral fallback, never a broken card.
+    expect(text).toContain("Market unavailable");
+    expect(text).toContain("Potential payout");
+    expect(text).toContain("80.0000 PLAY_USD");
     expect(text).toContain("Won");
     expect(text).toContain("Lost");
-    expect(text).toContain("payout 0.0000 PLAY_USD");
+    expect(text).toContain("Payout 0.0000 PLAY_USD");
     expect(text).toContain("-60.0000 PLAY_USD");
     expect(screen.queryByTestId("portfolio-open-empty")).toBeNull();
     expect(screen.queryByTestId("portfolio-settled-empty")).toBeNull();

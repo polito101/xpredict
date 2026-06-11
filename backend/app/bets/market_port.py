@@ -49,6 +49,10 @@ class MarketView:
     # falls back to ``settings.BET_MIN_STAKE`` / ``BET_MAX_STAKE`` when either is ``None``.
     min_stake: Decimal | None = None
     max_stake: Decimal | None = None
+    # Display metadata for the portfolio read surface (None-able with defaults so the
+    # minimal test stubs and the placement path stay valid without them).
+    question: str | None = None
+    slug: str | None = None
 
     def is_open(self, now: datetime) -> bool:
         """A market accepts bets only while ``OPEN`` and strictly before its deadline."""

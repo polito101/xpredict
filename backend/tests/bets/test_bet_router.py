@@ -305,6 +305,11 @@ async def test_get_portfolio_returns_open_and_settled_with_pnl(api: httpx.AsyncC
     assert Decimal(won["realized_pnl"]) == Decimal("40.0000")
     assert Decimal(lost["payout"]) == Decimal("0.0000")
     assert Decimal(lost["realized_pnl"]) == Decimal("-60.0000")
+    # These raw-seeded bets reference non-existent markets — the display metadata
+    # degrades to None (never an error) instead of breaking the portfolio read.
+    assert op["market_question"] is None
+    assert op["outcome_label"] is None
+    assert won["market_question"] is None
 
 
 # --------------------------------------------------------------------------- #
@@ -393,6 +398,8 @@ async def test_get_portfolio_open_position_uses_live_unrealized_pnl(api: httpx.A
                 OutcomeView(id=yes_id, label="YES", price=Decimal(yes_price)),
                 OutcomeView(id=no_id, label="NO", price=Decimal("0.5")),
             ),
+            question="Will it rain tomorrow?",
+            slug="will-it-rain-tomorrow",
         )
 
     src = StubMarketSource()
@@ -412,6 +419,10 @@ async def test_get_portfolio_open_position_uses_live_unrealized_pnl(api: httpx.A
     assert Decimal(op["current_value"]) == Decimal("50.0000")
     assert Decimal(op["unrealized_pnl"]) == Decimal("10.0000")
     assert Decimal(op["potential_pnl"]) == Decimal("40.0000")  # 40/0.5 - 40, unchanged
+    # The position says WHAT was bet on (market question/slug + outcome label).
+    assert op["market_question"] == "Will it rain tomorrow?"
+    assert op["market_slug"] == "will-it-rain-tomorrow"
+    assert op["outcome_label"] == "YES"
 
 
 async def test_sell_position_requires_auth(api: httpx.AsyncClient) -> None:
