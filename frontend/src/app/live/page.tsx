@@ -3,9 +3,10 @@
  *
  * An async Server Component (mirrors `markets/[slug]/page.tsx` + `wallet/page.tsx`)
  * that gates on the player session, mints the live-bets session (which resolves
- * and echoes back the demo `table_id`), and shows the player's XPredict wallet
- * balance inside XPredict chrome — then hands off to the `"use client"`
- * `<LiveTable>` host which loads the widget and wires its DOM events (design §6).
+ * and echoes back the demo `table_id`), and — on the happy path — hands the full
+ * viewport to the `"use client"` `<LiveTable>` host which loads the widget and wires
+ * its DOM events (design §6); wallet balance + XPredict chrome remain only on the
+ * empty/error states.
  *
  * The widget's `table-id` comes from the session response's `table_id`, NOT from
  * `/api/live/tables`: the live-bets `GET /tables` route is JWT-gated, so the

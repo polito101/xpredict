@@ -4,8 +4,8 @@
  * Runs under `jsdom` (file is `*.test.tsx`). Renders the real client island with
  * `@/lib/live-actions`, `next/script`, `next/navigation` and `sonner` mocked,
  * then drives the real `<live-bets-table>` custom element with `CustomEvent`s and
- * asserts the wiring: each event -> the correct Server Action, the in-island
- * wallet refresh via `getLiveBalance` (plan-check M-2), the toast surfaces, the
+ * asserts the wiring: each event -> the correct Server Action, the balance-state
+ * refresh via `getLiveBalance` (pushed onto the widget `balance` attribute, HOST-01), the toast surfaces, the
  * `applied:false` no-op, and listener cleanup on unmount (SC3). Fully hermetic —
  * no real widget, no network. Mirrors the `act`/event-driving style of
  * `use-market-socket.test.ts`.
