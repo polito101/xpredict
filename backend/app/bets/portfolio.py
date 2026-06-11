@@ -58,7 +58,7 @@ class OpenPosition:
     stake: Decimal
     odds_at_placement: Decimal
     potential_payout: Decimal  # stake / odds — what a win pays at the locked price
-    potential_pnl: Decimal     # potential_payout - stake
+    potential_pnl: Decimal  # potential_payout - stake
     current_odds: Decimal | None  # live price used for mark-to-market (None if unavailable)
     current_value: Decimal  # stake * current_odds / odds_at_placement (== stake if unpriced)
     unrealized_pnl: Decimal  # current_value - stake (SIGNED — can be negative)
@@ -74,7 +74,7 @@ class SettledPosition:
     outcome_id: UUID
     stake: Decimal
     odds_at_placement: Decimal
-    status: str   # terminal status string (``SETTLED_WON`` / ``SETTLED_LOST``)
+    status: str  # terminal status string (``SETTLED_WON`` / ``SETTLED_LOST``)
     won: bool
     payout: Decimal  # compute_payout on a win; 0 on a loss
     realized_pnl: Decimal  # payout - stake (positive win / -stake loss)

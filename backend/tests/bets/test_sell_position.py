@@ -229,9 +229,7 @@ async def _place(user_id: UUID, market: MarketView, outcome_id: UUID, stake: Dec
 async def _sell(bet_id: UUID, user_id: UUID, src) -> dict:
     sm = _get_session_maker()
     async with sm() as s:
-        return await BetService.sell_position(
-            s, bet_id=bet_id, user_id=user_id, market_source=src
-        )
+        return await BetService.sell_position(s, bet_id=bet_id, user_id=user_id, market_source=src)
 
 
 # --------------------------------------------------------------------------- #
