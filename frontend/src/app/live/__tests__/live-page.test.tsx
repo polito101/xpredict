@@ -149,10 +149,8 @@ describe("LivePage (/live Server Component)", () => {
     expect(screen.queryByTestId("live-table-island")).not.toBeInTheDocument();
   });
 
-  it("shows chrome + wallet balance + the LiveTable island on the happy path", async () => {
+  it("happy path (Plan D): full-viewport host — NO duplicate balance header, island inside the fixed overlay", async () => {
     cookieGet.mockReturnValue({ value: "test-session" });
-    // The session carries the resolved table_id; the page feeds it to the widget
-    // (no /api/live/tables call — that route 401s with the operator key).
     fetchLiveSession.mockResolvedValue({
       session_token: "live-token-1",
       expires_at: "2026-06-06T10:00:00Z",
@@ -162,18 +160,22 @@ describe("LivePage (/live Server Component)", () => {
 
     await renderLive();
 
-    // Labelled wallet balance (BalanceHeader). The stubbed island also carries
-    // an aria-label in production, but here it is replaced by the marker, so the
-    // only "wallet balance" element is the header — assert via the island marker
-    // for the token/table handoff.
-    expect(screen.getByLabelText(/wallet balance/i)).toHaveTextContent(
-      "100.0000",
-    );
+    // Plan D: the widget HUD owns the balance (HOST-01) — the page renders NO
+    // balance header on the happy path (spec §12 "no duplicate balance").
+    expect(screen.queryByLabelText(/wallet balance/i)).not.toBeInTheDocument();
+
+    // The island still gets the resolved token/table/balance handoff…
     const island = screen.getByTestId("live-table-island");
-    expect(island).toBeInTheDocument();
     expect(island).toHaveAttribute("data-session-token", "live-token-1");
     expect(island).toHaveAttribute("data-table-id", "tbl-1");
     expect(island).toHaveAttribute("data-initial-balance", "100.0000");
+
+    // …inside the full-viewport overlay (spec §13 "widget fills viewport";
+    // jsdom does no layout, so assert the Tailwind fixed-inset classes).
+    const overlay = screen.getByTestId("live-fullscreen");
+    expect(overlay.className).toContain("fixed");
+    expect(overlay.className).toContain("inset-0");
+    expect(overlay.contains(island)).toBe(true);
   });
 
   it("shows a non-silent retry error on a generic (non-unconfigured) session failure", async () => {
