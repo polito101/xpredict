@@ -4,15 +4,16 @@
  * An async Server Component (mirrors `markets/[slug]/page.tsx` + `wallet/page.tsx`)
  * that gates on the player session, mints the live-bets session (which resolves
  * and echoes back the demo `table_id`), and — on the happy path — hands the full
- * viewport to the `"use client"` `<LiveTable>` host which loads the widget and wires
- * its DOM events (design §6); wallet balance + XPredict chrome remain only on the
- * empty/error states.
+ * viewport to the `LiveFullscreenHost` from `./shared` which renders `<LiveTable>`
+ * and wires its DOM events (design §6); wallet balance + XPredict chrome remain
+ * only on the empty/error states.
  *
  * The widget's `table-id` comes from the session response's `table_id`, NOT from
  * `/api/live/tables`: the live-bets `GET /tables` route is JWT-gated, so the
  * operator-key `/api/live/tables` 401s and can't supply it.
  *
  * States (none degrade to a misleading empty/zero — v1.1 Fase C error contract):
+ *   - catalog configured → table picker (chrome + balance), links to /live/[slug].
  *   - no session cookie        → `SignedOutNotice` (reachable only when authed).
  *   - LiveTableUnconfigured     → friendly "No live table configured yet" empty
  *     state, STILL inside chrome + STILL showing the wallet balance. This is the
@@ -31,97 +32,58 @@
  */
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 import { fetchLiveSession, LiveTableUnconfigured } from "@/lib/api";
+import { getLiveCatalog, type LiveCatalogEntry } from "@/lib/live-catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { RetryError } from "@/components/retry-error";
 import { SignedOutNotice } from "@/components/signed-out-notice";
-import { LiveTable } from "./live-table";
-
-const PAGE_SHELL = "w-full max-w-6xl mx-auto px-4 sm:px-6 py-12";
-const CURRENCY = "PLAY_USD";
-
-/**
- * Server-only backend base for the cookie-forwarded wallet-balance read (mirrors
- * `wallet/page.tsx:53-55`). No `NEXT_PUBLIC_` prefix, so the backend origin never
- * leaks into the client bundle.
- */
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
-
-type BalanceResult = { ok: true; balance: string } | { ok: false };
+import {
+  BalanceHeader,
+  LiveFullscreenHost,
+  LiveShell,
+  LiveSkeleton,
+  loadBalance,
+  PAGE_SHELL,
+} from "./shared";
 
 /**
- * Read the player's wallet balance server-side, forwarding the session cookie —
- * REUSES the exact `/wallet/me/balance` mechanism from `wallet/page.tsx:62-90`
- * (`{ balance }`, a string). Returns a discriminated result so the page can keep
- * rendering chrome + a non-silent error rather than a misleading "0".
+ * Multi-table picker (catalog configured): one card per live table, linking to
+ * /live/[slug]. Chrome + balance stay — there is no widget on this page, so the
+ * balance header is NOT a duplicate (same rationale as the empty state).
  */
-async function loadBalance(session: string): Promise<BalanceResult> {
-  try {
-    const res = await fetch(`${getBackendUrl()}/wallet/me/balance`, {
-      headers: { Cookie: `xpredict_session=${session}` },
-      cache: "no-store",
-    });
-    if (!res.ok) return { ok: false };
-    const data = (await res.json()) as { balance?: unknown };
-    // WR-02: a non-string balance (malformed/garbage body) is a FAILURE, not a
-    // real "0". Route it to the page's existing RetryError path — never fabricate
-    // a zero balance, which the page's own no-misleading-zero contract forbids.
-    // Matches the sibling `getLiveBalance` `{ok:false}` on the identical case.
-    if (typeof data.balance !== "string") return { ok: false };
-    return { ok: true, balance: data.balance };
-  } catch {
-    return { ok: false };
-  }
-}
-
-/** The `/live` body — loading skeleton shape (header + balance card + widget). */
-function LiveSkeleton() {
+function LiveCatalogPicker({
+  entries,
+  balance,
+}: {
+  entries: LiveCatalogEntry[];
+  balance: string | null;
+}) {
   return (
-    <main className={PAGE_SHELL}>
-      <div className="mb-8 flex flex-col gap-2">
-        <Skeleton className="h-9 w-32" />
-        <Skeleton className="h-4 w-64" />
+    <LiveShell>
+      {balance !== null && <BalanceHeader balance={balance} />}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {entries.map((e) => (
+          <Link
+            key={e.slug}
+            href={`/live/${e.slug}`}
+            className="group rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Card className="h-full transition-colors group-hover:border-[--brand-primary]">
+              <CardHeader>
+                <CardTitle>{e.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Multiplayer live table — join the round and bet in real time.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
       </div>
-      <Skeleton className="mb-6 h-20 w-full rounded-xl" />
-      <Skeleton className="h-96 w-full rounded-xl" />
-    </main>
-  );
-}
-
-/** Page chrome wrapper shared by the empty + success states. */
-function LiveShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className={PAGE_SHELL}>
-      <header className="mb-8 flex flex-col gap-1">
-        <h1 className="font-display text-3xl font-semibold tracking-tight">
-          Live
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Multiplayer live bets — your XPrediction balance, in real time.
-        </p>
-      </header>
-      {children}
-    </main>
-  );
-}
-
-/** The wallet-balance header card (labelled element mirrors `wallet/page.tsx`). */
-function BalanceHeader({ balance }: { balance: string }) {
-  return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>
-          <span aria-label="wallet balance">{balance}</span>{" "}
-          <span className="text-base font-normal text-muted-foreground">
-            {CURRENCY}
-          </span>
-        </CardTitle>
-      </CardHeader>
-    </Card>
+    </LiveShell>
   );
 }
 
@@ -144,6 +106,20 @@ async function LiveBody() {
         </header>
         <SignedOutNotice resource="live" />
       </main>
+    );
+  }
+
+  // Multi-table: a configured catalog turns /live into a picker — no session
+  // mint here (each /live/[slug] page mints for its own table). Empty catalog
+  // → the original single-default-table flow below, unchanged.
+  const catalog = getLiveCatalog();
+  if (catalog.length > 0) {
+    const balanceResult = await loadBalance(session);
+    return (
+      <LiveCatalogPicker
+        entries={catalog}
+        balance={balanceResult.ok ? balanceResult.balance : null}
+      />
     );
   }
 
@@ -223,25 +199,12 @@ async function LiveBody() {
   // successful session always carries a usable `table_id` here.
   const { session_token, table_id } = sessionResult.value;
 
-  // Plan D (spec §12): the happy path is a full-viewport black overlay — no
-  // LiveShell chrome, no BalanceHeader (the widget HUD shows the balance via
-  // HOST-01). It deliberately covers the SiteFrame nav: the widget HUD owns
-  // all UI. The wrapper width is clamped to min(100vw, 100dvh·16/9) so the
-  // widget's hard-16:9 shadow stage (HUD included) always fits the viewport
-  // (letterboxed on black) at any aspect ratio.
   return (
-    <main
-      data-testid="live-fullscreen"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black"
-    >
-      <div className="w-full max-w-[min(100vw,calc(100dvh*16/9))]">
-        <LiveTable
-          sessionToken={session_token}
-          tableId={table_id}
-          initialBalance={balance}
-        />
-      </div>
-    </main>
+    <LiveFullscreenHost
+      sessionToken={session_token}
+      tableId={table_id}
+      initialBalance={balance}
+    />
   );
 }
 

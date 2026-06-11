@@ -41,6 +41,14 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
+// Catalog: default EMPTY (single-default-table flow); picker tests override.
+const getLiveCatalog = vi.hoisted(() => vi.fn().mockReturnValue([]));
+vi.mock("@/lib/live-catalog", () => ({
+  getLiveCatalog,
+  findLiveTable: (slug: string) =>
+    getLiveCatalog().find((e: { slug: string }) => e.slug === slug),
+}));
+
 // Stub the LiveTable client island so this stays a pure page-state test (no
 // widget, no script, no live-actions). The marker carries its props so the
 // happy-path test can assert the island was handed the resolved token/table.
@@ -113,6 +121,7 @@ beforeEach(() => {
   cookieGet.mockReset();
   fetchLiveSession.mockReset();
   vi.unstubAllGlobals();
+  getLiveCatalog.mockReturnValue([]);
 });
 
 describe("LivePage (/live Server Component)", () => {
@@ -214,5 +223,46 @@ describe("LivePage (/live Server Component)", () => {
     expect(screen.queryByLabelText(/wallet balance/i)).not.toBeInTheDocument();
     // And we did not fall through to the widget island.
     expect(screen.queryByTestId("live-table-island")).not.toBeInTheDocument();
+  });
+
+  it("multi-table: configured catalog → picker with one link per table, chrome + balance, NO widget", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      { slug: "cars", label: "Cars", tableId: "t-cars" },
+      { slug: "birds", label: "Birds", tableId: "t-birds" },
+    ]);
+    stubBalance("100.0000");
+
+    await renderLive();
+
+    // One link per catalog entry, pointing at the slug route.
+    expect(screen.getByRole("link", { name: /cars/i })).toHaveAttribute(
+      "href",
+      "/live/cars",
+    );
+    expect(screen.getByRole("link", { name: /birds/i })).toHaveAttribute(
+      "href",
+      "/live/birds",
+    );
+    // Chrome + balance (no widget on this page → not a duplicate).
+    expect(screen.getByLabelText(/wallet balance/i)).toHaveTextContent("100.0000");
+    // No session mint, no widget host, no fullscreen overlay.
+    expect(fetchLiveSession).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("live-table-island")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("live-fullscreen")).not.toBeInTheDocument();
+  });
+
+  it("multi-table: picker still renders when the balance read fails (no misleading zero, no block)", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      { slug: "cars", label: "Cars", tableId: "t-cars" },
+    ]);
+    stubBalance(null);
+
+    await renderLive();
+
+    expect(screen.getByRole("link", { name: /cars/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/wallet balance/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
   });
 });
