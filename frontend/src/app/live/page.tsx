@@ -3,9 +3,10 @@
  *
  * An async Server Component (mirrors `markets/[slug]/page.tsx` + `wallet/page.tsx`)
  * that gates on the player session, mints the live-bets session (which resolves
- * and echoes back the demo `table_id`), and shows the player's XPredict wallet
- * balance inside XPredict chrome — then hands off to the `"use client"`
- * `<LiveTable>` host which loads the widget and wires its DOM events (design §6).
+ * and echoes back the demo `table_id`), and — on the happy path — hands the full
+ * viewport to the `"use client"` `<LiveTable>` host which loads the widget and wires
+ * its DOM events (design §6); wallet balance + XPredict chrome remain only on the
+ * empty/error states.
  *
  * The widget's `table-id` comes from the session response's `table_id`, NOT from
  * `/api/live/tables`: the live-bets `GET /tables` route is JWT-gated, so the
@@ -18,7 +19,8 @@
  *     DEFAULT LB-B demo state (LB-A ships `LIVEBETS_DEFAULT_TABLE_ID=None`; the
  *     real table arrives in LB-C) and must NOT look like an error (CONTEXT bullet 1).
  *   - any other session/balance failure → non-silent `RetryError`.
- *   - success                   → chrome + balance header + the `<LiveTable>` host.
+ *   - success                   → full-viewport overlay + the `<LiveTable>` host
+ *     (Plan D: no chrome/balance header — the widget HUD owns all UI).
  *
  * BRAND (CONTEXT white-label note): the XPredict chrome around the widget is
  * on-brand (`--brand-*`); the widget INTERIOR is the live-bets widget's own
@@ -221,17 +223,25 @@ async function LiveBody() {
   // successful session always carries a usable `table_id` here.
   const { session_token, table_id } = sessionResult.value;
 
+  // Plan D (spec §12): the happy path is a full-viewport black overlay — no
+  // LiveShell chrome, no BalanceHeader (the widget HUD shows the balance via
+  // HOST-01). It deliberately covers the SiteFrame nav: the widget HUD owns
+  // all UI. The wrapper width is clamped to min(100vw, 100dvh·16/9) so the
+  // widget's hard-16:9 shadow stage (HUD included) always fits the viewport
+  // (letterboxed on black) at any aspect ratio.
   return (
-    <LiveShell>
-      <BalanceHeader balance={balance} />
-      {/* The widget interior is the live-bets widget's own (partially brandable)
-          styling; the chrome above/around it is on-brand XPredict. */}
-      <LiveTable
-        sessionToken={session_token}
-        tableId={table_id}
-        initialBalance={balance}
-      />
-    </LiveShell>
+    <main
+      data-testid="live-fullscreen"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+    >
+      <div className="w-full max-w-[min(100vw,calc(100dvh*16/9))]">
+        <LiveTable
+          sessionToken={session_token}
+          tableId={table_id}
+          initialBalance={balance}
+        />
+      </div>
+    </main>
   );
 }
 

@@ -4,8 +4,8 @@
  * Runs under `jsdom` (file is `*.test.tsx`). Renders the real client island with
  * `@/lib/live-actions`, `next/script`, `next/navigation` and `sonner` mocked,
  * then drives the real `<live-bets-table>` custom element with `CustomEvent`s and
- * asserts the wiring: each event -> the correct Server Action, the in-island
- * wallet refresh via `getLiveBalance` (plan-check M-2), the toast surfaces, the
+ * asserts the wiring: each event -> the correct Server Action, the balance-state
+ * refresh via `getLiveBalance` (pushed onto the widget `balance` attribute, HOST-01), the toast surfaces, the
  * `applied:false` no-op, and listener cleanup on unmount (SC3). Fully hermetic —
  * no real widget, no network. Mirrors the `act`/event-driving style of
  * `use-market-socket.test.ts`.
@@ -120,20 +120,20 @@ describe("<LiveTable /> DOM-event wiring", () => {
     expect(host.getAttribute("balance")).toBe("150.0000");
   });
 
-  it("bet-placed -> recordLivePlaced(betId) + getLiveBalance refresh updates the balance", async () => {
+  it("bet-placed -> recordLivePlaced(betId) + getLiveBalance refresh moves the widget `balance` attribute", async () => {
     const { container } = render(
       <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
     );
     const host = getHost(container);
-    const balance = container.querySelector('[data-testid="live-balance"]')!;
-    expect(balance).toHaveTextContent("100.0000");
+    expect(host.getAttribute("balance")).toBe("100.0000");
 
     await fire(host, "live-bets-bet-placed", { bet_id: "B1" });
 
     expect(actions.recordLivePlaced).toHaveBeenCalledWith("B1");
-    // M-2: the in-island balance is refreshed via getLiveBalance and moves.
+    // M-2: the in-island balance state is refreshed via getLiveBalance and the
+    // HOST-01 push reflects it (the island no longer renders balance text).
     expect(actions.getLiveBalance).toHaveBeenCalledTimes(1);
-    expect(balance).toHaveTextContent("150.0000");
+    expect(host.getAttribute("balance")).toBe("150.0000");
     expect(toast.error).not.toHaveBeenCalled();
   });
 
@@ -326,5 +326,29 @@ describe("<LiveTable /> DOM-event wiring", () => {
 
     // Still only the single pre-unmount call — the listener was cleaned up.
     expect(actions.recordLivePlaced).toHaveBeenCalledTimes(1);
+  });
+
+  it("Plan D: renders NO in-island balance element — the widget HUD owns it via HOST-01", () => {
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    // The old wallet-balance block is gone from the island…
+    expect(
+      container.querySelector('[data-testid="live-balance"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[aria-label="wallet balance"]'),
+    ).toBeNull();
+    // …but the balance still reaches the widget as an attribute (HOST-01).
+    expect(getHost(container).getAttribute("balance")).toBe("100.0000");
+  });
+
+  it("Plan D (stream lock §11): the slotted <video> carries NO `controls` attribute", () => {
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    const video = container.querySelector('video[slot="video"]');
+    expect(video).not.toBeNull();
+    expect(video!.hasAttribute("controls")).toBe(false);
   });
 });
