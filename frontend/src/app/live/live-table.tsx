@@ -66,14 +66,6 @@ export interface LiveTableProps {
   initialBalance: string;
 }
 
-/**
- * Client host for the live-bets widget (Plan D: fullscreen, no in-island
- * balance). The wallet balance is still held in state and refreshed after
- * placed/settled events, but it is ONLY pushed onto the widget's `balance`
- * attribute (HOST-01) — the widget HUD renders it; the island renders nothing.
- * Loads `widget.js` and renders `<live-bets-table>` with `session-token` +
- * `table-id` set via `setAttribute`.
- */
 /** Defensive read of `bet_id` off an untrusted widget event detail. */
 function readBetId(detail: unknown): string | null {
   if (detail && typeof detail === "object" && "bet_id" in detail) {
@@ -92,6 +84,14 @@ function readString(detail: unknown, key: string): string | null {
   return null;
 }
 
+/**
+ * Client host for the live-bets widget (Plan D: fullscreen, no in-island
+ * balance). The wallet balance is still held in state and refreshed after
+ * placed/settled events, but it is ONLY pushed onto the widget's `balance`
+ * attribute (HOST-01) — the widget HUD renders it; the island renders nothing.
+ * Loads `widget.js` and renders `<live-bets-table>` with `session-token` +
+ * `table-id` set via `setAttribute`.
+ */
 export function LiveTable({
   sessionToken,
   tableId,
