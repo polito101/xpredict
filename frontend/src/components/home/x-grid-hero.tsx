@@ -26,12 +26,9 @@ export function XGridHero({ demoMode }: { demoMode: boolean }) {
     <section className="relative flex h-[calc(100svh-4rem)] items-center justify-center overflow-hidden">
       <XParticles />
 
+      {/* No headline by request (2026-06-11) — the canvas is the message; the
+          overlay carries only the CTAs. */}
       <div className="pointer-events-none relative z-10 flex max-w-4xl flex-col items-center gap-8 px-4 text-center text-balance">
-        <h1 className="font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
-          The core that <span className="text-gradient-brand">connects</span>{" "}
-          every prediction market.
-        </h1>
-
         <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-3">
           {demoMode ? (
             <>
