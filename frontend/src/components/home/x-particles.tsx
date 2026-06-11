@@ -87,11 +87,15 @@ export function XParticles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const host = hostRef.current;
-    const canvas = canvasRef.current;
-    if (!host || !canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const hostEl = hostRef.current;
+    const canvasEl = canvasRef.current;
+    if (!hostEl || !canvasEl) return;
+    const ctx2d = canvasEl.getContext("2d");
+    if (!ctx2d) return;
+    // Non-null aliases so the nested closures see narrowed types.
+    const host: HTMLDivElement = hostEl;
+    const canvas: HTMLCanvasElement = canvasEl;
+    const ctx: CanvasRenderingContext2D = ctx2d;
 
     // White-label palette: brand primary, lightened for visibility on obsidian.
     const css = getComputedStyle(document.documentElement);
