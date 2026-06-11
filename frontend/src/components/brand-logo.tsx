@@ -52,10 +52,10 @@ export function BrandLogo({ brandName, logoUrl, className }: BrandLogoProps) {
       )}
     >
       {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- the logo is a
-        // dynamic backend asset on a different origin (not a static import), so
-        // a raw <img> is correct here; next/image would require remote-pattern
-        // config + defeats the per-navigation no-store freshness.
+        // The logo is a dynamic backend asset on a different origin (not a
+        // static import), so a raw <img> is correct here; next/image would
+        // require remote-pattern config + defeats no-store freshness.
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={`${publicApiBase()}${logoUrl}`}
           alt={name}

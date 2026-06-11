@@ -38,6 +38,10 @@ export function SiteFrame({
     return <>{children}</>;
   }
 
+  // The landing is a single exact screen (hero = 100svh − header): no footer,
+  // no scroll — the interactive canvas is the page.
+  const isLanding = pathname === "/";
+
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-border/70 surface-glass">
@@ -58,6 +62,7 @@ export function SiteFrame({
 
       <div className="flex-1">{children}</div>
 
+      {!isLanding && (
       <footer className="border-t border-border/70 bg-surface/60">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 text-xs text-muted-foreground sm:px-6">
           {/* Brand presence: follow XPrediction across socials + the disclaimer. */}
@@ -96,6 +101,7 @@ export function SiteFrame({
           </div>
         </div>
       </footer>
+      )}
     </>
   );
 }

@@ -20,7 +20,19 @@ import { demoLoginAction } from "@/lib/auth";
 import type { ActionState } from "@/lib/auth-schemas";
 import { Button } from "@/components/ui/button";
 
-export function DemoLoginButton() {
+/** Styling props are optional so other surfaces (e.g. the landing hero) can
+ * restyle the button; the defaults keep the login page exactly as before. */
+export interface DemoLoginButtonProps {
+  size?: React.ComponentProps<typeof Button>["size"];
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  className?: string;
+}
+
+export function DemoLoginButton({
+  size,
+  variant = "secondary",
+  className = "w-full",
+}: DemoLoginButtonProps = {}) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<ActionState, void>(
     demoLoginAction,
@@ -41,8 +53,9 @@ export function DemoLoginButton() {
     <div className="space-y-2">
       <Button
         type="button"
-        variant="secondary"
-        className="w-full"
+        size={size}
+        variant={variant}
+        className={className}
         disabled={pending}
         onClick={() => startTransition(() => formAction())}
       >

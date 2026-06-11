@@ -12,30 +12,38 @@ maximum visual impact. Concept chosen by Pol after interactive prototyping:
 
 ## What the page becomes
 
-One full-viewport section (`min-h-[calc(100svh-4rem)]`, header is `h-16`; svh — not
-dvh — so the mobile URL bar collapsing never resizes the hero/canvas) inside the
-existing `SiteFrame` chrome (nav + footer untouched; footer sits just below the fold).
-No other sections — no scroll content.
+Exactly one screen, zero scroll: the section is `h-[calc(100svh-4rem)]` (header is
+`h-16`; svh — not dvh — so the mobile URL bar collapsing never resizes the
+hero/canvas) and **SiteFrame renders no footer on `/`** (header stays; footer and
+its legal links remain on every other route). The interactivity is the page.
 
 - **Canvas layer** (absolute, full-bleed, `aria-hidden`): the interactive effect.
-- **Overlay content** (centered, on top): badge (Spark + "Prediction-market platform"),
-  H1 «The core that **connects** every prediction market.» (gradient on "connects",
-  `font-display`), one subtitle line — «{name} — white-label, API-first. Run native
-  markets, integrate external ones, launch your own.» (the only place `brandName` is
-  used) — and two CTAs: **Log in** (primary, `glow-brand`, → `/login`) and
-  **Explore the demo** (outline, → `/markets`). Nothing else.
+- **Overlay content** (centered, on top): ONLY the H1 «The core that **connects**
+  every prediction market.» (gradient on "connects", `font-display`) and the CTAs.
+  With `demoMode` (NEXT_PUBLIC_DEMO_MODE === "true", resolved in the server page —
+  same gate as the login page, so the button is absent from white-label builds):
+  **Probar la demo** (the PR #43 one-click ephemeral demo session, `DemoLoginButton`
+  restyled primary + `glow-brand`, lands in `/markets`) and **Log in** (outline).
+  Without demo mode: **Log in** (primary) and **Explore the demo** (outline,
+  → `/markets`). No badge, no subtitle, no brand-name copy — the header wordmark
+  carries the brand.
 
 ## Components
 
 ### `frontend/src/app/page.tsx` (rewrite)
-Server Component. Fetches only `fetchBrandingPublic()` (best-effort, falls back to
-`DEFAULT_BRANDING` — same pattern as today). Renders `<XGridHero brandName={…} />`.
-The catalog/categories fetches and stats derivation are removed.
+Server Component, no backend reads at all. Resolves the demo gate
+(`process.env.NEXT_PUBLIC_DEMO_MODE === "true"`) and renders
+`<XGridHero demoMode={…} />`. The branding/catalog fetches are removed (the header
+wordmark, fed by the root layout, carries the brand).
 
 ### `frontend/src/components/home/x-grid-hero.tsx` (new, Server Component)
-The hero section: layout, overlay copy, CTAs; composes the client canvas component.
-Keeps the `brandName` normalization currently in `hero-band.tsx` (empty/"XPredict" →
-"XPrediction").
+The hero section: layout, headline, CTA branch; composes the client canvas
+component and the PR #43 `DemoLoginButton` (extended with optional size/variant/
+className props, defaults unchanged for the login page). The old `brandName`
+normalization moved to the shared `lib/brand-name.ts` (used by `BrandLogo`).
+
+### `frontend/src/components/site-frame.tsx` (modify)
+Skips the footer when `pathname === "/"` so the landing is one exact screen.
 
 ### `frontend/src/components/home/x-particles.tsx` (new, Client Component)
 A single `<canvas>` with the full effect. No new dependencies — hand-rolled canvas 2D.
