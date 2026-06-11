@@ -31,12 +31,9 @@ export function XGridHero({ demoMode }: { demoMode: boolean }) {
       <div className="pointer-events-none relative z-10 flex max-w-4xl flex-col items-center gap-8 px-4 text-center text-balance">
         <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-3">
           {demoMode ? (
-            <>
-              <DemoLoginButton size="lg" variant="default" className="glow-brand" />
-              <Button asChild size="lg" variant="outline">
-                <Link href="/login">Log in</Link>
-              </Button>
-            </>
+            // Demo build: ONE action only — try the demo (2026-06-11). Log in
+            // stays reachable at /login directly; the demo face doesn't show it.
+            <DemoLoginButton size="lg" variant="default" className="glow-brand" />
           ) : (
             <>
               <Button asChild size="lg" className="glow-brand">
