@@ -41,4 +41,6 @@ class HouseMarketReadAdapter:
                 # eager-available on the loaded Market row; NULL => global fallback.
                 min_stake=market.min_stake,
                 max_stake=market.max_stake,
+                question=market.question,
+                slug=market.slug,
             )
