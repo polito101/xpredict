@@ -40,11 +40,10 @@ describe("XGridHero", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders the headline and login/demo links without demo mode", () => {
+  it("renders login/demo links and NO headline (dropped by request, 2026-06-11) without demo mode", () => {
     render(<XGridHero demoMode={false} />);
-    expect(
-      screen.getByRole("heading", { level: 1, name: /connects every prediction market/i }),
-    ).toBeInTheDocument();
+    // The hero is canvas + CTAs only — the old "core that connects" h1 is gone.
+    expect(screen.queryByRole("heading")).toBeNull();
     expect(screen.getByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "Explore the demo" })).toHaveAttribute(
       "href",
