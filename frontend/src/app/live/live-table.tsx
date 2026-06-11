@@ -5,8 +5,9 @@
  * the live-bets origin locally; no SRI in dev) and renders the custom element
  * `<live-bets-table>` (design §5 — the element contract). The page (server)
  * mints the session + resolves the table and passes them in; this island owns
- * the widget lifecycle + (Task 3) the DOM-event wiring + the in-island wallet
- * balance.
+ * the widget lifecycle + the DOM-event wiring + the balance state
+ * (Plan D: balance is held in state and pushed via HOST-01 onto the widget
+ * attribute — the widget HUD renders it; the island renders no balance UI).
  *
  * React 19 renders custom elements and passes props through, but HYPHENATED
  * attributes (`session-token`, `table-id`) are set via `ref` + `setAttribute` —
@@ -15,7 +16,7 @@
  *
  * DOM events (design §5/§6, SC3): the four widget events are wired in a single
  * effect that REMOVES every listener on cleanup. Each maps to an LB-B-01 Server
- * Action; placed/settled then refresh the IN-ISLAND wallet balance via
+ * Action; placed/settled then refresh the balance state (held locally, D-07) via
  * `getLiveBalance` (plan-check M-2 — `router.refresh()` would re-run the Server
  * Component but NOT update this island's `useState` balance, leaving it stale).
  * `applied:false` is a benign idempotent no-op (a duplicate event), NOT an error.
@@ -59,8 +60,6 @@ declare module "react" {
   }
 }
 
-const CURRENCY = "PLAY_USD";
-
 export interface LiveTableProps {
   sessionToken: string;
   tableId: string;
@@ -68,9 +67,11 @@ export interface LiveTableProps {
 }
 
 /**
- * Client host for the live-bets widget. Renders the wallet balance (a labelled
- * element matching `wallet/page.tsx`) so Task 3's refresh can update it in place,
- * loads `widget.js`, and renders `<live-bets-table>` with `session-token` +
+ * Client host for the live-bets widget (Plan D: fullscreen, no in-island
+ * balance). The wallet balance is still held in state and refreshed after
+ * placed/settled events, but it is ONLY pushed onto the widget's `balance`
+ * attribute (HOST-01) — the widget HUD renders it; the island renders nothing.
+ * Loads `widget.js` and renders `<live-bets-table>` with `session-token` +
  * `table-id` set via `setAttribute`.
  */
 /** Defensive read of `bet_id` off an untrusted widget event detail. */
@@ -229,20 +230,11 @@ export function LiveTable({
   }, [tableId, refreshBalance]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div
-        className="flex items-baseline gap-2"
-        aria-label="wallet balance"
-        data-testid="live-balance"
-      >
-        <span className="font-display text-2xl font-semibold tracking-tight tabular-nums">
-          {balance}
-        </span>
-        <span className="text-sm font-normal text-muted-foreground">
-          {CURRENCY}
-        </span>
-      </div>
-
+    // 16:9 box from the first frame: pre-upgrade the custom element has no
+    // size; this div keeps the layout stable and gives the absolutely
+    // positioned slotted <video> a correct offset parent until the widget's
+    // shadow stage (itself 16:9) takes over.
+    <div className="relative aspect-video w-full bg-black">
       {/* If the widget src isn't configured, render a non-blocking notice rather
           than an empty `<script src="undefined">` (T-LBB-07). */}
       {widgetSrc ? (
@@ -250,30 +242,31 @@ export function LiveTable({
       ) : (
         <p
           role="status"
-          className="rounded-xl border border-border bg-surface p-4 text-sm text-muted-foreground"
+          className="absolute inset-x-4 top-4 z-10 rounded-xl border border-border bg-surface p-4 text-sm text-muted-foreground"
         >
           Live widget not configured.
         </p>
       )}
 
       {/* CP-12: the widget renders HLS into a light-DOM `<video slot="video">`
-          child (NOT its shadow DOM). Without it the widget reports
-          `<video slot="video"> missing` and stays stuck on "connecting". The
-          attrs/styles mirror the live-bets canonical embed (static/demo.html). */}
+          child (NOT its shadow DOM). Inline styles MIRROR the widget's
+          `::slotted(video)` rules exactly (absolute full-bleed, cover): inline
+          beats ::slotted on specificity and Safari iOS ignores ::slotted on
+          media elements. No `controls` — stream lock (§11). */}
       <live-bets-table ref={elementRef}>
         <video
           slot="video"
           autoPlay
           muted
           playsInline
-          controls
           style={{
+            position: "absolute",
+            inset: 0,
             width: "100%",
-            aspectRatio: "16 / 9",
+            height: "100%",
             background: "#000",
             display: "block",
-            borderRadius: "0.5rem",
-            objectFit: "contain",
+            objectFit: "cover",
           }}
         />
       </live-bets-table>
