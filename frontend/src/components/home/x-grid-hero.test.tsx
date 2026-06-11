@@ -52,12 +52,13 @@ describe("XGridHero", () => {
     expect(screen.queryByRole("button", { name: /probar la demo/i })).toBeNull();
   });
 
-  it("demo mode: one-click demo button is the primary CTA", () => {
+  it("demo mode: the one-click demo button is the ONLY CTA (no Log in link, 2026-06-11)", () => {
     render(<XGridHero demoMode />);
     expect(
       screen.getByRole("button", { name: /probar la demo/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Log in" })).toHaveAttribute("href", "/login");
+    // The demo face shows a single action; /login stays reachable by URL only.
+    expect(screen.queryByRole("link", { name: "Log in" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Explore the demo" })).toBeNull();
   });
 });
