@@ -122,6 +122,41 @@ export async function loginAction(
 }
 
 // ---------------------------------------------------------------------------
+// demoLoginAction (quick-260611-lcr — DEMO-01) — one-click demo access.
+// ---------------------------------------------------------------------------
+//
+// Mirrors loginAction's cookie-forwarding shape: the browser CANNOT reach the
+// backend's /auth/demo-login directly (the session cookie is HttpOnly +
+// cross-origin, and there is no Next rewrite for /auth/*), so the demo button
+// invokes THIS Server Action, which POSTs server-side to the DEMO_MODE-gated
+// backend route and re-sets the returned session cookie via cookies().set().
+//
+// Unlike loginAction, this returns an ActionState ({ success } / { errors })
+// instead of calling redirect() server-side — the client component navigates to
+// /markets on success so the behaviour is unit-testable and matches the plan's
+// "push to /markets on success, inline error on failure" contract.
+export async function demoLoginAction(): Promise<ActionState> {
+  let res: Response;
+  try {
+    res = await fetch(`${getBackendUrl()}/auth/demo-login`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    return { errors: { _form: ["No se pudo iniciar la demo. Inténtalo de nuevo."] } };
+  }
+
+  if (res.status === 429) return tooManyAttempts();
+  // 404 = DEMO_MODE off on the backend (endpoint hidden), or any other failure.
+  if (!res.ok) {
+    return { errors: { _form: ["No se pudo iniciar la demo. Inténtalo de nuevo."] } };
+  }
+
+  await forwardSessionCookie(res.headers.get("set-cookie"));
+  return { success: true, message: "demo-session-started" };
+}
+
+// ---------------------------------------------------------------------------
 // logoutAction (v1.1 Fase C) — revoke server-side + clear the session cookie.
 // ---------------------------------------------------------------------------
 

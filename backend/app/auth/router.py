@@ -25,6 +25,7 @@ custom ``DatabaseStrategy`` — only the transport differs. See
 ``admin_router.py`` for the cross-surface isolation rationale.
 """
 
+import secrets
 import uuid
 from typing import Annotated, Any
 
@@ -174,6 +175,68 @@ async def login_proxy(
             session,
             actor=f"user:{user.id}",
             event_type="auth.session_started",
+            payload={"email": user.email},
+            ip=client_ip,
+        )
+        await session.commit()
+    return response
+
+
+@auth_proxy_router.post("/demo-login")
+@limiter.limit("5/minute", key_func=get_remote_address)
+async def demo_login_proxy(
+    request: Request,
+    user_manager: Annotated[UserManager, Depends(get_user_manager)],
+) -> Response:
+    """Proxy POST /auth/demo-login — one-click demo access (DEMO_MODE only).
+
+    Creates an ephemeral, already-verified + bonus-funded player per click and
+    issues the player session cookie. Gated behind ``DEMO_MODE`` (default off)
+    so the endpoint is *invisible* (404) in white-label / production deployments
+    (T-demo-02). Rate-limited per IP to cap abuse of the bonus-funded user
+    factory (T-demo-01).
+
+    The flag is read dynamically via ``get_settings().DEMO_MODE`` (NOT the
+    module-level ``settings`` captured at import) so tests can toggle it via env
+    + ``get_settings.cache_clear()``.
+    """
+    # Gate FIRST — return 404 (not 403/500) so the endpoint's existence is not
+    # revealed in production (T-demo-02).
+    if not get_settings().DEMO_MODE:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not Found",
+        )
+
+    # Ephemeral user: unique email per click + strong random password. The
+    # password is >= 12 chars so it passes validation even if DEMO_MODE flips.
+    # Domain is the RFC 2606 reserved ``example.com`` (sub-domain ``demo.``) so
+    # the address can never be a real deliverable mailbox AND passes pydantic's
+    # EmailStr deliverability check — ``.local`` is rejected as a special-use
+    # reserved name. The ``demo-`` local-part prefix keeps demo rows trivially
+    # identifiable / cleanable (email LIKE 'demo-%@demo.example.com').
+    email = f"demo-{uuid.uuid4().hex}@demo.example.com"
+    password = secrets.token_urlsafe(24)
+    user_create = UserCreate(email=email, password=password)
+
+    # user_manager.create(safe=True) auto-verifies the user AND grants the
+    # signup bonus because DEMO_MODE is on (manager.create line 112 +
+    # on_after_register lines 202-221). Do NOT grant a second bonus here.
+    user = await user_manager.create(user_create, safe=True, request=request)
+
+    # Issue the session cookie EXACTLY like login_proxy.
+    strategy = get_database_strategy()
+    response = await player_backend.login(strategy, user)
+
+    # Audit auth.demo_session_started in an independent session (mirrors
+    # login_proxy's independent-session pattern).
+    factory = _get_audit_session_factory()
+    async with factory() as session:
+        client_ip = request.client.host if request.client else None
+        await AuditService.record(
+            session,
+            actor=f"user:{user.id}",
+            event_type="auth.demo_session_started",
             payload={"email": user.email},
             ip=client_ip,
         )
