@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 const DESTINATIONS = [
   { href: "/markets", label: "Markets" },
   { href: "/live", label: "Live" },
+  { href: "/casino", label: "Casino" },
   { href: "/wallet", label: "Wallet" },
   { href: "/portfolio", label: "Portfolio" },
 ] as const;

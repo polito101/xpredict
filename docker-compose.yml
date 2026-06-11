@@ -101,6 +101,9 @@ services:
       LIVEBETS_API_BASE: http://host.docker.internal:8002
       LIVEBETS_API_KEY: ${LIVEBETS_API_KEY:-}
       LIVEBETS_DEFAULT_TABLE_ID: ${LIVEBETS_DEFAULT_TABLE_ID:-}
+      # Casino demo (SlotsLaunch, quick task 260611-u0q): optional per-service
+      # secret like the live-bets keys — domain-bound token from .env.local.
+      SLOTSLAUNCH_TOKEN: ${SLOTSLAUNCH_TOKEN:-}
     volumes: *backend-volumes
     depends_on:
       db: { condition: service_healthy }

@@ -156,6 +156,23 @@ class Settings(BaseSettings):
     LIVEBETS_ENABLE_WEBHOOK: bool = False
     LIVEBETS_WEBHOOK_SECRET: str | None = None
 
+    # -------------------------------------------------------------------------
+    # Casino demo (SlotsLaunch) — quick task 260611-u0q (CASINO-01..03)
+    # -------------------------------------------------------------------------
+    # SlotsLaunch demo-slots catalog proxy. The token is DOMAIN-BOUND to
+    # ``SLOTSLAUNCH_ORIGIN`` (sent as the ``Origin`` header on every upstream
+    # call) and already lives in the gitignored ``.env.local`` — never hardcode
+    # or commit it. ``None`` default means a deploy with no token degrades to the
+    # inactive ``{status:"inactive",games:[]}`` surface (the service never calls
+    # upstream when the token is unset). The catalog is Redis-cached for
+    # ``SLOTSLAUNCH_CACHE_TTL_SECONDS`` (12h) so repeat ``/casino`` loads do not
+    # re-hit the upstream quota. Never log the token (the structlog scrubber
+    # covers token-like keys, and the client never passes it into a log event).
+    SLOTSLAUNCH_TOKEN: str | None = None
+    SLOTSLAUNCH_API_BASE: str = "https://slotslaunch.com"
+    SLOTSLAUNCH_ORIGIN: str = "https://app.xprediction.online"
+    SLOTSLAUNCH_CACHE_TTL_SECONDS: int = 43200  # 12h
+
     @property
     def is_dev(self) -> bool:
         """Drives structlog renderer, Sentry init skip, cookie Secure flag (Phase 2)."""
