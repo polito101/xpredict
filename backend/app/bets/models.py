@@ -15,11 +15,10 @@ WR-05) and the ``tenant_id`` ghost column (PLT-01).
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal
 from uuid import UUID as PyUUID
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Index, Numeric, Text, func
+from sqlalchemy import CheckConstraint, DateTime, Index, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -60,9 +59,10 @@ class Bet(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=BET_PENDING)
     # Early close (cash-out before resolution): both NULL until the bet is CLOSED.
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    # The outcome's price captured at close — Numeric(8,6) like odds_at_placement, but nullable
-    # (so NOT the non-null Odds alias). Realized-on-close P&L derives from stake/odds/exit_odds.
-    exit_odds: Mapped[Decimal | None] = mapped_column(Numeric(8, 6), nullable=True)
+    # The outcome's price captured at close — the Odds alias (Numeric(8,6)) with the explicit
+    # nullable=True overriding the alias's nullable=False (a literal Numeric(8,6) here would
+    # trip the money lint's R1). Realized-on-close P&L derives from stake/odds/exit_odds.
+    exit_odds: Mapped[Odds | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

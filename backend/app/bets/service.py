@@ -245,7 +245,7 @@ class BetService:
         bet_id: UUID,
         user_id: UUID,
         market_source: MarketReadPort,
-    ) -> dict:
+    ) -> dict[str, UUID | Decimal]:
         """Close (cash out) ``user_id``'s open ``bet_id`` at the live price, in ONE ACID tx.
 
         The house is the counterparty (as at settlement): the player is paid the current

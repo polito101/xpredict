@@ -86,7 +86,8 @@ def test_status_check_allows_closed() -> None:
     from sqlalchemy import CheckConstraint
 
     checks = [
-        c for c in Bet.__table__.constraints
+        c
+        for c in Bet.__table__.constraints
         if isinstance(c, CheckConstraint) and c.name == "bets_status_check"
     ]
     assert len(checks) == 1
