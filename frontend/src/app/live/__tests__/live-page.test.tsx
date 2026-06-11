@@ -265,4 +265,55 @@ describe("LivePage (/live Server Component)", () => {
     expect(screen.queryByLabelText(/wallet balance/i)).not.toBeInTheDocument();
     expect(screen.queryByText("0")).not.toBeInTheDocument();
   });
+
+  it("visual picker: hero cards carry the camera frame, a pulsing LIVE badge, and the catalog tagline", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      {
+        slug: "cars",
+        label: "Cars",
+        tableId: "t-cars",
+        tagline: "Real street traffic — count the cars.",
+      },
+      { slug: "birds", label: "Birds", tableId: "t-birds" },
+    ]);
+    stubBalance("100.0000");
+
+    await renderLive();
+
+    // Camera frames by slug convention (public/live/<slug>.jpg exists for both
+    // in this repo, so the <Image unoptimized> renders the raw src).
+    const carsCard = screen.getByTestId("live-card-cars");
+    expect(carsCard.querySelector('img[src="/live/cars.jpg"]')).not.toBeNull();
+    const birdsCard = screen.getByTestId("live-card-birds");
+    expect(birdsCard.querySelector('img[src="/live/birds.jpg"]')).not.toBeNull();
+    // One pulsing LIVE badge per card.
+    expect(screen.getAllByTestId("live-badge")).toHaveLength(2);
+    // Catalog tagline when provided; the shared default otherwise.
+    expect(
+      screen.getByText("Real street traffic — count the cars."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/join the round and bet in real time/i),
+    ).toBeInTheDocument();
+  });
+
+  it("visual picker: a slug without a frame asset falls back to the brand gradient (no broken img)", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      { slug: "mystery", label: "Mystery", tableId: "t-x" },
+    ]);
+    stubBalance("100.0000");
+
+    await renderLive();
+
+    const card = screen.getByTestId("live-card-mystery");
+    expect(card.querySelector("img")).toBeNull();
+    expect(screen.getByTestId("live-card-fallback")).toBeInTheDocument();
+    // The card still links to its table.
+    expect(screen.getByRole("link", { name: /mystery/i })).toHaveAttribute(
+      "href",
+      "/live/mystery",
+    );
+  });
 });
