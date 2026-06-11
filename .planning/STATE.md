@@ -29,7 +29,7 @@ Roadmap: .planning/ROADMAP.md — milestone-grouped view (v1.0 → v1.4).
 Phase: — (no phase in flight; `.planning/phases/` is empty)
 Plan: —
 Status: v1.4 Premium Experience shipped → awaiting next milestone definition
-Last activity: 2026-06-11 — Completed quick task 260611-lcr: One-click demo access (/auth/demo-login + demo button)
+Last activity: 2026-06-11 — Completed quick task 260611-u0q: SlotsLaunch Casino (demo) section (catalog proxy + /casino page)
 
 > **Truth-source rule:** verify live state from git (`git log`, `origin/main`, `gh pr ...`), not these docs alone — they can drift. As of this reconciliation: `origin/main` @ `2b2fca8`, single alembic head `0011_livebets_bridge`, **0 open PRs, 0 phase branches in flight.**
 
@@ -38,6 +38,7 @@ Last activity: 2026-06-11 — Completed quick task 260611-lcr: One-click demo ac
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260611-lcr | One-click demo access: /auth/demo-login + demo button | 2026-06-11 | bde21b1 | [260611-lcr-one-click-demo-access-auth-demo-login-de](./quick/260611-lcr-one-click-demo-access-auth-demo-login-de/) |
+| 260611-u0q | SlotsLaunch Casino (demo): catalog proxy + /casino page + fullscreen launcher | 2026-06-11 | 222c8ee | [260611-u0q-integrate-slotslaunch-demo-slots-as-casi](./quick/260611-u0q-integrate-slotslaunch-demo-slots-as-casi/) |
 
 ## Milestones Shipped
 
