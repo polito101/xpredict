@@ -59,6 +59,23 @@ describe("getLiveCatalog", () => {
     expect(getLiveCatalog()).toEqual([{ slug: "birds", label: "Birds", tableId: "t-1" }]);
   });
 
+  it("keeps a valid optional tagline and drops malformed ones (entry survives)", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubEnv(
+      "LIVEBETS_TABLES",
+      JSON.stringify([
+        { slug: "cars", label: "Cars", tableId: "t-1", tagline: "  Count the cars.  " },
+        { slug: "birds", label: "Birds", tableId: "t-2", tagline: 42 },
+        { slug: "fish", label: "Fish", tableId: "t-3", tagline: "x".repeat(81) },
+      ]),
+    );
+    expect(getLiveCatalog()).toEqual([
+      { slug: "cars", label: "Cars", tableId: "t-1", tagline: "Count the cars." },
+      { slug: "birds", label: "Birds", tableId: "t-2" },
+      { slug: "fish", label: "Fish", tableId: "t-3" },
+    ]);
+  });
+
   it("drops duplicate slugs (first wins)", () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubEnv(

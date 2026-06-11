@@ -22,6 +22,8 @@ export interface LiveCatalogEntry {
   label: string;
   /** live-bets table UUID, forwarded to LB-A `POST /api/live/session`. */
   tableId: string;
+  /** Optional picker card subtitle (≤80 chars); absent → shared default copy. */
+  tagline?: string;
 }
 
 const SLUG_RE = /^[a-z0-9-]{1,32}$/;
@@ -54,7 +56,13 @@ export function getLiveCatalog(): LiveCatalogEntry[] {
       continue;
     }
     seen.add(slug);
-    entries.push({ slug, label, tableId });
+    // Optional picker tagline: a malformed one drops silently to the picker's
+    // shared default copy — it must never invalidate the entry itself.
+    const tagline =
+      typeof o?.tagline === "string" && o.tagline.trim() && o.tagline.trim().length <= 80
+        ? o.tagline.trim()
+        : undefined;
+    entries.push(tagline ? { slug, label, tableId, tagline } : { slug, label, tableId });
   }
   return entries;
 }
