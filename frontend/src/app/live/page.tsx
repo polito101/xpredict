@@ -4,15 +4,16 @@
  * An async Server Component (mirrors `markets/[slug]/page.tsx` + `wallet/page.tsx`)
  * that gates on the player session, mints the live-bets session (which resolves
  * and echoes back the demo `table_id`), and — on the happy path — hands the full
- * viewport to the `"use client"` `<LiveTable>` host which loads the widget and wires
- * its DOM events (design §6); wallet balance + XPredict chrome remain only on the
- * empty/error states.
+ * viewport to the `LiveFullscreenHost` from `./shared` which renders `<LiveTable>`
+ * and wires its DOM events (design §6); wallet balance + XPredict chrome remain
+ * only on the empty/error states.
  *
  * The widget's `table-id` comes from the session response's `table_id`, NOT from
  * `/api/live/tables`: the live-bets `GET /tables` route is JWT-gated, so the
  * operator-key `/api/live/tables` 401s and can't supply it.
  *
  * States (none degrade to a misleading empty/zero — v1.1 Fase C error contract):
+ *   - catalog configured → table picker (chrome + balance), links to /live/[slug].
  *   - no session cookie        → `SignedOutNotice` (reachable only when authed).
  *   - LiveTableUnconfigured     → friendly "No live table configured yet" empty
  *     state, STILL inside chrome + STILL showing the wallet balance. This is the
@@ -31,8 +32,10 @@
  */
 import { Suspense } from "react";
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 import { fetchLiveSession, LiveTableUnconfigured } from "@/lib/api";
+import { getLiveCatalog, type LiveCatalogEntry } from "@/lib/live-catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RetryError } from "@/components/retry-error";
 import { SignedOutNotice } from "@/components/signed-out-notice";
@@ -44,6 +47,45 @@ import {
   loadBalance,
   PAGE_SHELL,
 } from "./shared";
+
+/**
+ * Multi-table picker (catalog configured): one card per live table, linking to
+ * /live/[slug]. Chrome + balance stay — there is no widget on this page, so the
+ * balance header is NOT a duplicate (same rationale as the empty state).
+ */
+function LiveCatalogPicker({
+  entries,
+  balance,
+}: {
+  entries: LiveCatalogEntry[];
+  balance: string | null;
+}) {
+  return (
+    <LiveShell>
+      {balance !== null && <BalanceHeader balance={balance} />}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {entries.map((e) => (
+          <Link
+            key={e.slug}
+            href={`/live/${e.slug}`}
+            className="group rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <Card className="h-full transition-colors group-hover:border-[--brand-primary]">
+              <CardHeader>
+                <CardTitle>{e.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Multiplayer live table — join the round and bet in real time.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </LiveShell>
+  );
+}
 
 async function LiveBody() {
   // Auth gate: derive presence of the HttpOnly session cookie server-side; the
@@ -64,6 +106,20 @@ async function LiveBody() {
         </header>
         <SignedOutNotice resource="live" />
       </main>
+    );
+  }
+
+  // Multi-table: a configured catalog turns /live into a picker — no session
+  // mint here (each /live/[slug] page mints for its own table). Empty catalog
+  // → the original single-default-table flow below, unchanged.
+  const catalog = getLiveCatalog();
+  if (catalog.length > 0) {
+    const balanceResult = await loadBalance(session);
+    return (
+      <LiveCatalogPicker
+        entries={catalog}
+        balance={balanceResult.ok ? balanceResult.balance : null}
+      />
     );
   }
 
