@@ -36,7 +36,6 @@ import { cookies } from "next/headers";
 
 import { fetchLiveSession, LiveTableUnconfigured } from "@/lib/api";
 import { getLiveCatalog } from "@/lib/live-catalog";
- origin/main
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RetryError } from "@/components/retry-error";
 import { SignedOutNotice } from "@/components/signed-out-notice";
@@ -49,7 +48,6 @@ import {
   loadBalance,
   PAGE_SHELL,
 } from "./shared";
- origin/main
 
 async function LiveBody() {
   // Auth gate: derive presence of the HttpOnly session cookie server-side; the
@@ -163,7 +161,6 @@ async function LiveBody() {
       tableId={table_id}
       initialBalance={initialBalance}
     />
- origin/main
   );
 }
 

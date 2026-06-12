@@ -88,7 +88,6 @@ class SettledPositionItem(BaseModel):
     market_question: str | None = None
     market_slug: str | None = None
     outcome_label: str | None = None
- origin/main
 
 
 class PortfolioResponse(BaseModel):

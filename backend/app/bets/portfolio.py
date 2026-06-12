@@ -93,7 +93,6 @@ class SettledPosition:
     market_question: str | None = None  # display metadata (what was bet on)
     market_slug: str | None = None
     outcome_label: str | None = None
- origin/main
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,7 +161,6 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     market_question=p.market_question,
                     market_slug=p.market_slug,
                     outcome_label=p.outcome_label,
- origin/main
                 )
             )
         else:
@@ -183,7 +181,6 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     market_question=p.market_question,
                     market_slug=p.market_slug,
                     outcome_label=p.outcome_label,
- origin/main
                 )
             )
 
