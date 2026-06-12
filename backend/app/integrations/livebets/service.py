@@ -124,6 +124,7 @@ class LiveBetsBridge:
         user: User,
         bet_id: UUID,
         client: LiveBetsBetReader,
+        table_id: UUID | None = None,
     ) -> MirrorResult:
         """Mirror a placed live-bets bet: debit ``user_wallet -> livebets_escrow`` (stake).
 
@@ -177,7 +178,7 @@ class LiveBetsBridge:
                 .values(
                     bet_id=bet_id,
                     user_id=user.id,
-                    table_id=verified.table_id,
+                    table_id=table_id,
                     market_id=verified.market_id,
                     stake=stake,
                     status=LIVEBETS_PENDING,
@@ -217,7 +218,7 @@ class LiveBetsBridge:
                 amount=stake,
                 metadata={
                     "bet_id": str(bet_id),
-                    "table_id": str(verified.table_id) if verified.table_id else None,
+                    "table_id": str(table_id) if table_id else None,
                 },
             )
 

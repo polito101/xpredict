@@ -130,8 +130,8 @@ class VerifiedBet(BaseModel):
     :func:`parse_verified_bet`). ``stake`` is required — a bet with no parseable
     stake is a verification failure raised at parse time. ``bet_id`` holds the
     BetView ``id`` (the field name is internal — the service never compares it).
-    ``table_id`` is always ``None`` (BetView has no ``table_id``); it is retained so
-    the placement path can still carry the table id captured elsewhere.
+    ``table_id`` is always ``None`` — BetView has no ``table_id`` field; the caller
+    supplies it separately.
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
@@ -159,8 +159,9 @@ def parse_verified_bet(raw: dict[str, object]) -> VerifiedBet:
     - ``payout`` is the settled ``payout`` field (``str|None`` in BetView), parsed to
       ``Decimal`` and left ``None`` when absent (the service decides whether that is
       fatal — it is, for a WON bet).
-    - ``table_id`` is deliberately NOT read: BetView has no ``table_id`` field, so it
-      stays ``None`` here (the mirror row keeps the ``table_id`` captured at placement).
+    - ``table_id`` is deliberately NOT read: BetView has no ``table_id`` field. The
+      placement table_id must be supplied separately by the caller (via the route's
+      query param), not parsed from the response.
     """
     bet_id = _safe_uuid(raw.get("id"))
     if bet_id is None:

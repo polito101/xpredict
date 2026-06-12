@@ -178,6 +178,7 @@ async def record_placed(
     player: Annotated[User, Depends(current_active_player)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
     client: Annotated[LiveBetsClient, Depends(get_livebets_client)],
+    table_id: UUID | None = None,
 ) -> MirrorResult:
     """Mirror a placed live-bets bet — debit the player's wallet into escrow (stake).
 
@@ -185,10 +186,15 @@ async def record_placed(
     verification failure maps to 409; an ownership mismatch and a missing wallet both
     map to 404 (mirrors the bets router's exception mapping; 404 for ownership keeps
     a foreign bet's existence hidden — IDOR-safe, BL-01).
+
+    ``table_id`` is an optional query parameter — the frontend passes the value it
+    received from ``POST /api/live/session`` so the mirror row captures which table
+    the bet was placed on (BetView has no ``table_id`` field, so it cannot be read
+    from the live-bets verification response).
     """
     with _handle_bridge_errors(), _handle_bet_mirror_errors(bet_id):
         return await LiveBetsBridge.record_placed(
-            session, user=player, bet_id=bet_id, client=client
+            session, user=player, bet_id=bet_id, client=client, table_id=table_id
         )
 
 
