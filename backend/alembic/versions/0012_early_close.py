@@ -37,6 +37,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    conn = op.get_bind()
+    count = conn.execute(sa.text("SELECT COUNT(*) FROM bets WHERE status = 'CLOSED'")).scalar()
+    if count:
+        raise Exception(
+            f"Cannot downgrade migration 0012: {count} CLOSED bet(s) exist. "
+            "Resolve or manually migrate all CLOSED bets before running this downgrade."
+        )
     op.drop_constraint(_STATUS_CHECK, "bets", type_="check")
     op.create_check_constraint(_STATUS_CHECK, "bets", _OLD_STATUS)
     op.drop_column("bets", "exit_odds")

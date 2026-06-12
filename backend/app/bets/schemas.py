@@ -79,6 +79,7 @@ class SettledPositionItem(BaseModel):
     won: bool
     payout: DecimalStr
     realized_pnl: DecimalStr
+    exit_odds: DecimalStr | None = None
 
 
 class PortfolioResponse(BaseModel):

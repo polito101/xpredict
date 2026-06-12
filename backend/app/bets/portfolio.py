@@ -78,6 +78,7 @@ class SettledPosition:
     won: bool
     payout: Decimal  # compute_payout on a win; 0 on a loss
     realized_pnl: Decimal  # payout - stake (positive win / -stake loss)
+    exit_odds: Decimal | None = None  # cash-out price for CLOSED bets; None for normally settled
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +134,7 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     won=realized > _ZERO,
                     payout=payout,
                     realized_pnl=realized,
+                    exit_odds=p.exit_odds,
                 )
             )
         else:
@@ -149,6 +151,7 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     won=won,
                     payout=payout,
                     realized_pnl=profit_or_loss(p.stake, payout),
+                    exit_odds=None,
                 )
             )
 
