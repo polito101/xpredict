@@ -63,6 +63,9 @@ x-backend-env: &backend-env
   LIVEBETS_API_KEY: ${LIVEBETS_API_KEY:-}
   LIVEBETS_DEFAULT_TABLE_ID: ${LIVEBETS_DEFAULT_TABLE_ID:-}
   LIVEBETS_ENABLE_WEBHOOK: ${LIVEBETS_ENABLE_WEBHOOK:-false}
+  # SlotsLaunch casino-demo catalog (quick-260611-u0q). Token is domain-bound to
+  # the public app domain; blank → /casino ships its graceful "inactive" state.
+  SLOTSLAUNCH_TOKEN: ${SLOTSLAUNCH_TOKEN:-}
 
 services:
   # ----------------------------------------------------------------------
