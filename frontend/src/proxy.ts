@@ -56,11 +56,17 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/admin",
     "/admin/:path*",
+    "/markets",
     "/markets/:path*",
+    "/events",
     "/events/:path*",
+    "/portfolio",
     "/portfolio/:path*",
+    "/wallet",
     "/wallet/:path*",
+    "/live",
     "/live/:path*",
   ],
 };
