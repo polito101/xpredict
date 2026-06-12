@@ -16,7 +16,8 @@ override it via ``app.dependency_overrides`` (mirrors ``get_market_source`` in t
 bets router) and never hit the network.
 """
 
-from typing import Annotated, cast
+from contextlib import contextmanager
+from typing import Annotated, Generator, cast
 from uuid import UUID
 
 import httpx
@@ -44,6 +45,25 @@ from app.integrations.livebets.service import (
 )
 
 livebets_router = APIRouter(prefix="/api/live", tags=["livebets"])
+
+
+@contextmanager
+def _handle_bridge_errors() -> Generator[None, None, None]:
+    """Map live-bets bridge/network errors to HTTP exceptions.
+
+    RuntimeError       → 503 (service not configured)
+    HTTPStatusError    → 502 (upstream returned an error response)
+    NetworkError /
+    TimeoutException   → 504 (service unreachable / timed out)
+    """
+    try:
+        yield
+    except RuntimeError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
+    except (httpx.NetworkError, httpx.TimeoutException) as exc:
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
 
 
 class SessionRequest(BaseModel):
@@ -78,14 +98,8 @@ async def mint_session(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No table_id supplied and LIVEBETS_DEFAULT_TABLE_ID is not configured.",
         )
-    try:
+    with _handle_bridge_errors():
         result = await client.mint_session(player_ref=str(player.id), table_id=table_id)
-    except RuntimeError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
-    except (httpx.NetworkError, httpx.TimeoutException) as exc:
-        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
     session_token = result.get("session_token")
     expires_at = result.get("expires_at")
     if not session_token or not expires_at:
@@ -115,14 +129,8 @@ async def list_tables(
     ``TableView`` whose id field is ``id``; ``TableItem`` maps it onto our outward
     ``table_id`` (the ``/api/live/tables`` contract to the frontend is unchanged).
     """
-    try:
+    with _handle_bridge_errors():
         raw = await client.list_tables()
-    except RuntimeError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
-    except (httpx.NetworkError, httpx.TimeoutException) as exc:
-        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
     items = raw.get("tables", []) if isinstance(raw, dict) else raw
     return TablesResponse(tables=[TableItem.model_validate(t) for t in cast("list[object]", items)])
 
@@ -142,9 +150,10 @@ async def record_placed(
     a foreign bet's existence hidden — IDOR-safe, BL-01).
     """
     try:
-        return await LiveBetsBridge.record_placed(
-            session, user=player, bet_id=bet_id, client=client
-        )
+        with _handle_bridge_errors():
+            return await LiveBetsBridge.record_placed(
+                session, user=player, bet_id=bet_id, client=client
+            )
     except LiveBetsOwnershipError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
     except LiveBetsVerificationError as exc:
@@ -153,12 +162,6 @@ async def record_placed(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
     except InsufficientBalance as exc:
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
-    except (httpx.NetworkError, httpx.TimeoutException) as exc:
-        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
 
 
 @livebets_router.post("/bets/{bet_id}/settled", response_model=MirrorResult)
@@ -177,9 +180,10 @@ async def record_settled(
     to 404.
     """
     try:
-        return await LiveBetsBridge.record_settled(
-            session, user=player, bet_id=bet_id, client=client
-        )
+        with _handle_bridge_errors():
+            return await LiveBetsBridge.record_settled(
+                session, user=player, bet_id=bet_id, client=client
+            )
     except LiveBetsOwnershipError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
     except LiveBetsVerificationError as exc:
@@ -188,12 +192,6 @@ async def record_settled(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
     except InsufficientBalance as exc:
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
-    except httpx.HTTPStatusError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
-    except (httpx.NetworkError, httpx.TimeoutException) as exc:
-        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
 
 
 __all__ = ["get_livebets_client", "livebets_router"]
