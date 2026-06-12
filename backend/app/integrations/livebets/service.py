@@ -44,6 +44,8 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
+import structlog
+
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -71,6 +73,8 @@ from app.wallet.constants import HOUSE_PROMO_ACCOUNT_ID, HOUSE_REVENUE_ACCOUNT_I
 from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account
 from app.wallet.service import SQLSTATE_UNIQUE_VIOLATION, WalletService
+
+log = structlog.get_logger()
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -282,6 +286,12 @@ class LiveBetsBridge:
                 #     leaked. This is the one-line, zero-dependency mitigation that closes
                 #     the actual payout-theft vector regardless of the placement residual.
                 if mirror.user_id != user.id:
+                    log.warning(
+                        "livebets.ownership_mismatch",
+                        bet_id=str(bet_id),
+                        mirror_owner=str(mirror.user_id),
+                        caller=str(user.id),
+                    )
                     raise LiveBetsOwnershipError(
                         f"bet {bet_id} mirror belongs to {mirror.user_id}, not caller {user.id}"
                     )

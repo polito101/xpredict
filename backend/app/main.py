@@ -45,6 +45,7 @@ from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
 from app.integrations.livebets.router import livebets_router
+from app.integrations.livebets.admin_router import livebets_admin_router
 from app.realtime.manager import manager
 from app.realtime.subscriber import redis_subscriber
 from app.routers import health
@@ -205,6 +206,7 @@ app.include_router(wallet_admin_router)
 app.include_router(wallet_router)
 app.include_router(bets_router)
 app.include_router(livebets_router)
+app.include_router(livebets_admin_router)
 app.include_router(settlement_admin_router)
 app.include_router(event_admin_router)
 app.include_router(realtime_router)
