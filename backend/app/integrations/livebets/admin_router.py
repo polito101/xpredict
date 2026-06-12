@@ -19,7 +19,11 @@ from app.db.session import get_async_session
 from app.integrations.livebets.client import LiveBetsClient
 from app.integrations.livebets.constants import LIVEBETS_PENDING
 from app.integrations.livebets.models import LiveBetsBet
-from app.integrations.livebets.router import get_livebets_client
+from app.integrations.livebets.router import (
+    _handle_bet_mirror_errors,
+    _handle_bridge_errors,
+    get_livebets_client,
+)
 from app.integrations.livebets.schemas import MirrorResult, parse_verified_bet
 from app.integrations.livebets.service import LiveBetsVerificationError, LiveBetsBridge
 
@@ -99,9 +103,10 @@ async def reconcile_bet(
     # Reuse record_settled with a minimal user stub that satisfies user.id check.
     # The type ignore is intentional: LiveBetsBridge uses only user.id at runtime.
     fake_user = types.SimpleNamespace(id=mirror.user_id)
-    return await LiveBetsBridge.record_settled(
-        session,
-        user=fake_user,  # type: ignore[arg-type]
-        bet_id=bet_id,
-        client=client,
-    )
+    with _handle_bridge_errors(), _handle_bet_mirror_errors(bet_id):
+        return await LiveBetsBridge.record_settled(
+            session,
+            user=fake_user,  # type: ignore[arg-type]
+            bet_id=bet_id,
+            client=client,
+        )

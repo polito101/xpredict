@@ -16,7 +16,7 @@ override it via ``app.dependency_overrides`` (mirrors ``get_market_source`` in t
 bets router) and never hit the network.
 """
 
-from collections.abc import AsyncIterator, Generator
+from collections.abc import AsyncGenerator, Generator
 from contextlib import contextmanager
 from typing import Annotated, cast
 from uuid import UUID
@@ -102,7 +102,7 @@ class SessionRequest(BaseModel):
     table_id: str | None = None
 
 
-async def get_livebets_client() -> AsyncIterator[LiveBetsClient]:
+async def get_livebets_client() -> AsyncGenerator[LiveBetsClient, None]:
     """The live-bets client used by the routes.
 
     Tests override this with a fake via ``app.dependency_overrides`` (mirrors
