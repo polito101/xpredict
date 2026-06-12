@@ -20,9 +20,10 @@ from contextlib import contextmanager
 from typing import Annotated, Generator, cast
 from uuid import UUID
 
+import structlog
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,6 +44,8 @@ from app.integrations.livebets.service import (
     LiveBetsOwnershipError,
     LiveBetsVerificationError,
 )
+
+log = structlog.get_logger()
 
 livebets_router = APIRouter(prefix="/api/live", tags=["livebets"])
 
@@ -102,7 +105,7 @@ async def mint_session(
         result = await client.mint_session(player_ref=str(player.id), table_id=table_id)
     session_token = result.get("session_token")
     expires_at = result.get("expires_at")
-    if not session_token or not expires_at:
+    if session_token is None or expires_at is None:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
             "Live-bets returned an invalid session response.",
@@ -131,8 +134,11 @@ async def list_tables(
     """
     with _handle_bridge_errors():
         raw = await client.list_tables()
-    items = raw.get("tables", []) if isinstance(raw, dict) else raw
-    return TablesResponse(tables=[TableItem.model_validate(t) for t in cast("list[object]", items)])
+    items = (raw.get("tables") or []) if isinstance(raw, dict) else raw
+    try:
+        return TablesResponse(tables=[TableItem.model_validate(t) for t in cast("list[object]", items)])
+    except ValidationError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Live-bets returned malformed table data.") from exc
 
 
 @livebets_router.post("/bets/{bet_id}/placed", response_model=MirrorResult)
@@ -157,7 +163,11 @@ async def record_placed(
     except LiveBetsOwnershipError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
     except LiveBetsVerificationError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        log.warning("livebets.verification_error", detail=str(exc))
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state.") from exc
+    except ValueError as exc:
+        log.warning("livebets.parse_error", bet_id=str(bet_id))
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be verified.") from exc
     except NoResultFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
     except InsufficientBalance as exc:
@@ -187,7 +197,11 @@ async def record_settled(
     except LiveBetsOwnershipError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
     except LiveBetsVerificationError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+        log.warning("livebets.verification_error", detail=str(exc))
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state.") from exc
+    except ValueError as exc:
+        log.warning("livebets.parse_error", bet_id=str(bet_id))
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be verified.") from exc
     except NoResultFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
     except InsufficientBalance as exc:
