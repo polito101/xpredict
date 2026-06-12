@@ -63,6 +63,9 @@ x-backend-env: &backend-env
   LIVEBETS_API_KEY: ${LIVEBETS_API_KEY:-}
   LIVEBETS_DEFAULT_TABLE_ID: ${LIVEBETS_DEFAULT_TABLE_ID:-}
   LIVEBETS_ENABLE_WEBHOOK: ${LIVEBETS_ENABLE_WEBHOOK:-false}
+  # SlotsLaunch casino-demo catalog (quick-260611-u0q). Token is domain-bound to
+  # the public app domain; blank → /casino ships its graceful "inactive" state.
+  SLOTSLAUNCH_TOKEN: ${SLOTSLAUNCH_TOKEN:-}
 
 services:
   # ----------------------------------------------------------------------
@@ -258,6 +261,8 @@ services:
       # Server-only (SSR / Server Actions reach the backend over the compose
       # network — never bundled into the client).
       BACKEND_URL: http://backend:8000
+      # Live multi-table catalog (server-only; empty → single default table).
+      LIVEBETS_TABLES: ${LIVEBETS_TABLES:-}
       # Currently UNUSED by the frontend (the edge gate in proxy.ts checks the
       # admin_jwt cookie's PRESENCE only — no JWT verification). Kept for dev/prod
       # parity + forward-compat; harmless if blank.

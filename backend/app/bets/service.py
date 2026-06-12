@@ -211,15 +211,21 @@ class BetService:
             .all()
         )
 
-        # Live current odds for OPEN positions — one read per distinct market (no N+1).
-        open_market_ids = {b.market_id for b in bets if b.status == BET_PENDING}
+        # One read per distinct market (no N+1) covering ALL positions, not just open
+        # ones: live current odds feed the OPEN mark-to-market, and the display metadata
+        # (market question/slug + outcome label — WHAT was bet on) enriches every card.
+        market_ids = {b.market_id for b in bets}
         current_prices: dict[tuple[UUID, UUID], Decimal] = {}
-        for market_id in open_market_ids:
+        market_meta: dict[UUID, tuple[str | None, str | None]] = {}  # id -> (question, slug)
+        outcome_labels: dict[tuple[UUID, UUID], str] = {}
+        for market_id in market_ids:
             market = await market_source.get_market(market_id)
             if market is None:
                 continue
+            market_meta[market_id] = (market.question, market.slug)
             for outcome in market.outcomes:
                 current_prices[(market_id, outcome.id)] = outcome.price
+                outcome_labels[(market_id, outcome.id)] = outcome.label
 
         return build_portfolio(
             [
@@ -232,6 +238,9 @@ class BetService:
                     status=b.status,
                     current_odds=current_prices.get((b.market_id, b.outcome_id)),
                     exit_odds=b.exit_odds,
+                    market_question=market_meta.get(b.market_id, (None, None))[0],
+                    market_slug=market_meta.get(b.market_id, (None, None))[1],
+                    outcome_label=outcome_labels.get((b.market_id, b.outcome_id)),
                 )
                 for b in bets
             ]

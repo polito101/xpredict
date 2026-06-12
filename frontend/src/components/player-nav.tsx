@@ -23,11 +23,13 @@ import { Menu, X } from "lucide-react";
 
 import { logoutAction } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { DemoLoginButton } from "@/app/(auth)/login/demo-login-button";
 import { cn } from "@/lib/utils";
 
 const DESTINATIONS = [
   { href: "/markets", label: "Markets" },
   { href: "/live", label: "Live" },
+  { href: "/casino", label: "Casino" },
   { href: "/wallet", label: "Wallet" },
   { href: "/portfolio", label: "Portfolio" },
 ] as const;
@@ -62,8 +64,16 @@ export function PlayerNav({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
-  // Logged-out: the landing chrome — just Log in / Sign up (no app destinations).
+  // Logged-out: the landing chrome. Demo builds show ONE action — try the
+  // demo (2026-06-11; /login stays reachable by URL). White-label builds keep
+  // Log in / Sign up. Read at render time (inlined in prod, stubbable in tests).
   if (!isAuthenticated) {
+    const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+    if (demoMode) {
+      return (
+        <DemoLoginButton size="sm" variant="default" className="rounded-full" />
+      );
+    }
     return (
       <div className="flex items-center gap-1.5">
         <Link href="/login" className={navLinkClass(false)}>

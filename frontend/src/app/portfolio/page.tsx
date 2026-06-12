@@ -16,6 +16,7 @@
  * a sign-in prompt — neither is degraded to a misleading "empty portfolio".
  */
 import { cookies } from "next/headers";
+import Link from "next/link";
 
 import { getBackendUrl, SESSION_COOKIE_NAME } from "@/lib/config";
 import {
@@ -43,6 +44,10 @@ type OpenPosition = {
   current_value: string;
   unrealized_pnl: string;
   priced: boolean;
+  // Display metadata — WHAT was bet on (null when the market read was unavailable).
+  market_question: string | null;
+  market_slug: string | null;
+  outcome_label: string | null;
 };
 
 type SettledPosition = {
@@ -55,6 +60,9 @@ type SettledPosition = {
   payout: string;
   realized_pnl: string;
   status: string;
+  market_question: string | null;
+  market_slug: string | null;
+  outcome_label: string | null;
 };
 
 type Portfolio = { open: OpenPosition[]; settled: SettledPosition[] };
@@ -97,6 +105,44 @@ async function loadPortfolio(): Promise<PortfolioResult> {
 /** DISPLAY-only sum of money strings → fixed 2dp (never feeds storage math). */
 function sumMoney(values: string[]): number {
   return values.reduce((s, v) => s + (Number.parseFloat(v) || 0), 0);
+}
+
+/**
+ * Card header identity — WHAT was bet on: the market question (linked to the market
+ * page when the slug is known) plus the chosen outcome as a chip. Falls back to a
+ * neutral "Market unavailable" when the backend couldn't read the market.
+ */
+function PositionIdentity({
+  question,
+  slug,
+  outcome,
+}: {
+  question: string | null;
+  slug: string | null;
+  outcome: string | null;
+}) {
+  const title = question ?? "Market unavailable";
+  return (
+    <CardTitle className="flex flex-wrap items-center gap-2 text-base font-medium leading-snug">
+      {slug ? (
+        <Link
+          href={`/markets/${slug}`}
+          className="min-w-0 underline-offset-4 hover:underline"
+        >
+          {title}
+        </Link>
+      ) : (
+        <span className={cn("min-w-0", !question && "text-muted-foreground")}>
+          {title}
+        </span>
+      )}
+      {outcome && (
+        <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide">
+          {outcome}
+        </span>
+      )}
+    </CardTitle>
+  );
 }
 
 /** Render a signed P&L string (the backend already prefixes "-" for a loss). */
@@ -220,14 +266,24 @@ function PortfolioContent({ open, settled }: Portfolio) {
               <li key={p.bet_id}>
                 <Card className="transition-colors hover:border-border-strong">
                   <CardHeader>
+                    <PositionIdentity
+                      question={p.market_question}
+                      slug={p.market_slug}
+                      outcome={p.outcome_label}
+                    />
                     <CardDescription>
                       Stake {p.stake} {CURRENCY} @ {p.odds_at_placement}
                     </CardDescription>
-                    <CardTitle className="text-base font-medium">
-                      Potential payout {p.potential_payout} {CURRENCY}
-                    </CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span className="min-w-0 text-sm text-muted-foreground">
+                        Potential payout
+                      </span>
+                      <span className="text-sm font-medium tabular-nums">
+                        {p.potential_payout} {CURRENCY}
+                      </span>
+                    </div>
                     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                       <span className="min-w-0 text-sm text-muted-foreground">
                         Current value{p.priced ? "" : " (live price unavailable)"}
@@ -280,10 +336,17 @@ function PortfolioContent({ open, settled }: Portfolio) {
               <li key={p.bet_id}>
                 <Card>
                   <CardHeader>
+                    <PositionIdentity
+                      question={p.market_question}
+                      slug={p.market_slug}
+                      outcome={p.outcome_label}
+                    />
                     <CardDescription>
                       Stake {p.stake} {CURRENCY} @ {p.odds_at_placement}
                     </CardDescription>
-                    <CardTitle className="flex flex-wrap items-center gap-2 text-base font-medium">
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                       <span
                         className={cn(
                           "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
@@ -294,16 +357,16 @@ function PortfolioContent({ open, settled }: Portfolio) {
                       >
                         {p.won ? "Won" : "Lost"}
                       </span>
-                      <span>
-                        — payout {p.payout} {CURRENCY}
+                      <span className="text-sm font-medium tabular-nums">
+                        Payout {p.payout} {CURRENCY}
                       </span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <span className="min-w-0 text-sm text-muted-foreground">
-                      Realized P&amp;L
-                    </span>
-                    <PnL value={p.realized_pnl} className="text-sm" />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                      <span className="min-w-0 text-sm text-muted-foreground">
+                        Realized P&amp;L
+                      </span>
+                      <PnL value={p.realized_pnl} className="text-sm" />
+                    </div>
                   </CardContent>
                 </Card>
               </li>

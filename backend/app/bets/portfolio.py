@@ -44,6 +44,11 @@ class PositionInput:
     status: str
     current_odds: Decimal | None = None  # live price of THIS outcome (OPEN mark-to-market)
     exit_odds: Decimal | None = None  # price captured at early-close (CLOSED; unused here)
+    # Display metadata — WHAT was bet on (market question + outcome label, market slug
+    # for linking). None when the market read is unavailable; passed through untouched.
+    market_question: str | None = None
+    market_slug: str | None = None
+    outcome_label: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +71,9 @@ class OpenPosition:
     current_value: Decimal  # stake * current_odds / odds_at_placement (== stake if unpriced)
     unrealized_pnl: Decimal  # current_value - stake (SIGNED — can be negative)
     priced: bool  # True if a live current_odds was available; False = neutral fallback
+    market_question: str | None = None  # display metadata (what was bet on)
+    market_slug: str | None = None
+    outcome_label: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +90,10 @@ class SettledPosition:
     payout: Decimal  # compute_payout on a win; 0 on a loss
     realized_pnl: Decimal  # payout - stake (positive win / -stake loss)
     exit_odds: Decimal | None = None  # cash-out price for CLOSED bets; None for normally settled
+    market_question: str | None = None  # display metadata (what was bet on)
+    market_slug: str | None = None
+    outcome_label: str | None = None
+ origin/main
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,6 +131,9 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     current_value=current_value,
                     unrealized_pnl=profit_or_loss(p.stake, current_value),
                     priced=priced,
+                    market_question=p.market_question,
+                    market_slug=p.market_slug,
+                    outcome_label=p.outcome_label,
                 )
             )
         elif p.status == BET_CLOSED:
@@ -144,6 +159,10 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     payout=payout,
                     realized_pnl=realized,
                     exit_odds=p.exit_odds,
+                    market_question=p.market_question,
+                    market_slug=p.market_slug,
+                    outcome_label=p.outcome_label,
+ origin/main
                 )
             )
         else:
@@ -161,6 +180,10 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     payout=payout,
                     realized_pnl=profit_or_loss(p.stake, payout),
                     exit_odds=None,
+                    market_question=p.market_question,
+                    market_slug=p.market_slug,
+                    outcome_label=p.outcome_label,
+ origin/main
                 )
             )
 

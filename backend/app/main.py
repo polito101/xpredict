@@ -185,6 +185,7 @@ from app.branding.admin_router import tenant_config_admin_router  # noqa: E402
 from app.branding.router import branding_router  # noqa: E402
 from app.catalog.router import public_catalog_router  # noqa: E402
 from app.core.audit.router import audit_admin_router  # noqa: E402
+from app.integrations.slotslaunch.router import casino_router  # noqa: E402
 from app.markets.router import admin_market_router, public_market_router  # noqa: E402
 from app.realtime.router import realtime_router  # noqa: E402
 from app.settlement.event_router import event_admin_router  # noqa: E402
@@ -199,6 +200,7 @@ app.include_router(admin_market_router)
 app.include_router(tenant_config_admin_router)
 app.include_router(public_market_router)
 app.include_router(public_catalog_router)
+app.include_router(casino_router)
 app.include_router(wallet_admin_router)
 app.include_router(wallet_router)
 app.include_router(bets_router)

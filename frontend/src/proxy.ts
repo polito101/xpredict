@@ -24,7 +24,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME } from "@/lib/config";
 
 const ADMIN_PROTECTED = /^\/admin(\/|$)/;
-const PLAYER_PROTECTED = /^\/(markets|events|portfolio|wallet|live)(\/|$)/;
+const PLAYER_PROTECTED = /^\/(markets|events|portfolio|wallet|live|casino)(\/|$)/;
 const ADMIN_LOGIN = "/admin/login";
 const PLAYER_LOGIN = "/login";
 
@@ -68,5 +68,6 @@ export const config = {
     "/wallet/:path*",
     "/live",
     "/live/:path*",
+    "/casino/:path*",
   ],
 };

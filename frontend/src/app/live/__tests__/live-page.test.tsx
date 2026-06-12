@@ -41,6 +41,14 @@ vi.mock("@/lib/api", async () => {
   };
 });
 
+// Catalog: default EMPTY (single-default-table flow); picker tests override.
+const getLiveCatalog = vi.hoisted(() => vi.fn().mockReturnValue([]));
+vi.mock("@/lib/live-catalog", () => ({
+  getLiveCatalog,
+  findLiveTable: (slug: string) =>
+    getLiveCatalog().find((e: { slug: string }) => e.slug === slug),
+}));
+
 // Stub the LiveTable client island so this stays a pure page-state test (no
 // widget, no script, no live-actions). The marker carries its props so the
 // happy-path test can assert the island was handed the resolved token/table.
@@ -113,6 +121,7 @@ beforeEach(() => {
   cookieGet.mockReset();
   fetchLiveSession.mockReset();
   vi.unstubAllGlobals();
+  getLiveCatalog.mockReturnValue([]);
 });
 
 describe("LivePage (/live Server Component)", () => {
@@ -214,5 +223,97 @@ describe("LivePage (/live Server Component)", () => {
     expect(screen.queryByLabelText(/wallet balance/i)).not.toBeInTheDocument();
     // And we did not fall through to the widget island.
     expect(screen.queryByTestId("live-table-island")).not.toBeInTheDocument();
+  });
+
+  it("multi-table: configured catalog → picker with one link per table, chrome + balance, NO widget", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      { slug: "cars", label: "Cars", tableId: "t-cars" },
+      { slug: "birds", label: "Birds", tableId: "t-birds" },
+    ]);
+    stubBalance("100.0000");
+
+    await renderLive();
+
+    // One link per catalog entry, pointing at the slug route.
+    expect(screen.getByRole("link", { name: /cars/i })).toHaveAttribute(
+      "href",
+      "/live/cars",
+    );
+    expect(screen.getByRole("link", { name: /birds/i })).toHaveAttribute(
+      "href",
+      "/live/birds",
+    );
+    // Chrome + balance (no widget on this page → not a duplicate).
+    expect(screen.getByLabelText(/wallet balance/i)).toHaveTextContent("100.0000");
+    // No session mint, no widget host, no fullscreen overlay.
+    expect(fetchLiveSession).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("live-table-island")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("live-fullscreen")).not.toBeInTheDocument();
+  });
+
+  it("multi-table: picker still renders when the balance read fails (no misleading zero, no block)", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      { slug: "cars", label: "Cars", tableId: "t-cars" },
+    ]);
+    stubBalance(null);
+
+    await renderLive();
+
+    expect(screen.getByRole("link", { name: /cars/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/wallet balance/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
+
+  it("visual picker: hero cards carry the camera frame, a pulsing LIVE badge, and the catalog tagline", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      {
+        slug: "cars",
+        label: "Cars",
+        tableId: "t-cars",
+        tagline: "Real street traffic — count the cars.",
+      },
+      { slug: "birds", label: "Birds", tableId: "t-birds" },
+    ]);
+    stubBalance("100.0000");
+
+    await renderLive();
+
+    // Camera frames by slug convention (public/live/<slug>.jpg exists for both
+    // in this repo, so the <Image unoptimized> renders the raw src).
+    const carsCard = screen.getByTestId("live-card-cars");
+    expect(carsCard.querySelector('img[src="/live/cars.jpg"]')).not.toBeNull();
+    const birdsCard = screen.getByTestId("live-card-birds");
+    expect(birdsCard.querySelector('img[src="/live/birds.jpg"]')).not.toBeNull();
+    // One pulsing LIVE badge per card.
+    expect(screen.getAllByTestId("live-badge")).toHaveLength(2);
+    // Catalog tagline when provided; the shared default otherwise.
+    expect(
+      screen.getByText("Real street traffic — count the cars."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/join the round and bet in real time/i),
+    ).toBeInTheDocument();
+  });
+
+  it("visual picker: a slug without a frame asset falls back to the brand gradient (no broken img)", async () => {
+    cookieGet.mockReturnValue({ value: "test-session" });
+    getLiveCatalog.mockReturnValue([
+      { slug: "mystery", label: "Mystery", tableId: "t-x" },
+    ]);
+    stubBalance("100.0000");
+
+    await renderLive();
+
+    const card = screen.getByTestId("live-card-mystery");
+    expect(card.querySelector("img")).toBeNull();
+    expect(screen.getByTestId("live-card-fallback")).toBeInTheDocument();
+    // The card still links to its table.
+    expect(screen.getByRole("link", { name: /mystery/i })).toHaveAttribute(
+      "href",
+      "/live/mystery",
+    );
   });
 });

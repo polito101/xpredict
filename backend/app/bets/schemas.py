@@ -63,6 +63,10 @@ class OpenPositionItem(BaseModel):
     current_value: DecimalStr
     unrealized_pnl: DecimalStr
     priced: bool
+    # Display metadata — what was bet on (None when the market read is unavailable).
+    market_question: str | None = None
+    market_slug: str | None = None
+    outcome_label: str | None = None
 
 
 class SettledPositionItem(BaseModel):
@@ -80,6 +84,11 @@ class SettledPositionItem(BaseModel):
     payout: DecimalStr
     realized_pnl: DecimalStr
     exit_odds: DecimalStr | None = None
+    # Display metadata — what was bet on (None when the market read is unavailable).
+    market_question: str | None = None
+    market_slug: str | None = None
+    outcome_label: str | None = None
+ origin/main
 
 
 class PortfolioResponse(BaseModel):

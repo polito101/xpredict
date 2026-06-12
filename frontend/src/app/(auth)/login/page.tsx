@@ -6,6 +6,7 @@
  */
 import Link from "next/link";
 import { LoginForm } from "./login-form";
+import { DemoLoginButton } from "./demo-login-button";
 
 type SP = Promise<{ registered?: string; reset?: string }>;
 
@@ -42,6 +43,16 @@ export default async function LoginPage({
         </p>
       )}
       <LoginForm />
+      {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && (
+        <>
+          <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            <span>o</span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+          <DemoLoginButton />
+        </>
+      )}
       <p className="text-center text-sm text-muted-foreground">
         <Link href="/forgot-password" className="underline">
           Forgot your password?

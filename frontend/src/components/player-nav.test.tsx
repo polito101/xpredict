@@ -1,8 +1,9 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-// next/link → plain anchor; next/navigation usePathname → fixed route;
-// the logout server action is a no-op stub for the render test.
+// next/link → plain anchor; next/navigation usePathname → fixed route (and
+// useRouter for the DemoLoginButton the demo branch renders); the auth server
+// actions are no-op stubs for the render tests.
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -18,10 +19,20 @@ vi.mock("next/link", () => ({
     </a>
   ),
 }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/wallet" }));
-vi.mock("@/lib/auth", () => ({ logoutAction: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/wallet",
+  useRouter: () => ({ push: vi.fn() }),
+}));
+vi.mock("@/lib/auth", () => ({
+  logoutAction: vi.fn(),
+  demoLoginAction: vi.fn(async () => undefined),
+}));
 
 import { PlayerNav } from "./player-nav";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("<PlayerNav />", () => {
   // Phase 19: the app destinations live behind auth — they render only when the
@@ -44,13 +55,24 @@ describe("<PlayerNav />", () => {
     );
   });
 
-  test("shows only Log in / Sign up when logged out (no app destinations, no Log out)", () => {
+  test("white-label logged out: Log in / Sign up (no app destinations, no Log out)", () => {
+    vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "");
     render(<PlayerNav isAuthenticated={false} />);
     expect(screen.getByText("Log in")).toBeInTheDocument();
     expect(screen.getByText("Sign up")).toBeInTheDocument();
     expect(screen.queryByText("Log out")).not.toBeInTheDocument();
     expect(screen.queryByText("Markets")).not.toBeInTheDocument();
     expect(screen.queryByText("Wallet")).not.toBeInTheDocument();
+  });
+
+  test("demo build logged out: ONE 'Probar la demo' action — no Log in / Sign up (2026-06-11)", () => {
+    vi.stubEnv("NEXT_PUBLIC_DEMO_MODE", "true");
+    render(<PlayerNav isAuthenticated={false} />);
+    expect(
+      screen.getByRole("button", { name: /probar la demo/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Log in")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sign up")).not.toBeInTheDocument();
   });
 
   test("shows Log out when logged in, never Log in", () => {

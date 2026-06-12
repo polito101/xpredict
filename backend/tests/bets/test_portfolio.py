@@ -26,6 +26,9 @@ def _pos(
     odds: str = "0.5",
     current_odds: str | None = None,
     exit_odds: str | None = None,
+    market_question: str | None = None,
+    market_slug: str | None = None,
+    outcome_label: str | None = None,
 ) -> PositionInput:
     return PositionInput(
         bet_id=uuid4(),
@@ -36,6 +39,9 @@ def _pos(
         status=status,
         current_odds=Decimal(current_odds) if current_odds is not None else None,
         exit_odds=Decimal(exit_odds) if exit_odds is not None else None,
+        market_question=market_question,
+        market_slug=market_slug,
+        outcome_label=outcome_label,
     )
 
 
@@ -139,6 +145,43 @@ def test_closed_position_realized_gain_from_exit_odds() -> None:
     assert sp.payout == Decimal("50.0000")
     assert sp.realized_pnl == Decimal("10.0000")
     assert sp.won is True
+
+
+def test_positions_carry_market_display_metadata() -> None:
+    # Open AND settled positions pass through WHAT was bet on (question/slug/label).
+    p = build_portfolio(
+        [
+            _pos(
+                BET_PENDING,
+                market_question="Will it rain tomorrow?",
+                market_slug="will-it-rain-tomorrow",
+                outcome_label="YES",
+            ),
+            _pos(
+                BET_SETTLED_WON,
+                market_question="Will it rain tomorrow?",
+                market_slug="will-it-rain-tomorrow",
+                outcome_label="NO",
+            ),
+        ]
+    )
+    op = p.open[0]
+    assert op.market_question == "Will it rain tomorrow?"
+    assert op.market_slug == "will-it-rain-tomorrow"
+    assert op.outcome_label == "YES"
+    sp = p.settled[0]
+    assert sp.market_question == "Will it rain tomorrow?"
+    assert sp.market_slug == "will-it-rain-tomorrow"
+    assert sp.outcome_label == "NO"
+
+
+def test_display_metadata_defaults_to_none_when_market_unavailable() -> None:
+    p = build_portfolio([_pos(BET_PENDING), _pos(BET_SETTLED_LOST)])
+    assert p.open[0].market_question is None
+    assert p.open[0].market_slug is None
+    assert p.open[0].outcome_label is None
+    assert p.settled[0].market_question is None
+    assert p.settled[0].outcome_label is None
 
 
 def test_closed_position_realized_loss_from_exit_odds() -> None:

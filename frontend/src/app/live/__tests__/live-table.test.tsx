@@ -351,4 +351,23 @@ describe("<LiveTable /> DOM-event wiring", () => {
     expect(video).not.toBeNull();
     expect(video!.hasAttribute("controls")).toBe(false);
   });
+
+  it("multi-table: counterLabel prop is pushed onto the widget `counter-label` attribute", () => {
+    const { container } = render(
+      <LiveTable
+        sessionToken="t"
+        tableId="tbl"
+        initialBalance="100.0000"
+        counterLabel="Birds"
+      />,
+    );
+    expect(getHost(container).getAttribute("counter-label")).toBe("Birds");
+  });
+
+  it("multi-table: no counterLabel prop → no `counter-label` attribute (widget COUNT default)", () => {
+    const { container } = render(
+      <LiveTable sessionToken="t" tableId="tbl" initialBalance="100.0000" />,
+    );
+    expect(getHost(container).getAttribute("counter-label")).toBeNull();
+  });
 });
