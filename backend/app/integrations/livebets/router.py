@@ -63,11 +63,18 @@ def _handle_bridge_errors() -> Generator[None, None, None]:
     try:
         yield
     except RuntimeError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured."
+        ) from exc
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            f"Live-bets upstream error ({exc.response.status_code}).",
+        ) from exc
     except (httpx.NetworkError, httpx.TimeoutException) as exc:
-        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
+        raise HTTPException(
+            status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable."
+        ) from exc
 
 
 @contextmanager
@@ -86,7 +93,9 @@ def _handle_bet_mirror_errors(bet_id: UUID) -> Generator[None, None, None]:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
     except LiveBetsVerificationError as exc:
         log.warning("livebets.verification_error", detail=str(exc))
-        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state.") from exc
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state."
+        ) from exc
     except ValueError as exc:
         log.warning("livebets.parse_error", bet_id=str(bet_id))
         raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be verified.") from exc
@@ -167,9 +176,13 @@ async def list_tables(
         raw = await client.list_tables()
     items = (raw.get("tables") or []) if isinstance(raw, dict) else raw
     try:
-        return TablesResponse(tables=[TableItem.model_validate(t) for t in cast("list[object]", items)])
+        return TablesResponse(
+            tables=[TableItem.model_validate(t) for t in cast("list[object]", items)]
+        )
     except ValidationError as exc:
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Live-bets returned malformed table data.") from exc
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Live-bets returned malformed table data."
+        ) from exc
 
 
 @livebets_router.post("/bets/{bet_id}/placed", response_model=MirrorResult)

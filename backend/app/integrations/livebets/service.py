@@ -40,7 +40,7 @@ per-market-liability "nets to zero" property of ``app/settlement``.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
@@ -318,7 +318,9 @@ class LiveBetsBridge:
                 #    never touch the wallet (escrow -> house_revenue only).
                 specs: list[_TransferSpec] = []
                 if verified.status == LIVEBETS_WON:
-                    wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
+                    wallet_id = await WalletService._resolve_user_wallet_id(
+                        session, user_id=user.id
+                    )
                     if verified.payout is None:
                         raise LiveBetsVerificationError(
                             f"live-bets WON bet {bet_id} has no payout — cannot verify winnings"
@@ -335,7 +337,8 @@ class LiveBetsBridge:
                     winnings = verified.payout - stake
                     if winnings < 0:
                         raise LiveBetsVerificationError(
-                            f"WON bet {bet_id} has payout {verified.payout} < stake {stake} — cannot verify"
+                            f"WON bet {bet_id} has payout {verified.payout} < stake {stake}"
+                            " — cannot verify"
                         )
                     # Skip leg 2 when winnings <= 0 so no zero/negative amount hits
                     # CHECK (amount > 0) — mirrors settlement's `if sb.pnl > 0` guard.
