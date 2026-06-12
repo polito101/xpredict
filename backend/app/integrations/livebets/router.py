@@ -19,6 +19,7 @@ bets router) and never hit the network.
 from typing import Annotated, cast
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.exc import NoResultFound
@@ -27,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import current_active_player
 from app.auth.models import User
 from app.core.config import get_settings
+from app.wallet.exceptions import InsufficientBalance
 from app.db.session import get_async_session
 from app.integrations.livebets.client import LiveBetsClient
 from app.integrations.livebets.schemas import (
@@ -76,13 +78,27 @@ async def mint_session(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No table_id supplied and LIVEBETS_DEFAULT_TABLE_ID is not configured.",
         )
-    result = await client.mint_session(player_ref=str(player.id), table_id=table_id)
+    try:
+        result = await client.mint_session(player_ref=str(player.id), table_id=table_id)
+    except RuntimeError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
+    except (httpx.NetworkError, httpx.TimeoutException) as exc:
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
+    session_token = result.get("session_token")
+    expires_at = result.get("expires_at")
+    if not session_token or not expires_at:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Live-bets returned an invalid session response.",
+        )
     # Echo the resolved table_id back: the live-bets GET /tables route is JWT-gated
     # (player session), so XPredict's operator-key /api/live/tables can't list
     # tables — the frontend reads the widget's table-id from this field instead.
     return SessionResponse(
-        session_token=str(result["session_token"]),
-        expires_at=str(result["expires_at"]),
+        session_token=str(session_token),
+        expires_at=str(expires_at),
         table_id=table_id,
     )
 
@@ -99,7 +115,14 @@ async def list_tables(
     ``TableView`` whose id field is ``id``; ``TableItem`` maps it onto our outward
     ``table_id`` (the ``/api/live/tables`` contract to the frontend is unchanged).
     """
-    raw = await client.list_tables()
+    try:
+        raw = await client.list_tables()
+    except RuntimeError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
+    except (httpx.NetworkError, httpx.TimeoutException) as exc:
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
     items = raw.get("tables", []) if isinstance(raw, dict) else raw
     return TablesResponse(tables=[TableItem.model_validate(t) for t in cast("list[object]", items)])
 
@@ -128,6 +151,14 @@ async def record_placed(
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except NoResultFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
+    except InsufficientBalance as exc:
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
+    except (httpx.NetworkError, httpx.TimeoutException) as exc:
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
 
 
 @livebets_router.post("/bets/{bet_id}/settled", response_model=MirrorResult)
@@ -155,6 +186,14 @@ async def record_settled(
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
     except NoResultFound as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
+    except InsufficientBalance as exc:
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured.") from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"Live-bets upstream error ({exc.response.status_code}).") from exc
+    except (httpx.NetworkError, httpx.TimeoutException) as exc:
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
 
 
 __all__ = ["get_livebets_client", "livebets_router"]
