@@ -25,7 +25,7 @@ from app.integrations.livebets.router import (
     get_livebets_client,
 )
 from app.integrations.livebets.schemas import MirrorResult, parse_verified_bet
-from app.integrations.livebets.service import LiveBetsVerificationError, LiveBetsBridge
+from app.integrations.livebets.service import LiveBetsBridge
 
 log = structlog.get_logger()
 

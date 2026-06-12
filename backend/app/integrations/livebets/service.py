@@ -40,12 +40,10 @@ per-market-liability "nets to zero" property of ``app/settlement``.
 
 from __future__ import annotations
 
-
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
 import structlog
-
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
@@ -353,7 +351,9 @@ class LiveBetsBridge:
                             )
                         )
                 elif verified.status in LIVEBETS_REFUND_STATUSES:
-                    wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
+                    wallet_id = await WalletService._resolve_user_wallet_id(
+                        session, user_id=user.id
+                    )
                     # REFUNDED or VOIDED — both take the single stake-return leg to the wallet.
                     specs.append(
                         (

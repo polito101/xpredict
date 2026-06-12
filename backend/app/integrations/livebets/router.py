@@ -21,8 +21,8 @@ from contextlib import contextmanager
 from typing import Annotated, cast
 from uuid import UUID
 
-import structlog
 import httpx
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import NoResultFound
@@ -31,7 +31,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.deps import current_active_player
 from app.auth.models import User
 from app.core.config import get_settings
-from app.wallet.exceptions import InsufficientBalance
 from app.db.session import get_async_session
 from app.integrations.livebets.client import LiveBetsClient
 from app.integrations.livebets.schemas import (
@@ -45,6 +44,7 @@ from app.integrations.livebets.service import (
     LiveBetsOwnershipError,
     LiveBetsVerificationError,
 )
+from app.wallet.exceptions import InsufficientBalance
 
 log = structlog.get_logger()
 

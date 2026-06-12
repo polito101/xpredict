@@ -57,7 +57,7 @@ log = structlog.get_logger()
 
 def _is_transient_http(exc: BaseException) -> bool:
     """Return True for exceptions that warrant a retry on idempotent GET endpoints."""
-    if isinstance(exc, (httpx.NetworkError, httpx.TimeoutException)):
+    if isinstance(exc, httpx.NetworkError | httpx.TimeoutException):
         return True
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code >= 500
