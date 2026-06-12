@@ -33,6 +33,7 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 
 import { fetchLiveSession, LiveTableUnconfigured } from "@/lib/api";
+import { getBackendUrl, SESSION_COOKIE_NAME } from "@/lib/config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RetryError } from "@/components/retry-error";
@@ -41,15 +42,6 @@ import { LiveTable } from "./live-table";
 
 const PAGE_SHELL = "w-full max-w-6xl mx-auto px-4 sm:px-6 py-12";
 const CURRENCY = "PLAY_USD";
-
-/**
- * Server-only backend base for the cookie-forwarded wallet-balance read (mirrors
- * `wallet/page.tsx:53-55`). No `NEXT_PUBLIC_` prefix, so the backend origin never
- * leaks into the client bundle.
- */
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
 
 type BalanceResult = { ok: true; balance: string } | { ok: false };
 
@@ -62,7 +54,7 @@ type BalanceResult = { ok: true; balance: string } | { ok: false };
 async function loadBalance(session: string): Promise<BalanceResult> {
   try {
     const res = await fetch(`${getBackendUrl()}/wallet/me/balance`, {
-      headers: { Cookie: `xpredict_session=${session}` },
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
       cache: "no-store",
     });
     if (!res.ok) return { ok: false };
@@ -130,7 +122,7 @@ async function LiveBody() {
   // cookie VALUE never crosses into client JS (only the rendered result + the
   // minted live-bets token do). SC1: reachable only when authenticated.
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   if (!session) {
     return (
       <main className={PAGE_SHELL}>

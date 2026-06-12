@@ -17,6 +17,7 @@
  */
 import { cookies } from "next/headers";
 
+import { getBackendUrl, SESSION_COOKIE_NAME } from "@/lib/config";
 import {
   Card,
   CardContent,
@@ -63,10 +64,6 @@ type PortfolioResult =
   | { status: "error" }
   | { status: "unauthenticated" };
 
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
-
 /**
  * Fetch the player's portfolio server-side, forwarding the session cookie.
  * Returns a discriminated result so the page can tell apart a signed-out
@@ -74,12 +71,12 @@ function getBackendUrl(): string {
  */
 async function loadPortfolio(): Promise<PortfolioResult> {
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   if (!session) return { status: "unauthenticated" };
 
   try {
     const res = await fetch(`${getBackendUrl()}/bets/me/portfolio`, {
-      headers: { Cookie: `xpredict_session=${session}` },
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
       cache: "no-store",
     });
     if (!res.ok) return { status: "error" };

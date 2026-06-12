@@ -38,6 +38,7 @@ import {
   type ActionState,
   type VerifyResult,
 } from "./auth-schemas";
+import { getBackendUrl, SESSION_COOKIE_NAME } from "./config";
 
 // Schemas + types are re-exported through `./auth-schemas` — import them from
 // there directly in client components.
@@ -45,10 +46,6 @@ import {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
 
 function tooManyAttempts(): { errors: ActionErrors } {
   return {
@@ -69,14 +66,14 @@ async function forwardSessionCookie(
   setCookieHeader: string | null,
 ): Promise<void> {
   if (!setCookieHeader) return;
-  const match = setCookieHeader.match(/(?:^|;\s*)xpredict_session=([^;]+)/);
+  const match = setCookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]+)`));
   if (!match) return;
   const value = match[1];
   // Best-effort attribute parsing (Max-Age) — fall back to safe defaults.
   const maxAgeMatch = setCookieHeader.match(/Max-Age=(\d+)/i);
   const maxAge = maxAgeMatch ? Number(maxAgeMatch[1]) : 60 * 60 * 24 * 30;
   const store = await cookies();
-  store.set("xpredict_session", value, {
+  store.set(SESSION_COOKIE_NAME, value, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -127,20 +124,20 @@ export async function loginAction(
 
 export async function logoutAction(): Promise<void> {
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   // Best-effort revoke on the backend (fastapi-users cookie /auth/logout). If
   // it fails, the cookie is still cleared below, so the browser is logged out.
   if (session) {
     try {
       await fetch(`${getBackendUrl()}/auth/logout`, {
         method: "POST",
-        headers: { cookie: `xpredict_session=${session}` },
+        headers: { cookie: `${SESSION_COOKIE_NAME}=${session}` },
       });
     } catch {
       // Network/endpoint hiccup — fall through to the local cookie clear.
     }
   }
-  store.delete("xpredict_session");
+  store.delete(SESSION_COOKIE_NAME);
   redirect("/");
 }
 

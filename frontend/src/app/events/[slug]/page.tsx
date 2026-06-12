@@ -16,6 +16,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 
 import { fetchMarket, fetchPriceHistory } from "@/lib/api";
+import { SESSION_COOKIE_NAME } from "@/lib/config";
 import {
   fetchEvent,
   EventNotFound,
@@ -106,7 +107,7 @@ async function EventDetailBody({ slug }: { slug: string }) {
     historyResult.status === "fulfilled" ? historyResult.value.points : [];
 
   const store = await cookies();
-  const isAuthenticated = Boolean(store.get("xpredict_session")?.value);
+  const isAuthenticated = Boolean(store.get(SESSION_COOKIE_NAME)?.value);
 
   return (
     <main className={PAGE_SHELL}>
