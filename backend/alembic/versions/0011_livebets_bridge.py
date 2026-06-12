@@ -108,7 +108,7 @@ def upgrade() -> None:
         INSERT INTO accounts (id, owner_type, owner_id, kind, currency, balance) VALUES
           ('{LIVEBETS_ESCROW_ACCOUNT_ID}', '{OWNER_SYSTEM}', NULL,
            '{KIND_LIVEBETS_ESCROW}', '{PLAY_USD}', 0)
-        ON CONFLICT (id) DO NOTHING;
+        ON CONFLICT (owner_type, owner_id, kind, currency) DO NOTHING;
         """
     )
 
