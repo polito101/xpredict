@@ -13,6 +13,8 @@ from __future__ import annotations
 from decimal import Decimal
 from uuid import uuid4
 
+import pytest
+
 from app.bets.constants import BET_CLOSED, BET_PENDING, BET_SETTLED_LOST, BET_SETTLED_WON
 from app.bets.portfolio import PositionInput, build_portfolio
 
@@ -147,3 +149,10 @@ def test_closed_position_realized_loss_from_exit_odds() -> None:
     assert sp.payout == Decimal("30.0000")
     assert sp.realized_pnl == Decimal("-10.0000")
     assert sp.won is False
+
+
+def test_closed_position_null_exit_odds_raises() -> None:
+    # A CLOSED bet with NULL exit_odds is a data integrity violation — must raise, not silently
+    # substitute odds_at_placement (which would produce a misleading zero P&L).
+    with pytest.raises(ValueError, match="NULL exit_odds"):
+        build_portfolio([_pos(BET_CLOSED, stake="40", odds="0.5", exit_odds=None)])

@@ -18,10 +18,13 @@ For a SETTLED position the realized P&L equals exactly what settlement posted: a
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
+
+log = logging.getLogger(__name__)
 
 from app.bets.constants import BET_CLOSED, BET_PENDING, BET_SETTLED_WON
 from app.settlement.payout import cashout_value, compute_payout, profit_or_loss, quantize_money
@@ -120,7 +123,12 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
             )
         elif p.status == BET_CLOSED:
             # Cashed out early — realized at the exit price captured on the bet.
-            exit_price = p.exit_odds if p.exit_odds is not None else p.odds_at_placement
+            if p.exit_odds is None:
+                raise ValueError(
+                    f"CLOSED bet {p.bet_id} has NULL exit_odds — data integrity violation: "
+                    "exit_odds is required for CLOSED bets and must be written at cash-out time."
+                )
+            exit_price = p.exit_odds
             payout = cashout_value(p.stake, p.odds_at_placement, exit_price)
             realized = profit_or_loss(p.stake, payout)
             settled_positions.append(
