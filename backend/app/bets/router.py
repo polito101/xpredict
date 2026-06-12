@@ -19,8 +19,11 @@ endpoint responds 503. Tests override ``get_market_source`` with a stub.
 # documented in ``app/wallet/router.py`` + ``app/wallet/admin_router.py``.
 """
 
+import logging
 from typing import Annotated
 from uuid import UUID
+
+log = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import NoResultFound
@@ -146,7 +149,11 @@ async def read_portfolio(
     against the current odds); SETTLED positions show the realized P&L. Money + odds serialize
     as JSON strings (SC#4). Read-only.
     """
-    pf = await BetService.get_portfolio(session, user_id=player.id, market_source=market_source)
+    try:
+        pf = await BetService.get_portfolio(session, user_id=player.id, market_source=market_source)
+    except ValueError as exc:
+        log.error("portfolio integrity error for user %s: %s", player.id, exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Portfolio data integrity error") from exc
     return PortfolioResponse(
         open=[OpenPositionItem.model_validate(o) for o in pf.open],
         settled=[SettledPositionItem.model_validate(s) for s in pf.settled],

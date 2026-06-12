@@ -124,6 +124,7 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
         elif p.status == BET_CLOSED:
             # Cashed out early — realized at the exit price captured on the bet.
             if p.exit_odds is None:
+                log.error("CLOSED bet %s has NULL exit_odds — data integrity violation", p.bet_id)
                 raise ValueError(
                     f"CLOSED bet {p.bet_id} has NULL exit_odds — data integrity violation: "
                     "exit_odds is required for CLOSED bets and must be written at cash-out time."
