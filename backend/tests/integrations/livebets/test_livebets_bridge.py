@@ -46,6 +46,7 @@ from sqlalchemy import select, text
 from app.db.session import _get_session_maker
 from app.integrations.livebets.constants import (
     LIVEBETS_ESCROW_ACCOUNT_ID,
+    LIVEBETS_LOST,
     LIVEBETS_PENDING,
     LIVEBETS_REFUNDED,
     LIVEBETS_VOIDED,
@@ -291,13 +292,13 @@ async def test_placed_then_lost_sweeps_stake_to_house_revenue_escrow_nets_to_zer
     async with sm() as s:
         await LiveBetsBridge.record_placed(s, user=_user(user_id), bet_id=bet_id, client=client)
 
-    client.set_bet(bet_id, status="LOST", stake=stake)
+    client.set_bet(bet_id, status=LIVEBETS_LOST, stake=stake)
     async with sm() as s:
         settled = await LiveBetsBridge.record_settled(
             s, user=_user(user_id), bet_id=bet_id, client=client
         )
     assert settled.applied is True
-    assert settled.status == "LOST"
+    assert settled.status == LIVEBETS_LOST
 
     # Wallet down by the full stake (no return on a loss).
     assert await _balance(wallet_id) == Decimal("65.0000")  # 100 - 35
@@ -307,7 +308,7 @@ async def test_placed_then_lost_sweeps_stake_to_house_revenue_escrow_nets_to_zer
     assert await _balance(HOUSE_REVENUE_ACCOUNT_ID) - revenue_before == stake
     mirror = await _mirror_row(bet_id)
     assert mirror is not None
-    assert mirror.status == "LOST"
+    assert mirror.status == LIVEBETS_LOST
     assert mirror.settled_at is not None
 
 
