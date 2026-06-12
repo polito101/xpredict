@@ -164,7 +164,7 @@ async function LiveBody() {
   ) {
     return (
       <LiveShell>
-        {balance !== null && <BalanceHeader balance={balance} />}
+        <BalanceHeader balance={balance ?? "0.0000"} />
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold">
