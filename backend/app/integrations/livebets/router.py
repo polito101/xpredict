@@ -16,9 +16,9 @@ override it via ``app.dependency_overrides`` (mirrors ``get_market_source`` in t
 bets router) and never hit the network.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Generator
 from contextlib import contextmanager
-from typing import Annotated, Generator, cast
+from typing import Annotated, cast
 from uuid import UUID
 
 import structlog
