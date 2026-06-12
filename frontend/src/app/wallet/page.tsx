@@ -16,6 +16,8 @@
 import { cookies } from "next/headers";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 
+import { getBackendUrl, SESSION_COOKIE_NAME } from "@/lib/config";
+
 import { Button } from "@/components/ui/button";
 import { RetryError } from "@/components/retry-error";
 import { SignedOutNotice } from "@/components/signed-out-notice";
@@ -42,10 +44,6 @@ type WalletResult =
   | { status: "error" }
   | { status: "unauthenticated" };
 
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
-
 /** Humanize a transaction kind enum: "bet_placed" → "Bet placed". */
 function humanizeKind(kind: string): string {
   const spaced = kind.replace(/_/g, " ").trim();
@@ -54,11 +52,11 @@ function humanizeKind(kind: string): string {
 
 async function loadWallet(): Promise<WalletResult> {
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   if (!session) return { status: "unauthenticated" };
 
   try {
-    const headers = { Cookie: `xpredict_session=${session}` };
+    const headers = { Cookie: `${SESSION_COOKIE_NAME}=${session}` };
     const base = getBackendUrl();
 
     const [balanceRes, txRes] = await Promise.all([

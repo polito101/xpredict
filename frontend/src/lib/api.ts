@@ -4,6 +4,8 @@
  * Types match the backend response shape from /api/v1/markets.
  */
 
+import { SESSION_COOKIE_NAME } from "./config";
+
 // -- Types ------------------------------------------------------------------
 
 export interface MarketOutcome {
@@ -166,7 +168,7 @@ export async function fetchLiveSession(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Cookie: `xpredict_session=${session}`,
+      Cookie: `${SESSION_COOKIE_NAME}=${session}`,
     },
     // SessionRequest accepts an optional table_id; omit the key when undefined
     // so LB-A falls back to LIVEBETS_DEFAULT_TABLE_ID.
@@ -198,7 +200,7 @@ export async function fetchLiveSession(
  */
 export async function fetchLiveTables(session: string): Promise<LiveTable[]> {
   const res = await fetch(`${apiBase()}/api/live/tables`, {
-    headers: { Cookie: `xpredict_session=${session}` },
+    headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
     cache: "no-store",
   });
 

@@ -32,16 +32,14 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
+import { getBackendUrl, SESSION_COOKIE_NAME } from "./config";
+
 import type { ActionState, SellState } from "./bet-schemas";
 import {
   BET_MAX_STAKE,
   BET_MIN_STAKE,
   BetSchema,
 } from "./bet-schemas";
-
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
 
 // Exact UI-SPEC Copywriting Contract strings (inline, never a toast).
 const COPY = {
@@ -91,7 +89,7 @@ export async function placeBetAction(
   }
 
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   if (!session) {
     // No session at all — surface the login affordance (mirrors a 401).
     return { errors: { _form: [COPY.loginRequired] } };
@@ -103,7 +101,7 @@ export async function placeBetAction(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Cookie: `xpredict_session=${session}`,
+        Cookie: `${SESSION_COOKIE_NAME}=${session}`,
       },
       // PlaceBetRequest is extra="forbid": exactly these three keys.
       body: JSON.stringify({
@@ -175,14 +173,14 @@ export async function sellPositionAction(
   }
 
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   if (!session) return { error: SELL_COPY.loginRequired };
 
   let res: Response;
   try {
     res = await fetch(`${getBackendUrl()}/bets/${betId}/sell`, {
       method: "POST",
-      headers: { Cookie: `xpredict_session=${session}` },
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
       cache: "no-store",
     });
   } catch {
