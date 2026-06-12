@@ -70,7 +70,7 @@ from app.integrations.livebets.schemas import MirrorResult, parse_verified_bet
 from app.wallet.constants import HOUSE_PROMO_ACCOUNT_ID, HOUSE_REVENUE_ACCOUNT_ID
 from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account
-from app.wallet.service import WalletService
+from app.wallet.service import SQLSTATE_UNIQUE_VIOLATION, WalletService
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -78,10 +78,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.auth.models import User
-
-# Postgres SQLSTATE for a unique-constraint violation — the idempotency signal
-# on ``transfers.idempotency_key`` (mirrors WalletService.SQLSTATE_UNIQUE_VIOLATION).
-SQLSTATE_UNIQUE_VIOLATION = "23505"
 
 
 class LiveBetsVerificationError(Exception):
@@ -158,84 +154,72 @@ class LiveBetsBridge:
                 f"[{settings.BET_MIN_STAKE}, {settings.BET_MAX_STAKE}]"
             )
 
-        try:
-            async with session.begin():
-                # 2. Upsert the mirror row — PRIMARY idempotency guard. A conflict on
-                #    the bet_id PK means this bet was already mirrored: a replay, so we
-                #    skip the transfer entirely (no double-debit). Mirrors the spirit of
-                #    _ensure_market_liability_account's pg_insert/on_conflict, but here a
-                #    conflict means "already mirrored", not "reuse infra".
-                #
-                # OWNERSHIP CLAIM (BL-01): the FIRST caller claims the bet by writing
-                # user_id=user.id; the bet_id PK then binds the bet to that player and
-                # record_settled rejects any other caller (the IDOR settle-side guard).
-                # A STRONG placement-time binding would require live-bets to expose
-                # ``player_ref`` on GET /v2/bets/{id} so we could assert it == user.id
-                # here; the live-bets contract does NOT return player_ref today, so the
-                # placement-side residual (an attacker placing first to claim/DoS a
-                # foreign bet, self-debiting their own wallet) is ACCEPTED FOR DEMO and
-                # deferred to LB-C (where we control live-bets and can return/verify
-                # player_ref). The settle-side ownership check below closes the actual
-                # payout-theft vector. See REVIEW.md BL-01.
-                insert_result = await session.execute(
-                    pg_insert(LiveBetsBet)
-                    .values(
-                        bet_id=bet_id,
-                        user_id=user.id,
-                        table_id=verified.table_id,
-                        market_id=verified.market_id,
-                        stake=stake,
-                        status=LIVEBETS_PENDING,
-                    )
-                    .on_conflict_do_nothing(index_elements=["bet_id"])
-                    .returning(LiveBetsBet.bet_id)
+        async with session.begin():
+            # 2. Upsert the mirror row — PRIMARY idempotency guard. A conflict on
+            #    the bet_id PK means this bet was already mirrored: a replay, so we
+            #    skip the transfer entirely (no double-debit). Mirrors the spirit of
+            #    _ensure_market_liability_account's pg_insert/on_conflict, but here a
+            #    conflict means "already mirrored", not "reuse infra".
+            #
+            # OWNERSHIP CLAIM (BL-01): the FIRST caller claims the bet by writing
+            # user_id=user.id; the bet_id PK then binds the bet to that player and
+            # record_settled rejects any other caller (the IDOR settle-side guard).
+            # A STRONG placement-time binding would require live-bets to expose
+            # ``player_ref`` on GET /v2/bets/{id} so we could assert it == user.id
+            # here; the live-bets contract does NOT return player_ref today, so the
+            # placement-side residual (an attacker placing first to claim/DoS a
+            # foreign bet, self-debiting their own wallet) is ACCEPTED FOR DEMO and
+            # deferred to LB-C (where we control live-bets and can return/verify
+            # player_ref). The settle-side ownership check below closes the actual
+            # payout-theft vector. See REVIEW.md BL-01.
+            insert_result = await session.execute(
+                pg_insert(LiveBetsBet)
+                .values(
+                    bet_id=bet_id,
+                    user_id=user.id,
+                    table_id=verified.table_id,
+                    market_id=verified.market_id,
+                    stake=stake,
+                    status=LIVEBETS_PENDING,
                 )
-                if insert_result.scalar_one_or_none() is None:
-                    # Row already existed — replay, no post.
-                    return MirrorResult(bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=False)
-
-                wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
-
-                # 3. Canonical UUID lock order (Spike 004 / Pitfall 3) on the two
-                #    touched accounts BEFORE posting — copy the place_bet idiom.
-                first_id, second_id = sorted((wallet_id, LIVEBETS_ESCROW_ACCOUNT_ID), key=str)
-                await session.execute(
-                    select(Account.id).where(Account.id == first_id).with_for_update()
-                )
-                await session.execute(
-                    select(Account.id).where(Account.id == second_id).with_for_update()
-                )
-
-                # Balance guard: reject if wallet cannot cover the stake (mirrors place_bet's check).
-                balance = (
-                    await session.execute(select(Account.balance).where(Account.id == wallet_id))
-                ).scalar_one()
-                if balance < stake:
-                    raise InsufficientBalance(
-                        f"wallet balance {balance} < stake {stake} for live-bets bet {bet_id}"
-                    )
-
-                # 4. Post the debit via the sole writer (locks held, inside this tx).
-                await WalletService._post_transfer(
-                    session,
-                    kind=TRANSFER_LIVEBETS_PLACED,
-                    idempotency_key=placed_idempotency_key(bet_id),
-                    actor_user_id=user.id,
-                    debit_account_id=wallet_id,
-                    credit_account_id=LIVEBETS_ESCROW_ACCOUNT_ID,
-                    amount=stake,
-                    metadata={
-                        "bet_id": str(bet_id),
-                        "table_id": str(verified.table_id) if verified.table_id else None,
-                    },
-                )
-        except IntegrityError as exc:
-            # SECONDARY guard: the UNIQUE transfers.idempotency_key collided on a
-            # concurrent double-placed (the mirror-row upsert raced). _post_transfer
-            # does not catch 23505, so the bridge does. Any other IntegrityError re-raises.
-            if getattr(exc.orig, "sqlstate", None) == SQLSTATE_UNIQUE_VIOLATION:
+                .on_conflict_do_nothing(index_elements=["bet_id"])
+                .returning(LiveBetsBet.bet_id)
+            )
+            if insert_result.scalar_one_or_none() is None:
+                # Row already existed — replay, no post.
                 return MirrorResult(bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=False)
-            raise
+
+            wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
+
+            # 3. Lock only the wallet — escrow is credit-only here; locking it
+            #    serializes ALL concurrent placements unnecessarily.
+            await session.execute(
+                select(Account.id).where(Account.id == wallet_id).with_for_update()
+            )
+
+            # Balance guard: reject if wallet cannot cover the stake (mirrors place_bet's check).
+            balance = (
+                await session.execute(select(Account.balance).where(Account.id == wallet_id))
+            ).scalar_one()
+            if balance < stake:
+                raise InsufficientBalance(
+                    f"wallet balance {balance} < stake {stake} for live-bets bet {bet_id}"
+                )
+
+            # 4. Post the debit via the sole writer (lock held, inside this tx).
+            await WalletService._post_transfer(
+                session,
+                kind=TRANSFER_LIVEBETS_PLACED,
+                idempotency_key=placed_idempotency_key(bet_id),
+                actor_user_id=user.id,
+                debit_account_id=wallet_id,
+                credit_account_id=LIVEBETS_ESCROW_ACCOUNT_ID,
+                amount=stake,
+                metadata={
+                    "bet_id": str(bet_id),
+                    "table_id": str(verified.table_id) if verified.table_id else None,
+                },
+            )
 
         return MirrorResult(bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=True)
 
@@ -317,12 +301,13 @@ class LiveBetsBridge:
                     )
 
                 stake = mirror.stake  # authoritative captured stake, never a client amount
-                wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
 
                 # 3. Derive the leg specs by outcome (mirrors resolve_market's
-                #    winner/loser legs).
+                #    winner/loser legs). wallet_id is resolved lazily — LOST bets
+                #    never touch the wallet (escrow -> house_revenue only).
                 specs: list[_TransferSpec] = []
                 if verified.status == LIVEBETS_WON:
+                    wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
                     if verified.payout is None:
                         raise LiveBetsVerificationError(
                             f"live-bets WON bet {bet_id} has no payout — cannot verify winnings"
@@ -354,6 +339,7 @@ class LiveBetsBridge:
                             )
                         )
                 elif verified.status in LIVEBETS_REFUND_STATUSES:
+                    wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
                     # REFUNDED or VOIDED — both take the single stake-return leg to the wallet.
                     specs.append(
                         (
@@ -366,6 +352,7 @@ class LiveBetsBridge:
                     )
                 else:
                     # LOST — single leg, escrow -> house_revenue (loss sink, LOCKED decision).
+                    # No wallet resolution needed — the wallet is never touched for LOST bets.
                     specs.append(
                         (
                             TRANSFER_LIVEBETS_SETTLE_LOSS,
