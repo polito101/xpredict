@@ -281,6 +281,7 @@ class BetService:
 
         # 3. Atomic close: lock bet, re-verify, read market, compute payout, post ledger, flip status.
         async with session.begin():
+            now = datetime.now(UTC)
             locked = (
                 await session.execute(select(Bet).where(Bet.id == bet_id).with_for_update())
             ).scalar_one()
@@ -292,7 +293,7 @@ class BetService:
             market = await market_source.get_market(locked.market_id)
             if market is None:
                 raise MarketNotFound(f"no market {locked.market_id}")
-            if not market.is_open(datetime.now(UTC)):
+            if not market.is_open(now):
                 raise MarketClosed(f"market {locked.market_id} is not open — cannot close")
             chosen = market.outcome(locked.outcome_id)
             if chosen is None:
@@ -365,7 +366,7 @@ class BetService:
                 )
 
             locked.status = BET_CLOSED
-            locked.closed_at = datetime.now(UTC)
+            locked.closed_at = now
             locked.exit_odds = current_price
 
         # Post-commit wallet balance for the response.

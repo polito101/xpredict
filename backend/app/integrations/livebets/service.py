@@ -44,7 +44,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
@@ -401,7 +401,7 @@ class LiveBetsBridge:
                 await session.execute(
                     update(LiveBetsBet)
                     .where(LiveBetsBet.bet_id == bet_id)
-                    .values(status=verified.status, settled_at=datetime.now(UTC))
+                    .values(status=verified.status, settled_at=func.now())
                 )
         except IntegrityError as exc:
             # SECONDARY guard: per-leg keys collide on a concurrent double-settle.
