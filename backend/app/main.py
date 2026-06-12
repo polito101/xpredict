@@ -44,8 +44,8 @@ from app.bets.router import bets_router
 from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.core.sentry import init_sentry
-from app.integrations.livebets.router import livebets_router
 from app.integrations.livebets.admin_router import livebets_admin_router
+from app.integrations.livebets.router import livebets_router
 from app.realtime.manager import manager
 from app.realtime.subscriber import redis_subscriber
 from app.routers import health

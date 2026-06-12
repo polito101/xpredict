@@ -24,10 +24,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-log = logging.getLogger(__name__)
-
 from app.bets.constants import BET_CLOSED, BET_PENDING, BET_SETTLED_WON
 from app.settlement.payout import cashout_value, compute_payout, profit_or_loss, quantize_money
+
+log = logging.getLogger(__name__)
 
 _ZERO = quantize_money(Decimal("0"))
 

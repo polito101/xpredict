@@ -288,7 +288,8 @@ class BetService:
         if session.in_transaction():
             await session.rollback()
 
-        # 3. Atomic close: lock bet, re-verify, read market, compute payout, post ledger, flip status.
+        # 3. Atomic close: lock bet, re-verify, read market, compute payout, post ledger,
+        #    flip status.
         async with session.begin():
             now = datetime.now(UTC)
             locked = (
@@ -298,7 +299,8 @@ class BetService:
             if locked.status != BET_PENDING:
                 raise BetNotClosable(f"bet {bet_id} was already settled or closed")
 
-            # Validate market and compute payout inside the lock — consistent with the locked bet data.
+            # Validate market and compute payout inside the lock — consistent with the
+            # locked bet data.
             market = await market_source.get_market(locked.market_id)
             if market is None:
                 raise MarketNotFound(f"no market {locked.market_id}")
@@ -306,13 +308,17 @@ class BetService:
                 raise MarketClosed(f"market {locked.market_id} is not open — cannot close")
             chosen = market.outcome(locked.outcome_id)
             if chosen is None:
-                raise InvalidOutcome(f"outcome {locked.outcome_id} not in market {locked.market_id}")
+                raise InvalidOutcome(
+                    f"outcome {locked.outcome_id} not in market {locked.market_id}"
+                )
             current_price = chosen.price
             payout = cashout_value(locked.stake, locked.odds_at_placement, current_price)
             pnl = profit_or_loss(locked.stake, payout)
 
             wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user_id)
-            liability_id = await cls._resolve_market_liability_id(session, market_id=locked.market_id)
+            liability_id = await cls._resolve_market_liability_id(
+                session, market_id=locked.market_id
+            )
 
             stake = locked.stake
             # Close legs (mirror settlement). Skip any zero-amount leg (CHECK amount > 0).
