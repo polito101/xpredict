@@ -272,19 +272,6 @@ class BetService:
         if bet.status != BET_PENDING:
             raise BetNotClosable(f"bet {bet_id} cannot be closed (status {bet.status})")
 
-        # 2. Validate the market via the port (own-session read, BEFORE begin) — must be OPEN.
-        market = await market_source.get_market(bet.market_id)
-        if market is None:
-            raise MarketNotFound(f"no market {bet.market_id}")
-        if not market.is_open(datetime.now(UTC)):
-            raise MarketClosed(f"market {bet.market_id} is not open — cannot close")
-        chosen = market.outcome(bet.outcome_id)
-        if chosen is None:
-            raise InvalidOutcome(f"outcome {bet.outcome_id} not in market {bet.market_id}")
-        current_price = chosen.price
-        payout = cashout_value(bet.stake, bet.odds_at_placement, current_price)
-        pnl = profit_or_loss(bet.stake, payout)  # signed: payout - stake
-
         # The bet-load above AUTOBEGAN an implicit read tx on this session; end it (no locks
         # held, no writes) so the atomic ``session.begin()`` below opens the OUTERMOST tx
         # rather than raising "a transaction is already begun". The bet is the source of
@@ -292,7 +279,7 @@ class BetService:
         if session.in_transaction():
             await session.rollback()
 
-        # 3. Atomic close: lock the bet + accounts, RE-CHECK PENDING, post ledger, flip status.
+        # 3. Atomic close: lock bet, re-verify, read market, compute payout, post ledger, flip status.
         async with session.begin():
             locked = (
                 await session.execute(select(Bet).where(Bet.id == bet_id).with_for_update())
@@ -301,10 +288,23 @@ class BetService:
             if locked.status != BET_PENDING:
                 raise BetNotClosable(f"bet {bet_id} was already settled or closed")
 
-            wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user_id)
-            liability_id = await cls._resolve_market_liability_id(session, market_id=bet.market_id)
+            # Validate market and compute payout inside the lock — consistent with the locked bet data.
+            market = await market_source.get_market(locked.market_id)
+            if market is None:
+                raise MarketNotFound(f"no market {locked.market_id}")
+            if not market.is_open(datetime.now(UTC)):
+                raise MarketClosed(f"market {locked.market_id} is not open — cannot close")
+            chosen = market.outcome(locked.outcome_id)
+            if chosen is None:
+                raise InvalidOutcome(f"outcome {locked.outcome_id} not in market {locked.market_id}")
+            current_price = chosen.price
+            payout = cashout_value(locked.stake, locked.odds_at_placement, current_price)
+            pnl = profit_or_loss(locked.stake, payout)
 
-            stake = bet.stake
+            wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user_id)
+            liability_id = await cls._resolve_market_liability_id(session, market_id=locked.market_id)
+
+            stake = locked.stake
             # Close legs (mirror settlement). Skip any zero-amount leg (CHECK amount > 0).
             # (kind, leg, debit_account_id, credit_account_id, amount)
             specs: list[tuple[str, str, UUID, UUID, Decimal]] = []
@@ -361,7 +361,7 @@ class BetService:
                     debit_account_id=debit_id,
                     credit_account_id=credit_id,
                     amount=amount,
-                    metadata={"bet_id": str(bet_id), "market_id": str(bet.market_id)},
+                    metadata={"bet_id": str(bet_id), "market_id": str(locked.market_id)},
                 )
 
             locked.status = BET_CLOSED

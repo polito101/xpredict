@@ -40,10 +40,11 @@ per-market-liability "nets to zero" property of ``app/settlement``.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
@@ -67,6 +68,7 @@ from app.integrations.livebets.constants import (
 from app.integrations.livebets.models import LiveBetsBet
 from app.integrations.livebets.schemas import MirrorResult, parse_verified_bet
 from app.wallet.constants import HOUSE_PROMO_ACCOUNT_ID, HOUSE_REVENUE_ACCOUNT_ID
+from app.wallet.exceptions import InsufficientBalance
 from app.wallet.models import Account
 from app.wallet.service import WalletService
 
@@ -158,8 +160,6 @@ class LiveBetsBridge:
 
         try:
             async with session.begin():
-                wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
-
                 # 2. Upsert the mirror row — PRIMARY idempotency guard. A conflict on
                 #    the bet_id PK means this bet was already mirrored: a replay, so we
                 #    skip the transfer entirely (no double-debit). Mirrors the spirit of
@@ -194,6 +194,8 @@ class LiveBetsBridge:
                     # Row already existed — replay, no post.
                     return MirrorResult(bet_id=str(bet_id), status=LIVEBETS_PENDING, applied=False)
 
+                wallet_id = await WalletService._resolve_user_wallet_id(session, user_id=user.id)
+
                 # 3. Canonical UUID lock order (Spike 004 / Pitfall 3) on the two
                 #    touched accounts BEFORE posting — copy the place_bet idiom.
                 first_id, second_id = sorted((wallet_id, LIVEBETS_ESCROW_ACCOUNT_ID), key=str)
@@ -203,6 +205,15 @@ class LiveBetsBridge:
                 await session.execute(
                     select(Account.id).where(Account.id == second_id).with_for_update()
                 )
+
+                # Balance guard: reject if wallet cannot cover the stake (mirrors place_bet's check).
+                balance = (
+                    await session.execute(select(Account.balance).where(Account.id == wallet_id))
+                ).scalar_one()
+                if balance < stake:
+                    raise InsufficientBalance(
+                        f"wallet balance {balance} < stake {stake} for live-bets bet {bet_id}"
+                    )
 
                 # 4. Post the debit via the sole writer (locks held, inside this tx).
                 await WalletService._post_transfer(
@@ -326,6 +337,10 @@ class LiveBetsBridge:
                         )
                     )
                     winnings = verified.payout - stake
+                    if winnings < 0:
+                        raise LiveBetsVerificationError(
+                            f"WON bet {bet_id} has payout {verified.payout} < stake {stake} — cannot verify"
+                        )
                     # Skip leg 2 when winnings <= 0 so no zero/negative amount hits
                     # CHECK (amount > 0) — mirrors settlement's `if sb.pnl > 0` guard.
                     if winnings > 0:
@@ -386,7 +401,7 @@ class LiveBetsBridge:
                 await session.execute(
                     update(LiveBetsBet)
                     .where(LiveBetsBet.bet_id == bet_id)
-                    .values(status=verified.status, settled_at=func.now())
+                    .values(status=verified.status, settled_at=datetime.now(UTC))
                 )
         except IntegrityError as exc:
             # SECONDARY guard: per-leg keys collide on a concurrent double-settle.
