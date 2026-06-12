@@ -222,6 +222,12 @@ services:
     #   serve-all (no --no-hls) spawns the per-table HLSChannelManager (ffmpeg -c copy
     #   remux to fMP4). Clips live on the livebets_clips volume; segments on livebets_hls.
     command: ["sh", "-c", "python -m live_bets.cli migrate && python -m live_bets.cli serve-all --host 0.0.0.0 --port 8000 --bus in-memory --hls --hls-out /app/var/hls"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
       - livebets_clips:/var/lib/live-bets/clips
       - livebets_hls:/app/var/hls
