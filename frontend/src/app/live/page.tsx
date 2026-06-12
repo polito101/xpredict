@@ -18,7 +18,8 @@
  *     state, STILL inside chrome + STILL showing the wallet balance. This is the
  *     DEFAULT LB-B demo state (LB-A ships `LIVEBETS_DEFAULT_TABLE_ID=None`; the
  *     real table arrives in LB-C) and must NOT look like an error (CONTEXT bullet 1).
- *   - any other session/balance failure → non-silent `RetryError`.
+ *   - balance failure (session OK) → renders with `"0.0000"` fallback; widget refreshes.
+ *   - any other session failure    → non-silent `RetryError`.
  *   - success                   → full-viewport overlay + the `<LiveTable>` host
  *     (Plan D: no chrome/balance header — the widget HUD owns all UI).
  *
@@ -60,8 +61,8 @@ async function loadBalance(session: string): Promise<BalanceResult> {
     if (!res.ok) return { ok: false };
     const data = (await res.json()) as { balance?: unknown };
     // WR-02: a non-string balance (malformed/garbage body) is a FAILURE, not a
-    // real "0". Route it to the page's existing RetryError path — never fabricate
-    // a zero balance, which the page's own no-misleading-zero contract forbids.
+    // real "0". Return {ok:false} so the caller can substitute the "0.0000"
+    // fallback rather than treating garbage as a real balance.
     // Matches the sibling `getLiveBalance` `{ok:false}` on the identical case.
     if (typeof data.balance !== "string") return { ok: false };
     return { ok: true, balance: data.balance };
@@ -194,17 +195,11 @@ async function LiveBody() {
     );
   }
 
-  // Session OK but the balance read failed → non-silent error (don't show "0").
-  if (balance === null) {
-    return (
-      <LiveShell>
-        <RetryError
-          title="We couldn't load your balance"
-          message="The balance service didn't respond. Your funds are safe — please try again."
-        />
-      </LiveShell>
-    );
-  }
+  // Session OK but the balance read failed → degrade gracefully: pass "0.0000"
+  // as the initial balance and let the component render anyway. The HOST-01 widget
+  // handles its own balance refresh, so the stale/missing initial value is
+  // corrected on first widget event without blocking the page.
+  const initialBalance = balance ?? "0.0000";
 
   // The widget's `table-id` comes straight from the session: LB-A mints the
   // session for a resolved table (`body.table_id` or `LIVEBETS_DEFAULT_TABLE_ID`)
@@ -230,7 +225,7 @@ async function LiveBody() {
         <LiveTable
           sessionToken={session_token}
           tableId={table_id}
-          initialBalance={balance}
+          initialBalance={initialBalance}
         />
       </div>
     </main>
