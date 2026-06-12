@@ -36,12 +36,10 @@ import type {
   EventActionResponse,
 } from "./admin-events-types";
 
+import { getBackendUrl } from "./config";
+
 // Bare prefix — NO `/api/v1` (mirrors the settlement router).
 const EVENTS_PREFIX = "/admin/events";
-
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
 
 /** Serializable subset of RequestInit safe across the action boundary. */
 type AdminFetchInit = {

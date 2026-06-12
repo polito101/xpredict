@@ -29,10 +29,7 @@ import type {
   AuditLogParams,
 } from "./admin-types";
 import { buildQuery, buildUsersQuery } from "./admin-query";
-
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
+import { getBackendUrl } from "./config";
 
 /** Serializable subset of RequestInit safe to pass across the action boundary. */
 type AdminFetchInit = {
