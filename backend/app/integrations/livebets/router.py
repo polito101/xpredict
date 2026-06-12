@@ -16,6 +16,7 @@ override it via ``app.dependency_overrides`` (mirrors ``get_market_source`` in t
 bets router) and never hit the network.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import contextmanager
 from typing import Annotated, Generator, cast
 from uuid import UUID
@@ -69,19 +70,49 @@ def _handle_bridge_errors() -> Generator[None, None, None]:
         raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable.") from exc
 
 
+@contextmanager
+def _handle_bet_mirror_errors(bet_id: UUID) -> Generator[None, None, None]:
+    """Map bet-mirror bridge errors to HTTP exceptions.
+
+    LiveBetsOwnershipError    → 404 (IDOR-safe, hides existence of foreign bets)
+    LiveBetsVerificationError → 409 (bet in wrong state, generic message)
+    ValueError                → 409 (malformed upstream response, generic message)
+    NoResultFound             → 404 (wallet not found)
+    InsufficientBalance       → 402
+    """
+    try:
+        yield
+    except LiveBetsOwnershipError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
+    except LiveBetsVerificationError as exc:
+        log.warning("livebets.verification_error", detail=str(exc))
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state.") from exc
+    except ValueError as exc:
+        log.warning("livebets.parse_error", bet_id=str(bet_id))
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be verified.") from exc
+    except NoResultFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
+    except InsufficientBalance as exc:
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
+
+
 class SessionRequest(BaseModel):
     """Body for ``POST /api/live/session`` — optional table override."""
 
     table_id: str | None = None
 
 
-def get_livebets_client() -> LiveBetsClient:
+async def get_livebets_client() -> AsyncIterator[LiveBetsClient]:
     """The live-bets client used by the routes.
 
     Tests override this with a fake via ``app.dependency_overrides`` (mirrors
     ``get_market_source`` in the bets router) so they never hit the network.
     """
-    return LiveBetsClient()
+    client = LiveBetsClient()
+    try:
+        yield client
+    finally:
+        await client.close()
 
 
 @livebets_router.post("/session", response_model=SessionResponse)
@@ -155,23 +186,10 @@ async def record_placed(
     map to 404 (mirrors the bets router's exception mapping; 404 for ownership keeps
     a foreign bet's existence hidden — IDOR-safe, BL-01).
     """
-    try:
-        with _handle_bridge_errors():
-            return await LiveBetsBridge.record_placed(
-                session, user=player, bet_id=bet_id, client=client
-            )
-    except LiveBetsOwnershipError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
-    except LiveBetsVerificationError as exc:
-        log.warning("livebets.verification_error", detail=str(exc))
-        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state.") from exc
-    except ValueError as exc:
-        log.warning("livebets.parse_error", bet_id=str(bet_id))
-        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be verified.") from exc
-    except NoResultFound as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
-    except InsufficientBalance as exc:
-        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
+    with _handle_bridge_errors(), _handle_bet_mirror_errors(bet_id):
+        return await LiveBetsBridge.record_placed(
+            session, user=player, bet_id=bet_id, client=client
+        )
 
 
 @livebets_router.post("/bets/{bet_id}/settled", response_model=MirrorResult)
@@ -189,23 +207,10 @@ async def record_settled(
     existence — IDOR-safe, BL-01), a verification failure to 409, a missing wallet
     to 404.
     """
-    try:
-        with _handle_bridge_errors():
-            return await LiveBetsBridge.record_settled(
-                session, user=player, bet_id=bet_id, client=client
-            )
-    except LiveBetsOwnershipError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
-    except LiveBetsVerificationError as exc:
-        log.warning("livebets.verification_error", detail=str(exc))
-        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state.") from exc
-    except ValueError as exc:
-        log.warning("livebets.parse_error", bet_id=str(bet_id))
-        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be verified.") from exc
-    except NoResultFound as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
-    except InsufficientBalance as exc:
-        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
+    with _handle_bridge_errors(), _handle_bet_mirror_errors(bet_id):
+        return await LiveBetsBridge.record_settled(
+            session, user=player, bet_id=bet_id, client=client
+        )
 
 
 __all__ = ["get_livebets_client", "livebets_router"]
