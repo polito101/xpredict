@@ -19,7 +19,7 @@
  *     state, STILL inside chrome + STILL showing the wallet balance. This is the
  *     DEFAULT LB-B demo state (LB-A ships `LIVEBETS_DEFAULT_TABLE_ID=None`; the
  *     real table arrives in LB-C) and must NOT look like an error (CONTEXT bullet 1).
- *   - balance failure (session OK) → renders with `"0.0000"` fallback; widget refreshes.
+ *   - balance failure (session OK) → non-silent `RetryError` (never a misleading "0").
  *   - any other session failure    → non-silent `RetryError`.
  *   - success                   → full-viewport overlay + the `<LiveTable>` host
  *     (Plan D: no chrome/balance header — the widget HUD owns all UI).
@@ -110,7 +110,7 @@ async function LiveBody() {
   ) {
     return (
       <LiveShell>
-        <BalanceHeader balance={balance ?? "0.0000"} />
+        {balance !== null && <BalanceHeader balance={balance} />}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold">
@@ -141,11 +141,17 @@ async function LiveBody() {
     );
   }
 
-  // Session OK but the balance read failed → degrade gracefully: pass "0.0000"
-  // as the initial balance and let the component render anyway. The HOST-01 widget
-  // handles its own balance refresh, so the stale/missing initial value is
-  // corrected on first widget event without blocking the page.
-  const initialBalance = balance ?? "0.0000";
+  // Session OK but the balance read failed → non-silent error (don't show "0").
+  if (balance === null) {
+    return (
+      <LiveShell>
+        <RetryError
+          title="We couldn't load your balance"
+          message="The balance service didn't respond. Your funds are safe — please try again."
+        />
+      </LiveShell>
+    );
+  }
 
   // The widget's `table-id` comes straight from the session: LB-A mints the
   // session for a resolved table (`body.table_id` or `LIVEBETS_DEFAULT_TABLE_ID`)
@@ -160,7 +166,7 @@ async function LiveBody() {
     <LiveFullscreenHost
       sessionToken={session_token}
       tableId={table_id}
-      initialBalance={initialBalance}
+      initialBalance={balance}
     />
   );
 }
