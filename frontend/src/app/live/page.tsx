@@ -19,7 +19,8 @@
  *     state, STILL inside chrome + STILL showing the wallet balance. This is the
  *     DEFAULT LB-B demo state (LB-A ships `LIVEBETS_DEFAULT_TABLE_ID=None`; the
  *     real table arrives in LB-C) and must NOT look like an error (CONTEXT bullet 1).
- *   - any other session/balance failure → non-silent `RetryError`.
+ *   - balance failure (session OK) → non-silent `RetryError` (never a misleading "0").
+ *   - any other session failure    → non-silent `RetryError`.
  *   - success                   → full-viewport overlay + the `<LiveTable>` host
  *     (Plan D: no chrome/balance header — the widget HUD owns all UI).
  *
@@ -34,6 +35,7 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 
 import { fetchLiveSession, LiveTableUnconfigured } from "@/lib/api";
+import { SESSION_COOKIE_NAME } from "@/lib/config";
 import { getLiveCatalog } from "@/lib/live-catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RetryError } from "@/components/retry-error";
@@ -53,7 +55,7 @@ async function LiveBody() {
   // cookie VALUE never crosses into client JS (only the rendered result + the
   // minted live-bets token do). SC1: reachable only when authenticated.
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   if (!session) {
     return (
       <main className={PAGE_SHELL}>

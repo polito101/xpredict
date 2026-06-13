@@ -119,6 +119,16 @@ def downgrade() -> None:
     A clean downgrade implies no live data was mirrored, so the escrow account is
     balance-0 and no entries reference it — the DELETE-by-id is safe.
     """
+    conn = op.get_bind()
+    balance = conn.execute(
+        sa.text("SELECT balance FROM accounts WHERE id = :id"),
+        {"id": str(LIVEBETS_ESCROW_ACCOUNT_ID)},
+    ).scalar()
+    if balance is not None and balance != 0:
+        raise Exception(
+            f"Cannot downgrade migration 0011: livebets_escrow has non-zero balance {balance}. "
+            "Settle all pending live bets before downgrading."
+        )
     op.execute(f"DELETE FROM accounts WHERE id = '{LIVEBETS_ESCROW_ACCOUNT_ID}';")
     op.drop_index("livebets_bets_user_idx", table_name="livebets_bets")
     op.drop_table("livebets_bets")

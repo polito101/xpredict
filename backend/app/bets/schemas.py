@@ -83,6 +83,7 @@ class SettledPositionItem(BaseModel):
     won: bool
     payout: DecimalStr
     realized_pnl: DecimalStr
+    exit_odds: DecimalStr | None = None
     # Display metadata — what was bet on (None when the market read is unavailable).
     market_question: str | None = None
     market_slug: str | None = None

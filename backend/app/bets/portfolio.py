@@ -18,6 +18,7 @@ For a SETTLED position the realized P&L equals exactly what settlement posted: a
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
@@ -25,6 +26,8 @@ from uuid import UUID
 
 from app.bets.constants import BET_CLOSED, BET_PENDING, BET_SETTLED_WON
 from app.settlement.payout import cashout_value, compute_payout, profit_or_loss, quantize_money
+
+log = logging.getLogger(__name__)
 
 _ZERO = quantize_money(Decimal("0"))
 
@@ -86,6 +89,7 @@ class SettledPosition:
     won: bool
     payout: Decimal  # compute_payout on a win; 0 on a loss
     realized_pnl: Decimal  # payout - stake (positive win / -stake loss)
+    exit_odds: Decimal | None = None  # cash-out price for CLOSED bets; None for normally settled
     market_question: str | None = None  # display metadata (what was bet on)
     market_slug: str | None = None
     outcome_label: str | None = None
@@ -133,7 +137,13 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
             )
         elif p.status == BET_CLOSED:
             # Cashed out early — realized at the exit price captured on the bet.
-            exit_price = p.exit_odds if p.exit_odds is not None else p.odds_at_placement
+            if p.exit_odds is None:
+                log.error("CLOSED bet %s has NULL exit_odds — data integrity violation", p.bet_id)
+                raise ValueError(
+                    f"CLOSED bet {p.bet_id} has NULL exit_odds — data integrity violation: "
+                    "exit_odds is required for CLOSED bets and must be written at cash-out time."
+                )
+            exit_price = p.exit_odds
             payout = cashout_value(p.stake, p.odds_at_placement, exit_price)
             realized = profit_or_loss(p.stake, payout)
             settled_positions.append(
@@ -147,6 +157,7 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     won=realized > _ZERO,
                     payout=payout,
                     realized_pnl=realized,
+                    exit_odds=p.exit_odds,
                     market_question=p.market_question,
                     market_slug=p.market_slug,
                     outcome_label=p.outcome_label,
@@ -166,6 +177,7 @@ def build_portfolio(positions: Sequence[PositionInput]) -> Portfolio:
                     won=won,
                     payout=payout,
                     realized_pnl=profit_or_loss(p.stake, payout),
+                    exit_odds=None,
                     market_question=p.market_question,
                     market_slug=p.market_slug,
                     outcome_label=p.outcome_label,

@@ -31,6 +31,7 @@ import {
   type MarketDetail,
   type PricePoint,
 } from "@/lib/api";
+import { getBackendUrl, SESSION_COOKIE_NAME } from "@/lib/config";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SourceBadge } from "@/components/source-badge";
 import { RecentActivityFeed } from "@/components/recent-activity-feed";
@@ -103,15 +104,6 @@ function normalizeOutcomes(market: MarketDetail): OrderEntryOutcome[] {
 }
 
 /**
- * Server-side backend base for the cookie-forwarded portfolio read (mirrors
- * `portfolio/page.tsx:56-58`). `BACKEND_URL` has no `NEXT_PUBLIC_` prefix, so it
- * never leaks into the client bundle.
- */
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
-
-/**
  * Reads the logged-in player's OWN settled result for this market (STL-06).
  *
  * SECURITY (T-12-11 / T-12-13): self-scoped by the player's own HttpOnly
@@ -128,7 +120,7 @@ async function loadMyResult(
   if (!session) return null;
   try {
     const res = await fetch(`${getBackendUrl()}/bets/me/portfolio`, {
-      headers: { Cookie: `xpredict_session=${session}` },
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -179,7 +171,7 @@ async function MarketDetailBody({ slug }: { slug: string }) {
   // never reaches the client — only the boolean (and, server-side, the
   // self-scoped portfolio read below) does.
   const store = await cookies();
-  const session = store.get("xpredict_session")?.value;
+  const session = store.get(SESSION_COOKIE_NAME)?.value;
   const isAuthenticated = Boolean(session);
 
   // STL-06: when the market is RESOLVED, the right column shows the resolution

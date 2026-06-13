@@ -28,10 +28,7 @@
 import { cookies } from "next/headers";
 
 import type { TenantConfigRead, BrandingUpdateInput } from "./branding-types";
-
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
+import { getBackendUrl } from "./config";
 
 // Map a FastAPI/Pydantic field name (the last non-"body" segment of `loc`) to
 // the form field. The PUT body validates brand_name + the two hexes

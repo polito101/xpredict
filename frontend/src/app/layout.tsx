@@ -9,6 +9,7 @@ import {
   fetchBrandingPublic,
   DEFAULT_BRANDING,
 } from "@/lib/branding-public";
+import { SESSION_COOKIE_NAME } from "@/lib/config";
 import { pickReadableForeground } from "@/lib/brand-color";
 
 /**
@@ -50,7 +51,7 @@ function backendUrl(): string {
 async function fetchPlayerName(session: string): Promise<string | null> {
   try {
     const res = await fetch(`${backendUrl()}/auth/users/me`, {
-      headers: { Cookie: `xpredict_session=${session}` },
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -90,7 +91,7 @@ export default async function RootLayout({
 
   // Session presence drives the nav (only the boolean crosses into the tree —
   // never the cookie value). When present, best-effort resolve the display name.
-  const session = (await cookies()).get("xpredict_session")?.value;
+  const session = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
   const isAuthenticated = Boolean(session);
   const playerName = session ? await fetchPlayerName(session) : null;
 

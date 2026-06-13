@@ -31,6 +31,7 @@
 import { cookies } from "next/headers";
 
 import type { LiveSession } from "./api";
+import { getBackendUrl, SESSION_COOKIE_NAME } from "./config";
 
 /**
  * Result of `recordLivePlaced` / `recordLiveSettled`. `applied` echoes LB-A
@@ -76,11 +77,6 @@ export type LiveBalanceResult =
   | { ok: true; balance: string }
   | { ok: false };
 
-/** Server-only backend base (NO `NEXT_PUBLIC_` — mirrors `bet-actions.ts`). */
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
-
 /**
  * Map a non-2xx LB-A status to the discriminated failure reason shared by all
  * three actions: 401 unauthenticated · 404 not_found · 409 conflict · else error.
@@ -107,7 +103,7 @@ function reasonForStatus(
  */
 async function readSession(): Promise<string | undefined> {
   const store = await cookies();
-  return store.get("xpredict_session")?.value;
+  return store.get(SESSION_COOKIE_NAME)?.value;
 }
 
 /**
@@ -128,7 +124,7 @@ export async function recordLivePlaced(
       `${getBackendUrl()}/api/live/bets/${encodeURIComponent(betId)}/placed`,
       {
         method: "POST",
-        headers: { Cookie: `xpredict_session=${session}` },
+        headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
         cache: "no-store",
       },
     );
@@ -163,7 +159,7 @@ export async function recordLiveSettled(
       `${getBackendUrl()}/api/live/bets/${encodeURIComponent(betId)}/settled`,
       {
         method: "POST",
-        headers: { Cookie: `xpredict_session=${session}` },
+        headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
         cache: "no-store",
       },
     );
@@ -208,7 +204,7 @@ export async function mintLiveSession(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Cookie: `xpredict_session=${session}`,
+        Cookie: `${SESSION_COOKIE_NAME}=${session}`,
       },
       body: JSON.stringify(tableId === undefined ? {} : { table_id: tableId }),
       cache: "no-store",
@@ -255,7 +251,7 @@ export async function getLiveBalance(): Promise<LiveBalanceResult> {
 
   try {
     const res = await fetch(`${getBackendUrl()}/wallet/me/balance`, {
-      headers: { Cookie: `xpredict_session=${session}` },
+      headers: { Cookie: `${SESSION_COOKIE_NAME}=${session}` },
       cache: "no-store",
     });
     if (!res.ok) return { ok: false };

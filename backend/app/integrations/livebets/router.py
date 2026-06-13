@@ -16,11 +16,15 @@ override it via ``app.dependency_overrides`` (mirrors ``get_market_source`` in t
 bets router) and never hit the network.
 """
 
+from collections.abc import AsyncGenerator, Generator
+from contextlib import contextmanager
 from typing import Annotated, cast
 from uuid import UUID
 
+import httpx
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,8 +44,65 @@ from app.integrations.livebets.service import (
     LiveBetsOwnershipError,
     LiveBetsVerificationError,
 )
+from app.wallet.exceptions import InsufficientBalance
+
+log = structlog.get_logger()
 
 livebets_router = APIRouter(prefix="/api/live", tags=["livebets"])
+
+
+@contextmanager
+def _handle_bridge_errors() -> Generator[None, None, None]:
+    """Map live-bets bridge/network errors to HTTP exceptions.
+
+    RuntimeError       → 503 (service not configured)
+    HTTPStatusError    → 502 (upstream returned an error response)
+    NetworkError /
+    TimeoutException   → 504 (service unreachable / timed out)
+    """
+    try:
+        yield
+    except RuntimeError as exc:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Live-bets service is not configured."
+        ) from exc
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            f"Live-bets upstream error ({exc.response.status_code}).",
+        ) from exc
+    except (httpx.NetworkError, httpx.TimeoutException) as exc:
+        raise HTTPException(
+            status.HTTP_504_GATEWAY_TIMEOUT, "Live-bets service unavailable."
+        ) from exc
+
+
+@contextmanager
+def _handle_bet_mirror_errors(bet_id: UUID) -> Generator[None, None, None]:
+    """Map bet-mirror bridge errors to HTTP exceptions.
+
+    LiveBetsOwnershipError    → 404 (IDOR-safe, hides existence of foreign bets)
+    LiveBetsVerificationError → 409 (bet in wrong state, generic message)
+    ValueError                → 409 (malformed upstream response, generic message)
+    NoResultFound             → 404 (wallet not found)
+    InsufficientBalance       → 402
+    """
+    try:
+        yield
+    except LiveBetsOwnershipError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
+    except LiveBetsVerificationError as exc:
+        log.warning("livebets.verification_error", detail=str(exc))
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Bet cannot be mirrored in its current state."
+        ) from exc
+    except ValueError as exc:
+        log.warning("livebets.parse_error", bet_id=str(bet_id))
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bet cannot be verified.") from exc
+    except NoResultFound as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
+    except InsufficientBalance as exc:
+        raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, str(exc)) from exc
 
 
 class SessionRequest(BaseModel):
@@ -50,13 +111,17 @@ class SessionRequest(BaseModel):
     table_id: str | None = None
 
 
-def get_livebets_client() -> LiveBetsClient:
+async def get_livebets_client() -> AsyncGenerator[LiveBetsClient, None]:
     """The live-bets client used by the routes.
 
     Tests override this with a fake via ``app.dependency_overrides`` (mirrors
     ``get_market_source`` in the bets router) so they never hit the network.
     """
-    return LiveBetsClient()
+    client = LiveBetsClient()
+    try:
+        yield client
+    finally:
+        await client.close()
 
 
 @livebets_router.post("/session", response_model=SessionResponse)
@@ -76,13 +141,21 @@ async def mint_session(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No table_id supplied and LIVEBETS_DEFAULT_TABLE_ID is not configured.",
         )
-    result = await client.mint_session(player_ref=str(player.id), table_id=table_id)
+    with _handle_bridge_errors():
+        result = await client.mint_session(player_ref=str(player.id), table_id=table_id)
+    session_token = result.get("session_token")
+    expires_at = result.get("expires_at")
+    if session_token is None or expires_at is None:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Live-bets returned an invalid session response.",
+        )
     # Echo the resolved table_id back: the live-bets GET /tables route is JWT-gated
     # (player session), so XPredict's operator-key /api/live/tables can't list
     # tables — the frontend reads the widget's table-id from this field instead.
     return SessionResponse(
-        session_token=str(result["session_token"]),
-        expires_at=str(result["expires_at"]),
+        session_token=str(session_token),
+        expires_at=str(expires_at),
         table_id=table_id,
     )
 
@@ -99,9 +172,17 @@ async def list_tables(
     ``TableView`` whose id field is ``id``; ``TableItem`` maps it onto our outward
     ``table_id`` (the ``/api/live/tables`` contract to the frontend is unchanged).
     """
-    raw = await client.list_tables()
-    items = raw.get("tables", []) if isinstance(raw, dict) else raw
-    return TablesResponse(tables=[TableItem.model_validate(t) for t in cast("list[object]", items)])
+    with _handle_bridge_errors():
+        raw = await client.list_tables()
+    items = (raw.get("tables") or []) if isinstance(raw, dict) else raw
+    try:
+        return TablesResponse(
+            tables=[TableItem.model_validate(t) for t in cast("list[object]", items)]
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Live-bets returned malformed table data."
+        ) from exc
 
 
 @livebets_router.post("/bets/{bet_id}/placed", response_model=MirrorResult)
@@ -110,6 +191,7 @@ async def record_placed(
     player: Annotated[User, Depends(current_active_player)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
     client: Annotated[LiveBetsClient, Depends(get_livebets_client)],
+    table_id: UUID | None = None,
 ) -> MirrorResult:
     """Mirror a placed live-bets bet — debit the player's wallet into escrow (stake).
 
@@ -117,17 +199,16 @@ async def record_placed(
     verification failure maps to 409; an ownership mismatch and a missing wallet both
     map to 404 (mirrors the bets router's exception mapping; 404 for ownership keeps
     a foreign bet's existence hidden — IDOR-safe, BL-01).
+
+    ``table_id`` is an optional query parameter — the frontend passes the value it
+    received from ``POST /api/live/session`` so the mirror row captures which table
+    the bet was placed on (BetView has no ``table_id`` field, so it cannot be read
+    from the live-bets verification response).
     """
-    try:
+    with _handle_bridge_errors(), _handle_bet_mirror_errors(bet_id):
         return await LiveBetsBridge.record_placed(
-            session, user=player, bet_id=bet_id, client=client
+            session, user=player, bet_id=bet_id, client=client, table_id=table_id
         )
-    except LiveBetsOwnershipError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
-    except LiveBetsVerificationError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
-    except NoResultFound as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
 
 
 @livebets_router.post("/bets/{bet_id}/settled", response_model=MirrorResult)
@@ -145,16 +226,10 @@ async def record_settled(
     existence — IDOR-safe, BL-01), a verification failure to 409, a missing wallet
     to 404.
     """
-    try:
+    with _handle_bridge_errors(), _handle_bet_mirror_errors(bet_id):
         return await LiveBetsBridge.record_settled(
             session, user=player, bet_id=bet_id, client=client
         )
-    except LiveBetsOwnershipError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Bet not found.") from exc
-    except LiveBetsVerificationError as exc:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
-    except NoResultFound as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Wallet not found.") from exc
 
 
 __all__ = ["get_livebets_client", "livebets_router"]

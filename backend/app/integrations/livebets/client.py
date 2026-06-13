@@ -2,7 +2,8 @@
 
 Follows ``app/integrations/polymarket/client.py``: a lazy ``httpx.AsyncClient``
 singleton (``_get_client``), bounded ``httpx.Limits``, an ``httpx.Timeout``, and a
-``tenacity`` retry on transient ``(httpx.NetworkError, httpx.TimeoutException)``
+``tenacity`` retry on transient errors (``httpx.NetworkError``,
+``httpx.TimeoutException``, and ``httpx.HTTPStatusError`` with status >= 500)
 with ``reraise=True`` and a deliberate ``wait_exponential_jitter(initial=1, max=10,
 jitter=2)`` backoff.
 
@@ -44,7 +45,7 @@ import httpx
 import structlog
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential_jitter,
 )
@@ -52,6 +53,15 @@ from tenacity import (
 from app.core.config import get_settings
 
 log = structlog.get_logger()
+
+
+def _is_transient_http(exc: BaseException) -> bool:
+    """Return True for exceptions that warrant a retry on idempotent GET endpoints."""
+    if isinstance(exc, httpx.NetworkError | httpx.TimeoutException):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    return False
 
 
 def _raise_scope_or_status(exc: httpx.HTTPStatusError) -> None:
@@ -129,7 +139,7 @@ class LiveBetsClient:
         return result
 
     @retry(
-        retry=retry_if_exception_type((httpx.NetworkError, httpx.TimeoutException)),
+        retry=retry_if_exception(_is_transient_http),
         stop=stop_after_attempt(3),
         wait=wait_exponential_jitter(initial=1, max=10, jitter=2),
         reraise=True,
@@ -152,7 +162,7 @@ class LiveBetsClient:
         return result
 
     @retry(
-        retry=retry_if_exception_type((httpx.NetworkError, httpx.TimeoutException)),
+        retry=retry_if_exception(_is_transient_http),
         stop=stop_after_attempt(3),
         wait=wait_exponential_jitter(initial=1, max=10, jitter=2),
         reraise=True,

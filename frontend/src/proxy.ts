@@ -21,6 +21,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+import { SESSION_COOKIE_NAME } from "@/lib/config";
+
 const ADMIN_PROTECTED = /^\/admin(\/|$)/;
 const PLAYER_PROTECTED = /^\/(markets|events|portfolio|wallet|live|casino)(\/|$)/;
 const ADMIN_LOGIN = "/admin/login";
@@ -40,7 +42,7 @@ export function proxy(req: NextRequest) {
   // Player app tree — gated by the xpredict_session cookie (the public landing
   // and the (auth) pages are not in the matcher, so they never reach here).
   if (PLAYER_PROTECTED.test(pathname)) {
-    const session = req.cookies.get("xpredict_session")?.value;
+    const session = req.cookies.get(SESSION_COOKIE_NAME)?.value;
     if (!session) {
       const url = new URL(PLAYER_LOGIN, req.url);
       url.searchParams.set("next", pathname);
@@ -54,11 +56,17 @@ export function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/admin",
     "/admin/:path*",
+    "/markets",
     "/markets/:path*",
+    "/events",
     "/events/:path*",
+    "/portfolio",
     "/portfolio/:path*",
+    "/wallet",
     "/wallet/:path*",
+    "/live",
     "/live/:path*",
     "/casino/:path*",
   ],

@@ -19,10 +19,7 @@
 import { cookies } from "next/headers";
 
 import type { KpiResponse, KpiWindow } from "./kpi-types";
-
-function getBackendUrl(): string {
-  return process.env.BACKEND_URL || "http://localhost:8000";
-}
+import { getBackendUrl } from "./config";
 
 async function bearerHeader(): Promise<Record<string, string>> {
   const store = await cookies();
