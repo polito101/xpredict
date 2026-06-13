@@ -35,6 +35,7 @@ import { Suspense } from "react";
 import { cookies } from "next/headers";
 
 import { fetchLiveSession, LiveTableUnconfigured } from "@/lib/api";
+import { SESSION_COOKIE_NAME } from "@/lib/config";
 import { getLiveCatalog } from "@/lib/live-catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RetryError } from "@/components/retry-error";
