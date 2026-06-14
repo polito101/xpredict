@@ -20,3 +20,16 @@ Prediction market white-label, production-grade, construido fase a fase con GSD.
 
 ## Spike findings
 Patrones, constraints y gotchas de implementación → `Skill("spike-findings-xpredict")`.
+
+## Knowledge graph (graphify) — ayuda de planificación
+Hay un grafo de conocimiento del repo en `graphify-out/` del **checkout main** (gitignored; instalado en la máquina de Pol). Al **planear una phase** (`gsd-plan-phase` / pattern-mapper / research), consúltalo para localizar análogos y blast-radius **antes** de escribir el `PLAN.md`. Se usa por el binario `graphify` vía **Bash** (los subagentes GSD no tienen la tool `Skill`):
+
+```bash
+G="$(git worktree list --porcelain | sed -n 's/^worktree //p' | head -1)/graphify-out/graph.json"
+[ -f "$G" ] && graphify query    "¿cómo funciona X?"        --graph "$G"   # contexto / dónde vive
+[ -f "$G" ] && graphify affected "NombreSímbolo"            --graph "$G"   # qué depende de esto (refactor)
+[ -f "$G" ] && graphify path     "ConceptoA" "ConceptoB"    --graph "$G"   # cómo se conectan dos cosas
+```
+Si `graphify` no está instalado o `$G` no existe (clone fresco / máquina de Cuco), **omítelo en silencio** — es una ayuda, no un requisito.
+
+**Refresh** (manual, no en hook): en una sesión de Claude en el checkout main, `/graphify . --update` (doc-aware, vía host). **NUNCA** `graphify update .` pelado: es solo-código y borra la capa de docs/`.planning` + los labels.
