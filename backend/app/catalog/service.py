@@ -23,15 +23,18 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from pydantic import TypeAdapter
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.catalog.schemas import CatalogItem, CatalogOutcome, EventOutcomeRead
+from app.core.config import get_settings
 from app.markets.enums import MarketStatus
 from app.markets.models import Market, MarketGroup
 from app.settlement.event_service import ChildStatus, derive_event_status
 
 if TYPE_CHECKING:
+    from redis.asyncio import Redis
     from sqlalchemy.ext.asyncio import AsyncSession
 
 # Bounded, curated catalog (BRW-05): a hard cap, no pagination / infinite scroll.
@@ -45,6 +48,44 @@ _VISIBLE_MARKET_STATUSES = (
     MarketStatus.CLOSED.value,
     MarketStatus.RESOLVED.value,
 )
+
+# --------------------------------------------------------------------------- #
+# Read cache (cache-aside) — see Settings.CATALOG_CACHE_TTL_SECONDS. Mirrors the
+# SlotsLaunch casino cache: read/write are best-effort and swallow every Redis
+# error, so an unavailable cache degrades to a live query (never a correctness
+# dependency). Only browse combos (q is None) are cached — free-text search is
+# high-cardinality and already fast, so it bypasses the cache entirely.
+# --------------------------------------------------------------------------- #
+_CACHE_PREFIX = "catalog:list:v1"
+# Compiled once: serialize/parse the bounded result list to/from JSON for Redis.
+_CATALOG_ADAPTER: TypeAdapter[list[CatalogItem]] = TypeAdapter(list[CatalogItem])
+
+
+def _cache_key(*, category: str | None, status: str | None, sort: str) -> str:
+    """Stable Redis key for one browse combo (search ``q`` bypasses the cache)."""
+    return f"{_CACHE_PREFIX}:sort={sort}:status={status or '-'}:cat={category or '-'}"
+
+
+async def _read_cache(redis: Redis, key: str) -> list[CatalogItem] | None:
+    """Return the cached catalog list, or ``None`` on miss / unavailable Redis."""
+    try:
+        cached = await redis.get(key)
+    except Exception:
+        return None
+    if not cached:
+        return None
+    try:
+        return _CATALOG_ADAPTER.validate_json(cached)
+    except Exception:
+        return None
+
+
+async def _write_cache(redis: Redis, key: str, items: list[CatalogItem], ttl: int) -> None:
+    """Best-effort SET of the catalog list with a TTL; swallow Redis errors."""
+    try:
+        await redis.set(key, _CATALOG_ADAPTER.dump_json(items), ex=ttl)
+    except Exception:
+        return
 
 
 # --------------------------------------------------------------------------- #
@@ -200,6 +241,43 @@ class CatalogService:
 
     @staticmethod
     async def list_catalog(
+        session: AsyncSession,
+        redis: Redis,
+        *,
+        q: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
+        sort: str = "volume",
+    ) -> list[CatalogItem]:
+        """Cache-aside wrapper over :meth:`_query_catalog` (BRW-01..05).
+
+        Browse/filter/sort combos (``q is None``) are cached in Redis for
+        ``CATALOG_CACHE_TTL_SECONDS``: the endpoint's server-time scales with row
+        count and the frontend re-fetches on every navigation, so a short TTL makes
+        repeat browses near-instant. Free-text search (``q``) bypasses the cache
+        (high-cardinality keys, already fast). ``TTL <= 0`` disables it (kill-switch).
+        An unavailable Redis degrades to a live query — the cache is an optimization,
+        never a correctness dependency (mirrors the SlotsLaunch casino cache).
+        """
+        ttl = get_settings().CATALOG_CACHE_TTL_SECONDS
+        cacheable = q is None and ttl > 0
+        key = _cache_key(category=category, status=status, sort=sort)
+
+        if cacheable:
+            hit = await _read_cache(redis, key)
+            if hit is not None:
+                return hit
+
+        items = await CatalogService._query_catalog(
+            session, q=q, category=category, status=status, sort=sort
+        )
+
+        if cacheable:
+            await _write_cache(redis, key, items, ttl)
+        return items
+
+    @staticmethod
+    async def _query_catalog(
         session: AsyncSession,
         *,
         q: str | None = None,

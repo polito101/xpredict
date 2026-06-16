@@ -171,13 +171,19 @@ async def test_seed_events_fill_featured_categories() -> None:
     result = await seed_demo(cfg)
     assert result.events == 7
 
+    import fakeredis.aioredis
+
     sm = _get_session_maker()
     async with sm() as s:
+        # list_catalog is cache-aside; a throwaway fakeredis exercises it without a
+        # server. Each featured category is a distinct cache key queried once, so the
+        # cache never shadows the freshly-seeded rows this test asserts on.
+        redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
         categories = await CatalogService.list_categories(s)
         for category in FEATURED_CATEGORIES:
             assert category in categories, f"featured category missing a tab: {category!r}"
         for category in FEATURED_CATEGORIES:
-            items = await CatalogService.list_catalog(s, category=category)
+            items = await CatalogService.list_catalog(s, redis, category=category)
             assert len(items) >= MIN_ITEMS_PER_FEATURED_CATEGORY, (
                 f"featured tab {category!r} has {len(items)} items "
                 f"(< {MIN_ITEMS_PER_FEATURED_CATEGORY})"

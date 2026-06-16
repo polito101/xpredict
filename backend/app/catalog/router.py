@@ -14,6 +14,7 @@ the dependency at startup. The settlement admin router omits it for the same rea
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.catalog.schemas import CatalogItem, EventDetail
@@ -23,6 +24,7 @@ from app.catalog.service import (
     event_deadline,
     event_outcome_rows,
 )
+from app.core.redis import get_redis
 from app.db.session import get_async_session
 from app.settlement.event_service import derive_event_status
 
@@ -32,6 +34,7 @@ public_catalog_router = APIRouter(prefix="/api/v1", tags=["catalog"])
 @public_catalog_router.get("/catalog", response_model=list[CatalogItem])
 async def list_catalog(
     session: Annotated[AsyncSession, Depends(get_async_session)],
+    redis: Annotated[Redis, Depends(get_redis)],
     q: Annotated[str | None, Query(max_length=200)] = None,
     category: Annotated[str | None, Query(max_length=100)] = None,
     status: Annotated[Literal["open", "closing_soon", "resolved"] | None, Query()] = None,
@@ -41,10 +44,11 @@ async def list_catalog(
 
     Bad ``status`` / ``sort`` values fail FastAPI ``Literal`` validation (422) before
     the service runs; every accepted filter combination returns 200 + a (possibly
-    empty) list, never an error.
+    empty) list, never an error. Browse combos are Redis-cached (cache-aside) for
+    ``CATALOG_CACHE_TTL_SECONDS``; see :meth:`CatalogService.list_catalog`.
     """
     return await CatalogService.list_catalog(
-        session, q=q, category=category, status=status, sort=sort
+        session, redis, q=q, category=category, status=status, sort=sort
     )
 
 

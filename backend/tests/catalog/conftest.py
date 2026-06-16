@@ -28,12 +28,13 @@ Why each piece exists:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import pytest
 import pytest_asyncio
 
+from app.core.redis import get_redis
 from app.main import app
 
 if TYPE_CHECKING:
@@ -78,6 +79,34 @@ def _register_phase16_routers() -> None:
             app.include_router(public_catalog_router)
     except ImportError:
         pass
+
+
+@pytest.fixture
+def catalog_redis() -> Any:
+    """A fresh in-memory ``fakeredis`` per test — isolates the catalog cache.
+
+    The catalog endpoint now reads/writes a Redis cache (cache-aside). A real,
+    persistent Redis (CI provides one for the realtime suite) would leak cached
+    rows across these rollback-isolated tests; a per-test fakeredis keeps each
+    test hermetic. Tests that assert on the cache request this fixture directly.
+    """
+    import fakeredis.aioredis
+
+    return fakeredis.aioredis.FakeRedis(decode_responses=True)
+
+
+@pytest.fixture(autouse=True)
+def _override_redis(catalog_redis: Any) -> None:
+    """Route the app's ``get_redis`` dependency through the per-test fakeredis.
+
+    Autouse so every catalog test is isolated from a real Redis; cleared by the
+    autouse ``_clear_overrides`` fixture after the test.
+    """
+
+    async def _dep() -> AsyncGenerator[Any, None]:
+        yield catalog_redis
+
+    app.dependency_overrides[get_redis] = _dep
 
 
 @pytest_asyncio.fixture(loop_scope="session")

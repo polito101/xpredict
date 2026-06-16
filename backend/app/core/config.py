@@ -173,6 +173,18 @@ class Settings(BaseSettings):
     SLOTSLAUNCH_ORIGIN: str = "https://app.xprediction.online"
     SLOTSLAUNCH_CACHE_TTL_SECONDS: int = 43200  # 12h
 
+    # -------------------------------------------------------------------------
+    # Catalog read cache (perf) — /api/v1/catalog browse short-TTL Redis cache
+    # -------------------------------------------------------------------------
+    # The public catalog endpoint materializes every event's children + outcomes
+    # and projects status/volume in Python, so its server-time scales with the
+    # row count (~0.5s for the full curated browse vs ~60ms elsewhere). The
+    # frontend re-fetches it on every navigation (no-store), so a short-TTL Redis
+    # cache-aside makes repeat browses near-instant. The data is public + bounded;
+    # staleness up to the TTL is invisible (the Gamma sync runs on a 5-min cadence).
+    # Set to 0 to DISABLE the cache entirely (kill-switch) — every request recomputes.
+    CATALOG_CACHE_TTL_SECONDS: int = 20
+
     @property
     def is_dev(self) -> bool:
         """Drives structlog renderer, Sentry init skip, cookie Secure flag (Phase 2)."""
