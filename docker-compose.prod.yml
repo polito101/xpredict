@@ -232,7 +232,11 @@ services:
     #   remux to fMP4). Clips live on the livebets_clips volume; segments on livebets_hls.
     command: ["sh", "-c", "python -m live_bets.cli migrate && python -m live_bets.cli serve-all --host 0.0.0.0 --port 8000 --bus in-memory --hls --hls-out /app/var/hls"]
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      # live-bets:prod ships neither curl nor wget, so a curl-based test can never
+      # run (exec: "curl": not found) and the container reads "unhealthy" while the
+      # app is fine (/health → 200, rounds + HLS running). Probe with python, which
+      # the image does have.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)"]
       interval: 10s
       timeout: 5s
       retries: 5
