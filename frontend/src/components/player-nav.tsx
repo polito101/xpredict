@@ -88,9 +88,11 @@ export function PlayerNav({
 
   return (
     <>
-      {/* Desktop nav (authenticated) */}
+      {/* Desktop nav (authenticated). Inline only at lg+: the full cluster
+          (social + 5 links + account + log out) needs ~880px, which overflows
+          a tablet-portrait (~800px) header — below lg it collapses to the menu. */}
       <nav
-        className="hidden items-center gap-1 sm:flex"
+        className="hidden items-center gap-1 lg:flex"
         aria-label="Main navigation"
       >
         {DESTINATIONS.map(({ href, label }) => {
@@ -138,14 +140,14 @@ export function PlayerNav({
         </div>
       </nav>
 
-      {/* Mobile menu button (authenticated) */}
+      {/* Menu button (authenticated): mobile AND tablet portrait, up to lg. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         className={cn(
-          "grid h-11 w-11 place-items-center rounded-full border border-border bg-muted/60 text-foreground transition-colors hover:border-border-strong sm:hidden",
+          "grid h-11 w-11 place-items-center rounded-full border border-border bg-muted/60 text-foreground transition-colors hover:border-border-strong lg:hidden",
           FOCUS_RING,
         )}
       >
@@ -154,7 +156,7 @@ export function PlayerNav({
 
       {/* Mobile sheet — rendered only when open (avoids duplicate labels). */}
       {open && (
-        <div className="absolute inset-x-0 top-16 z-40 border-b border-border surface-glass sm:hidden">
+        <div className="absolute inset-x-0 top-16 z-40 border-b border-border surface-glass lg:hidden">
           <nav
             className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-3"
             aria-label="Mobile navigation"

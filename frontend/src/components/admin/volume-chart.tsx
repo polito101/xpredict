@@ -38,6 +38,15 @@ import type { VolumeBucket } from "@/lib/kpi-types";
 /** Brand-primary stroke so the chart re-skins live; emerald fallback. */
 const VOLUME_STROKE = "var(--brand-primary, #059669)";
 
+// Format the ISO `day` as a short date for the axis + tooltip (raw ISO is
+// unreadable). en-US to match the app's English chrome regardless of locale.
+function formatDay(day: string): string {
+  const d = new Date(day);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 function VolumeChartEmptyState() {
   return (
     <div className="flex h-64 w-full flex-col items-center justify-center text-center">
@@ -89,6 +98,7 @@ export function VolumeChart({ buckets }: { buckets: VolumeBucket[] }) {
               />
               <XAxis
                 dataKey="day"
+                tickFormatter={(value) => formatDay(String(value))}
                 tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                 axisLine={{ stroke: "var(--border)" }}
                 tickLine={false}
@@ -112,6 +122,7 @@ export function VolumeChart({ buckets }: { buckets: VolumeBucket[] }) {
                 }}
                 labelStyle={{ color: "var(--muted-foreground)" }}
                 itemStyle={{ color: "var(--foreground)" }}
+                labelFormatter={(label) => formatDay(String(label))}
               />
               <Area
                 type="monotone"
