@@ -57,29 +57,29 @@ def _validate_logo(content_type: str | None, data: bytes) -> str:
     declared = (content_type or "").split(";", 1)[0].strip().lower()
     if declared not in _LOGO_ALLOWLIST:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Logo must be a PNG, JPEG, WebP, or SVG file.",
         )
     if len(data) > _MAX_LOGO_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Logo must be 256 KB or smaller.",
         )
     # Leading magic-byte verification for the binary formats (content-type lies,
     # T-10-04). SVG is text/xml — no magic check; the size cap + allowlist guard it.
     if declared == "image/png" and not data.startswith(_PNG_MAGIC):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Logo content does not match a PNG file.",
         )
     if declared == "image/jpeg" and not data.startswith(_JPEG_MAGIC):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Logo content does not match a JPEG file.",
         )
     if declared == "image/webp" and not (data[:4] == b"RIFF" and data[8:12] == b"WEBP"):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Logo content does not match a WebP file.",
         )
     return declared
@@ -136,7 +136,7 @@ async def update_tenant_config(
         )
     except ValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=exc.errors(),
         ) from exc
 
@@ -150,7 +150,7 @@ async def update_tenant_config(
         data = await logo.read(_MAX_LOGO_BYTES + 1)
         if len(data) > _MAX_LOGO_BYTES:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Logo must be 256 KB or smaller.",
             )
         if data:  # an empty file part means "no logo provided" — ignore it
