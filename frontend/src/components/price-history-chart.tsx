@@ -39,6 +39,29 @@ import { cn } from "@/lib/utils";
 
 const WINDOWS: PriceWindow[] = ["24h", "7d", "30d"];
 
+// X-axis / tooltip date formatting: raw ISO timestamps are unreadable on the
+// axis. 24h window → time of day; 7d/30d → short date. en-US keeps the format
+// aligned with the app's English chrome regardless of device locale.
+function axisTickFormatter(ts: string, w: PriceWindow): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "";
+  return w === "24h"
+    ? d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function tooltipLabelFormatter(ts: string): string {
+  const d = new Date(ts);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+}
+
 interface PriceHistoryChartProps {
   points: PricePoint[];
   window: PriceWindow;
@@ -143,6 +166,7 @@ export function PriceHistoryChart({
               />
               <XAxis
                 dataKey="ts"
+                tickFormatter={(value) => axisTickFormatter(String(value), window)}
                 tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                 axisLine={{ stroke: "var(--border)" }}
                 tickLine={false}
@@ -168,6 +192,7 @@ export function PriceHistoryChart({
                 }}
                 labelStyle={{ color: "var(--muted-foreground)" }}
                 itemStyle={{ color: "var(--foreground)" }}
+                labelFormatter={(label) => tooltipLabelFormatter(String(label))}
                 formatter={(value) => [`${value}%`, "YES"]}
               />
               <Area

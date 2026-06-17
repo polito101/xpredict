@@ -13,6 +13,7 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { LiveTable } from "./live-table";
+import { LiveOrientationGate } from "./live-orientation-gate";
 
 export const PAGE_SHELL = "w-full max-w-6xl mx-auto px-4 sm:px-6 py-12";
 const CURRENCY = "PLAY_USD";
@@ -119,18 +120,20 @@ export function LiveFullscreenHost({
   counterLabel?: string;
 }) {
   return (
-    <main
-      data-testid="live-fullscreen"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black"
-    >
-      <div className="w-full max-w-[min(100vw,calc(100dvh*16/9))]">
-        <LiveTable
-          sessionToken={sessionToken}
-          tableId={tableId}
-          initialBalance={initialBalance}
-          counterLabel={counterLabel}
-        />
-      </div>
-    </main>
+    <LiveOrientationGate>
+      <main
+        data-testid="live-fullscreen"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black"
+      >
+        <div className="w-full max-w-[min(100vw,calc(100dvh*16/9))]">
+          <LiveTable
+            sessionToken={sessionToken}
+            tableId={tableId}
+            initialBalance={initialBalance}
+            counterLabel={counterLabel}
+          />
+        </div>
+      </main>
+    </LiveOrientationGate>
   );
 }

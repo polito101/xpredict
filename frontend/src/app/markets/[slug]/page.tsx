@@ -205,8 +205,10 @@ async function MarketDetailBody({ slug }: { slug: string }) {
       </header>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-        {/* LEFT: description + criteria + chart + activity */}
-        <div className="flex min-w-0 flex-col gap-8 lg:col-span-2">
+        {/* LEFT: description + criteria + chart + activity.
+            order-2 below lg so the order-entry panel (order-1) sits up top on
+            tablet/portrait instead of being buried under the chart + activity. */}
+        <div className="order-2 flex min-w-0 flex-col gap-8 lg:order-1 lg:col-span-2">
           {/* Live odds + Live/Stale indicator (updates in place from the socket) */}
           {yesOutcome && noOutcome && (
             <MarketDetailLiveOdds
@@ -244,8 +246,9 @@ async function MarketDetailBody({ slug }: { slug: string }) {
           </section>
         </div>
 
-        {/* RIGHT: sticky panel — resolution display when RESOLVED, else order entry. */}
-        <div className="lg:col-span-1">
+        {/* RIGHT: sticky panel — resolution display when RESOLVED, else order entry.
+            order-1 below lg lifts the bet CTA above the fold on tablet/portrait. */}
+        <div className="order-1 lg:order-2 lg:col-span-1">
           {isResolved ? (
             <MarketResolutionPanel
               winningOutcomeLabel={winningOutcomeLabel}

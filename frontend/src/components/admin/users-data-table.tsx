@@ -63,9 +63,17 @@ import type {
   UserStatus,
 } from "@/lib/admin-types";
 import { formatDate, formatMoney, formatRelativeTime, truncate } from "@/lib/admin-format";
+import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
 const STATUS_ALL = "all";
+
+// Secondary columns hidden below lg so the essential ones (email, name, status,
+// balance, action) fit a tablet-portrait viewport (~800px) without horizontal
+// scroll. All columns return at lg+ (desktop + tablet landscape).
+const HIDE_BELOW_LG = new Set(["created_at", "last_activity"]);
+const hideBelowLg = (columnId: string) =>
+  HIDE_BELOW_LG.has(columnId) ? "hidden lg:table-cell" : undefined;
 
 const columns: ColumnDef<UserListItem>[] = [
   {
@@ -73,7 +81,7 @@ const columns: ColumnDef<UserListItem>[] = [
     header: "Email",
     enableSorting: true,
     cell: ({ row }) => (
-      <span className="font-medium text-foreground">
+      <span className="block max-w-[200px] truncate font-medium text-foreground lg:max-w-none">
         {row.original.email}
       </span>
     ),
@@ -286,7 +294,10 @@ export function UsersDataTable({
                               ? "descending"
                               : "none"
                         }
-                        className={canSort ? "cursor-pointer select-none" : undefined}
+                        className={cn(
+                          hideBelowLg(header.column.id),
+                          canSort && "cursor-pointer select-none",
+                        )}
                         onClick={
                           canSort
                             ? header.column.getToggleSortingHandler()
@@ -310,8 +321,13 @@ export function UsersDataTable({
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={`skeleton-${i}`}>
-                    {columns.map((_col, ci) => (
-                      <TableCell key={ci}>
+                    {columns.map((col, ci) => (
+                      <TableCell
+                        key={ci}
+                        className={hideBelowLg(
+                          (col as { accessorKey?: string }).accessorKey ?? "",
+                        )}
+                      >
                         <Skeleton className="h-4 w-full" aria-hidden="true" />
                       </TableCell>
                     ))}
@@ -360,7 +376,10 @@ export function UsersDataTable({
                     }}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
+                      <TableCell
+                        key={cell.id}
+                        className={hideBelowLg(cell.column.id)}
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext(),
