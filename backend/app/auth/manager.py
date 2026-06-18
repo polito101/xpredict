@@ -140,9 +140,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
     # ------------------------------------------------------------------
     # Critical #1 (audit) — authenticate WITHOUT blocking the event loop.
     # ------------------------------------------------------------------
-    async def authenticate(  # type: ignore[override]
-        self, credentials: OAuth2PasswordRequestForm
-    ) -> User | None:
+    async def authenticate(self, credentials: OAuth2PasswordRequestForm) -> User | None:
         """Authenticate by email + password without blocking the asyncio event loop.
 
         Mirrors ``BaseUserManager.authenticate`` exactly — same timing-attack dummy hash on
