@@ -428,10 +428,20 @@ async def test_settle_ready_market_settles_as_sole_candidate(engine) -> None:
         await s.flush()
         s.add_all(
             [
-                Outcome(id=spurs_id, market_id=market_id, label="Spurs", initial_odds="0.5",
-                        current_odds="0.5"),
-                Outcome(id=thunder_id, market_id=market_id, label="Thunder", initial_odds="0.5",
-                        current_odds="0.5"),
+                Outcome(
+                    id=spurs_id,
+                    market_id=market_id,
+                    label="Spurs",
+                    initial_odds="0.5",
+                    current_odds="0.5",
+                ),
+                Outcome(
+                    id=thunder_id,
+                    market_id=market_id,
+                    label="Thunder",
+                    initial_odds="0.5",
+                    current_odds="0.5",
+                ),
             ]
         )
 
@@ -462,8 +472,6 @@ async def test_settle_ready_market_settles_as_sole_candidate(engine) -> None:
             await _run_detect_resolutions(redis_override=redis, session_override=detect_session)
 
     async with sm() as s:
-        market = (
-            await s.execute(select(Market).where(Market.id == market_id))
-        ).scalar_one()
+        market = (await s.execute(select(Market).where(Market.id == market_id))).scalar_one()
         assert market.status == MarketStatus.RESOLVED.value
         assert market.winning_outcome_id == thunder_id
