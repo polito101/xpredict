@@ -8,6 +8,11 @@
  * Contract. "Dashboard", "Users", "Audit log", "Branding" and "Markets" are all
  * real links (Plan 12-05 enabled "Markets" → /admin/markets, BLOCKER-3).
  *
+ * "Log out" is NOT a link — it submits the `adminLogoutAction` Server Action
+ * (revokes the admin Bearer via POST /admin/auth/logout + clears the admin_jwt
+ * cookie, then redirects to /admin/login), mirroring how player-nav posts
+ * `logoutAction`. There is deliberately no `/admin/logout` route.
+ *
  * Active:   text-foreground font-semibold underline underline-offset-4 (dark: zinc-50)
  * Inactive: text-muted-foreground hover:text-foreground (dark: zinc-400 hover:zinc-50)
  *
@@ -20,6 +25,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { adminLogoutAction } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const LINKS: { href: string; label: string; exact?: boolean }[] = [
@@ -57,12 +63,14 @@ export function AdminNav() {
         );
       })}
       <span className="mx-1.5 hidden h-5 w-px bg-border md:inline-block" aria-hidden="true" />
-      <Link
-        href="/admin/logout"
-        className="rounded-full px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      >
-        Log out
-      </Link>
+      <form action={adminLogoutAction}>
+        <button
+          type="submit"
+          className="rounded-full px-3 py-1.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Log out
+        </button>
+      </form>
     </div>
   );
 }
