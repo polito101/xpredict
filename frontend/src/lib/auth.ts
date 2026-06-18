@@ -436,3 +436,34 @@ export async function adminLoginAction(
 
   redirect("/admin");
 }
+
+// ---------------------------------------------------------------------------
+// adminLogoutAction (Plan 02-05 deferral, §"Phase 8") — revoke the admin Bearer
+// server-side + clear the admin_jwt cookie.
+// ---------------------------------------------------------------------------
+//
+// The admin mirror of `logoutAction`, but over Bearer transport instead of the
+// player session cookie. Reads the HttpOnly `admin_jwt` cookie (path-scoped to
+// /admin by adminLoginAction), best-effort POSTs it to the backend logout proxy
+// with `Authorization: Bearer <token>` so the refresh-token row is revoked
+// (T-02-36, `admin_logout_proxy`), then deletes the cookie (SAME `path: '/admin'`
+// so the clearing Set-Cookie matches) and redirects to /admin/login. If the
+// revoke call fails the cookie is still cleared, so the browser is logged out
+// regardless. There is deliberately NO /admin/logout route — logout is this
+// Server Action, posted from the admin nav.
+export async function adminLogoutAction(): Promise<void> {
+  const store = await cookies();
+  const token = store.get("admin_jwt")?.value;
+  if (token) {
+    try {
+      await fetch(`${getBackendUrl()}/admin/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // Network/endpoint hiccup — fall through to the local cookie clear.
+    }
+  }
+  store.delete({ name: "admin_jwt", path: "/admin" });
+  redirect("/admin/login");
+}
