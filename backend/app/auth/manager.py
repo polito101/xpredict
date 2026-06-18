@@ -24,7 +24,9 @@ import re
 from typing import Any
 from uuid import UUID
 
+import anyio.to_thread
 import structlog
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import BaseUserManager, UUIDIDMixin, exceptions
 from fastapi_users.exceptions import InvalidPasswordException
 from fastapi_users.password import PasswordHelperProtocol
@@ -106,7 +108,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
             else user_create.create_update_dict_superuser()  # type: ignore[no-untyped-call]
         )
         password = user_dict.pop("password")
-        user_dict["hashed_password"] = self.password_helper.hash(password)
+        # Critical #1 (audit): the Argon2id KDF is ~70 ms of blocking CPU + a 64 MiB
+        # transient allocation — offload it to a worker thread so registration (and the
+        # one-click demo-login, which calls create()) never freezes the event loop.
+        user_dict["hashed_password"] = await anyio.to_thread.run_sync(
+            self.password_helper.hash, password
+        )
         # DEMO_MODE: auto-verify at registration (no email step) so the player can
         # bet immediately (current_active_player requires verified=True).
         if get_settings().DEMO_MODE:
@@ -128,6 +135,41 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, UUID]):
         await session.refresh(user)
 
         await self.on_after_register(user, request)
+        return user
+
+    # ------------------------------------------------------------------
+    # Critical #1 (audit) — authenticate WITHOUT blocking the event loop.
+    # ------------------------------------------------------------------
+    async def authenticate(  # type: ignore[override]
+        self, credentials: OAuth2PasswordRequestForm
+    ) -> User | None:
+        """Authenticate by email + password without blocking the asyncio event loop.
+
+        Mirrors ``BaseUserManager.authenticate`` exactly — same timing-attack dummy hash on
+        an unknown email (Django ticket #20760), same opportunistic hash upgrade — but runs
+        the CPU+memory-bound Argon2id KDF in a worker thread via ``anyio.to_thread.run_sync``.
+        The stock method calls the synchronous ``verify_and_update`` / ``hash`` inline on the
+        single event-loop thread (~70 ms + a 64 MiB transient alloc per call), stalling every
+        other coroutine on the worker (healthz, catalog, bets, WS heartbeats) and collapsing
+        login throughput under a burst; offloading removes that head-of-line block.
+        """
+        try:
+            user = await self.get_by_email(credentials.username)
+        except exceptions.UserNotExists:
+            # Dummy hash to mitigate a user-enumeration timing attack — off the loop thread.
+            await anyio.to_thread.run_sync(self.password_helper.hash, credentials.password)
+            return None
+
+        verified, updated_password_hash = await anyio.to_thread.run_sync(
+            self.password_helper.verify_and_update,
+            credentials.password,
+            user.hashed_password,
+        )
+        if not verified:
+            return None
+        # Upgrade the stored hash to a more robust one if pwdlib deemed it stale.
+        if updated_password_hash is not None:
+            await self.user_db.update(user, {"hashed_password": updated_password_hash})
         return user
 
     # ------------------------------------------------------------------
