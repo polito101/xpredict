@@ -376,3 +376,102 @@ async def test_reversal_after_auto_settlement() -> None:
         )
 
     assert reversed_count >= 0  # 0 bets in this test (no bets placed), no-op but valid
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio(loop_scope="session")
+async def test_settle_ready_market_settles_as_sole_candidate(engine) -> None:
+    """Critical #3: a settle-ready market that is the FIRST/ONLY candidate must settle.
+
+    Depends on ``engine`` (session-scoped) so the testcontainer is up and ``DATABASE_URL`` is
+    rewritten + the engine cache cleared before ``_get_session_maker()`` is used — lets this
+    test run standalone, not only after another engine-dependent test in the full suite.
+
+    Regression for the shared-session bug: the detector ran the candidate SELECT and each
+    per-market settle on ONE session, so ``resolve_market``'s ``async with session.begin()``
+    raised ``InvalidRequestError`` ("a transaction is already begun") the moment it reached a
+    settle-ready candidate with no intervening grace-start commit to clear the read tx. The
+    bare ``except`` swallowed it (logged ``detect_settle_failed``) and winners were never paid,
+    tick after tick. With a fresh session per settle the market resolves on the first pass.
+
+    Past the grace window already (``uma_resolved_at`` far in the past), so the detector skips
+    the grace-start branch — exactly the path that left the read tx open before the fix.
+    """
+    from sqlalchemy import select
+
+    from app.db.session import _get_session_maker
+    from app.integrations.polymarket.tasks import _run_detect_resolutions
+    from app.markets.models import Market, Outcome
+
+    market_id = uuid4()
+    spurs_id = uuid4()
+    thunder_id = uuid4()
+    source_market_id = f"gamma-settle-{market_id.hex[:8]}"
+
+    sm = _get_session_maker()
+    async with sm() as s, s.begin():
+        s.add(
+            Market(
+                id=market_id,
+                question="Spurs vs. Thunder — settle-ready",
+                slug=f"settle-ready-{market_id.hex[:8]}",
+                resolution_criteria="test",
+                source=MarketSourceEnum.POLYMARKET.value,
+                source_market_id=source_market_id,
+                status=MarketStatus.CLOSED.value,
+                deadline=datetime(2020, 1, 1, tzinfo=UTC),
+                # Grace already elapsed (well past any POLYMARKET_GRACE_PERIOD_MINUTES) so the
+                # detector proceeds straight to settlement on this very tick.
+                uma_resolved_at=datetime.now(UTC) - timedelta(days=1),
+            )
+        )
+        await s.flush()
+        s.add_all(
+            [
+                Outcome(
+                    id=spurs_id,
+                    market_id=market_id,
+                    label="Spurs",
+                    initial_odds="0.5",
+                    current_odds="0.5",
+                ),
+                Outcome(
+                    id=thunder_id,
+                    market_id=market_id,
+                    label="Thunder",
+                    initial_odds="0.5",
+                    current_odds="0.5",
+                ),
+            ]
+        )
+
+    resolved_raw = {
+        "id": source_market_id,
+        "question": "Spurs vs. Thunder",
+        "closed": True,
+        "umaResolutionStatus": "resolved",
+        "outcomePrices": '["0","1"]',  # Thunder wins (price 1)
+        "outcomes": '["Spurs","Thunder"]',
+        "endDate": "2020-01-01T00:00:00Z",
+    }
+
+    redis = AsyncMock()
+    redis.set = AsyncMock(return_value=True)
+    redis.delete = AsyncMock()
+
+    # resolve_market is NOT mocked here — the real settlement path must run so the
+    # shared-session transaction collision (the bug) is actually exercised.
+    async with sm() as detect_session:
+        with (
+            patch(
+                "app.integrations.polymarket.tasks.GammaClient.fetch_market_by_id",
+                new=AsyncMock(return_value=resolved_raw),
+            ),
+            patch("app.integrations.polymarket.tasks.GammaClient.close", new=AsyncMock()),
+        ):
+            await _run_detect_resolutions(redis_override=redis, session_override=detect_session)
+
+    async with sm() as s:
+        market = (await s.execute(select(Market).where(Market.id == market_id))).scalar_one()
+        assert market.status == MarketStatus.RESOLVED.value
+        assert market.winning_outcome_id == thunder_id
