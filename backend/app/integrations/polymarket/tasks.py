@@ -484,18 +484,28 @@ async def _run_detect_resolutions(
                 )
                 continue
 
+            from app.db.session import _get_session_maker
             from app.settlement.adapters import HouseMarketResolveAdapter
             from app.settlement.service import SettlementService
 
             try:
-                await SettlementService.resolve_market(
-                    session,
-                    market_id=market.id,
-                    winning_outcome_id=winning_outcome_id,
-                    market_resolver=HouseMarketResolveAdapter(),
-                    justification="Auto-resolved: Polymarket UMA oracle confirmed resolution",
-                    actor_user_id=None,
-                )
+                # Critical #3 (audit): settle on a FRESH session, never the loop's `session`.
+                # The candidate SELECT above left an implicit read tx open on `session`;
+                # reusing it made resolve_market's `async with session.begin()` raise
+                # InvalidRequestError ("a transaction is already begun") on the first
+                # settle-ready candidate with no intervening grace-start commit — swallowed by
+                # the bare except below, so winners were never paid, tick after tick. A
+                # dedicated session per settle opens cleanly (mirrors the settlement tests'
+                # own-session pattern) and isolates each settle's transaction.
+                async with _get_session_maker()() as settle_session:
+                    await SettlementService.resolve_market(
+                        settle_session,
+                        market_id=market.id,
+                        winning_outcome_id=winning_outcome_id,
+                        market_resolver=HouseMarketResolveAdapter(),
+                        justification="Auto-resolved: Polymarket UMA oracle confirmed resolution",
+                        actor_user_id=None,
+                    )
                 log.info("detect_settled", market_id=str(market.id))
             except Exception as exc:
                 log.error("detect_settle_failed", error=str(exc), market_id=str(market.id))
