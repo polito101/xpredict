@@ -8,6 +8,8 @@ block) and that ``GET /api/v1/catalog`` answers on the wired app. The legacy
 
 from __future__ import annotations
 
+import warnings
+
 import pytest
 
 from app.main import app
@@ -31,8 +33,19 @@ _PHASE16_ROUTES = {
 
 
 async def test_new_routes_registered() -> None:
-    """All eight Phase-16 paths are present on the assembled app (registered in main.py)."""
-    paths = {getattr(r, "path", None) for r in app.routes}
+    """All eight Phase-16 paths are present on the assembled app (registered in main.py).
+
+    Asserted against the public OpenAPI path table rather than by walking
+    ``app.routes``: FastAPI 0.137 stopped flattening ``include_router`` into the top
+    level (each inclusion is now an opaque ``_IncludedRouter`` whose leaf routes are
+    not exposed as ``.path``), so the old ``{r.path for r in app.routes}`` set no
+    longer sees included paths. ``app.openapi()`` is the stable contract. The
+    duplicate-operation-id ``UserWarning`` (GET+HEAD on ``/_sentry-test``) is
+    orthogonal to route registration, so it is ignored for the schema build only.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        paths = set(app.openapi().get("paths", {}).keys())
     missing = _PHASE16_ROUTES - paths
     assert not missing, f"unregistered Phase-16 routes: {sorted(missing)}"
 

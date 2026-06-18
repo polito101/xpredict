@@ -746,3 +746,118 @@ async def test_reverse_settlement_is_atomic_on_failure() -> None:
 
     assert await _balance(alice_w) == settled_balance  # unchanged (still settled)
     assert (await _bets_for_user(alice))[0].status == BET_SETTLED_WON
+
+
+# --------------------------------------------------------------------------- #
+# Defensive status guard (adapters.py). The markets row has no resolve guard of its own
+# and SettlementService calls mark_resolved OUTSIDE its `if bets:` block, so the status
+# flip lands even when no money moves. Two terminal states must be handled:
+#   - CANCELLED: a voided market must NEVER be force-RESOLVED (it would force win/loss
+#     payouts on a voided event). Hard error — no production path resolves a CANCELLED
+#     market today (the enum has no writer).
+#   - RESOLVED: tolerate idempotently. Re-resolve is the EVA-03 event-replay canary; the
+#     bet-status PENDING filter is the ledger-side guard. Skip — never re-stamp the winner
+#     / resolved_at, and never RAISE (raising would fail every child of an idempotent
+#     resolve_event replay -> test_resolve_event_is_idempotent).
+# --------------------------------------------------------------------------- #
+async def _seed_market_with_status(status: str) -> tuple[UUID, UUID, UUID]:
+    """INSERT a real ``markets`` row (+ YES/NO outcomes) in ``status``; return
+    ``(market_id, yes_id, no_id)``. The REAL adapter UPDATEs this committed row.
+
+    Mirrors ``_seed_real_market`` (same required columns) but parametrizes the status so a
+    terminal-state row can be seeded directly."""
+    from app.markets.enums import MarketSourceEnum
+    from app.markets.models import Market, Outcome
+
+    market_id, yes_id, no_id = uuid4(), uuid4(), uuid4()
+    sm = _get_session_maker()
+    async with sm() as s, s.begin():
+        s.add(
+            Market(
+                id=market_id,
+                question=f"guard {market_id.hex[:8]}",
+                slug=f"guard-{market_id.hex[:8]}",
+                resolution_criteria="test",
+                source=MarketSourceEnum.HOUSE.value,
+                status=status,
+                deadline=datetime.now(UTC) + timedelta(days=1),
+            )
+        )
+        await s.flush()
+        s.add_all(
+            [
+                Outcome(
+                    id=yes_id,
+                    market_id=market_id,
+                    label="YES",
+                    initial_odds=Decimal("0.5"),
+                    current_odds=Decimal("0.5"),
+                ),
+                Outcome(
+                    id=no_id,
+                    market_id=market_id,
+                    label="NO",
+                    initial_odds=Decimal("0.5"),
+                    current_odds=Decimal("0.5"),
+                ),
+            ]
+        )
+    return market_id, yes_id, no_id
+
+
+async def test_mark_resolved_rejects_cancelled_market() -> None:
+    """A CANCELLED (voided) market must never be force-RESOLVED — that would force
+    win/loss payouts on a voided event. Pure defense: no production path resolves a
+    CANCELLED market today, so this guards a future cancel feature wiring it up before a
+    stake-refund path exists (none does — settlement/event_service.py void_event)."""
+    from app.settlement.adapters import HouseMarketResolveAdapter
+
+    market_id, yes_id, _no_id = await _seed_market_with_status("CANCELLED")
+
+    sm = _get_session_maker()
+    async with sm() as s:
+        with pytest.raises(ValueError, match="CANCELLED"):
+            await HouseMarketResolveAdapter().mark_resolved(
+                s,
+                market_id=market_id,
+                winning_outcome_id=yes_id,
+                resolution_source="HOUSE",
+                justification="should be rejected",
+            )
+
+    row = await _market_row(market_id)
+    assert row.status == "CANCELLED"  # untouched
+    assert row.winning_outcome_id is None  # no winner stamped
+
+
+async def test_mark_resolved_is_idempotent_on_already_resolved() -> None:
+    """Re-resolving an already-RESOLVED market is a no-op: it must NOT raise (the EVA-03
+    idempotent resolve_event replay calls mark_resolved on already-RESOLVED children) and
+    must NOT overwrite the recorded winner or re-stamp resolved_at."""
+    from app.markets.models import Market
+    from app.settlement.adapters import HouseMarketResolveAdapter
+
+    market_id, yes_id, no_id = await _seed_market_with_status("RESOLVED")
+
+    # Stamp the original winner (YES) + a fixed resolved_at, as the first resolve would have.
+    sm = _get_session_maker()
+    async with sm() as s, s.begin():
+        m = await s.get(Market, market_id)
+        m.winning_outcome_id = yes_id
+        m.resolved_at = datetime(2020, 1, 1, tzinfo=UTC)
+    original_resolved_at = (await _market_row(market_id)).resolved_at
+
+    # Re-resolve with a DIFFERENT winner (NO) — must be silently ignored, not overwrite.
+    async with sm() as s, s.begin():
+        await HouseMarketResolveAdapter().mark_resolved(
+            s,
+            market_id=market_id,
+            winning_outcome_id=no_id,  # different from the stamped YES
+            resolution_source="HOUSE",
+            justification="idempotent replay",
+        )
+
+    row = await _market_row(market_id)
+    assert row.status == "RESOLVED"
+    assert row.winning_outcome_id == yes_id  # original winner preserved, NOT overwritten
+    assert row.resolved_at == original_resolved_at  # not re-stamped

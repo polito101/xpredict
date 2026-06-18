@@ -98,9 +98,9 @@ def _map_event_value_error(exc: ValueError, group_id: UUID) -> HTTPException:
     if "No market group" in message:
         return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
     if "winning_outcome_id" in message:
-        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message)
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=message)
     if "justification" in message:
-        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=message)
+        return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=message)
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
 
@@ -187,7 +187,7 @@ async def resolve_event(
         }
         if body.winning_outcome_id not in yes_ids:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail=(
                     f"winning_outcome_id {body.winning_outcome_id} is not the YES outcome "
                     f"of a child of group {group_id}."

@@ -8,8 +8,11 @@ authors = [
   { name = "Pol Bonet" },
 ]
 dependencies = [
-  # HTTP framework
-  "fastapi[standard]>=0.115.7,<0.116.0",
+  # HTTP framework. fastapi bumped 0.115→0.137 to lift the transitive
+  # starlette<0.47 cap so the lock can carry starlette 1.x (2026 CVE fixes:
+  # CVE-2026-48817/-48818/-54282/-54283). fastapi-users (>=0.65.2) and slowapi
+  # (no starlette pin) both stay compatible.
+  "fastapi[standard]>=0.137.0,<0.138.0",
   "uvicorn[standard]>=0.32,<0.36",
   # Settings / models
   "pydantic>=2.10,<3.0",
